@@ -1,5 +1,5 @@
 import React, { useState } from "react"
-import { useNavigate, useLocation, Link } from "react-router-dom"
+import { useNavigate, useLocation } from "react-router-dom"
 import { z } from "zod"
 import { useAuthStore } from "@/store/auth.store"
 import { cn } from "@/lib/utils"
