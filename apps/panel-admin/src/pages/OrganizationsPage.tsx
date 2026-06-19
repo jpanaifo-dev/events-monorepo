@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Card } from "@/components/ui/card"
 
 const OrganizationCardSkeleton = () => (
   <div className="bg-card border border-border rounded-xl p-6 h-[140px] animate-pulse flex items-start gap-4">
@@ -208,10 +209,10 @@ export function OrganizationsPage() {
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {filteredOrgs.map((org) => (
-              <div
+              <Card
                 key={org.id}
                 onClick={() => handleSelect(org)}
-                className="group p-6 bg-card border border-border rounded-xl hover:shadow-md cursor-pointer transition-all flex items-start gap-4 min-h-36"
+                className="group p-6 hover:shadow-md cursor-pointer transition-all flex items-start gap-4 min-h-36 bg-card border border-border"
               >
                 {/* Left logo icon or avatar fallback */}
                 <div className="flex size-10 shrink-0 items-center justify-center rounded-lg overflow-hidden border border-border bg-muted/10 group-hover:border-primary transition-colors">
@@ -227,12 +228,8 @@ export function OrganizationsPage() {
                   )}
                 </div>
                 {/* Metadata */}
-                <div className="space-y-1 overflow-hidden flex-1">
-                  <h3 className="font-medium text-sm line-clamp-3 group-hover:text-primary transition-colors break-words">
-                    {org.name}
-                  </h3>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
-                    <span className="font-medium bg-muted px-2 py-0.5 rounded-md text-primary capitalize">{org.type}</span>
+                <div className="overflow-hidden flex-1 flex flex-col gap-2">
+                  <div>
                     {org.isActive ? (
                       <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md">
                         ACTIVO
@@ -243,11 +240,17 @@ export function OrganizationsPage() {
                       </span>
                     )}
                   </div>
+                  <h3 className="font-medium  line-clamp-3 group-hover:underline transition-colors break-words">
+                    {org.name}
+                  </h3>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                    <span className="font-medium bg-muted px-2 py-0.5 rounded-md text-primary capitalize">{org.type}</span>
+                  </div>
                   {org.description && (
                     <p className="text-xs text-muted-foreground line-clamp-2 pt-1">{org.description}</p>
                   )}
                 </div>
-              </div>
+              </Card>
             ))}
           </div>
         )}

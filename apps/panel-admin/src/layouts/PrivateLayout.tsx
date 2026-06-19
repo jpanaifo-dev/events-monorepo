@@ -3,8 +3,24 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { ThemeSwitch } from "@/components/ui/theme-switch"
 import { DynamicBreadcrumbs } from "@/components/dynamic-breadcrumbs"
+import { useAuthStore } from "@/store/auth.store"
+import { useEffect } from "react"
 
 export function PrivateLayout() {
+  const { selectedOrganization } = useAuthStore()
+
+  useEffect(() => {
+    if (selectedOrganization?.faviconUrl) {
+      let link: HTMLLinkElement | null = document.querySelector("link[rel*='icon']")
+      if (!link) {
+        link = document.createElement("link")
+        link.rel = "icon"
+        document.head.appendChild(link)
+      }
+      link.href = selectedOrganization.faviconUrl
+    }
+  }, [selectedOrganization])
+
   return (
     <SidebarProvider>
       <div className="flex h-screen w-screen bg-background overflow-hidden text-foreground">
@@ -17,6 +33,13 @@ export function PrivateLayout() {
             <div className="flex items-center gap-4">
               <SidebarTrigger />
               <div className="h-4 w-[1px] bg-border" />
+              {selectedOrganization?.logoUrl && (
+                <img
+                  src={selectedOrganization.logoUrl}
+                  alt={selectedOrganization.name}
+                  className="h-8 w-8 rounded-md object-cover border border-border animate-in fade-in duration-200"
+                />
+              )}
               <DynamicBreadcrumbs />
             </div>
             <div className="flex items-center gap-6 text-sm">
