@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from "react"
 import { Upload, Trash2, Link2, Loader2 } from "lucide-react"
-import { supabase } from "@/utils/supabase"
 import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
+import { uploadToR2, deleteFromR2 } from "@/utils/r2-storage"
 
 interface ImageUploadWithPreviewProps {
   value: string
@@ -10,6 +10,8 @@ interface ImageUploadWithPreviewProps {
   label: string
   aspectRatio?: "square" | "banner" | "favicon"
   placeholder?: string
+  folder?: string
+  identifier?: string
 }
 
 export function ImageUploadWithPreview({
@@ -17,7 +19,9 @@ export function ImageUploadWithPreview({
   onChange,
   label,
   aspectRatio = "square",
-  placeholder = "Arrastra y suelta una imagen aquí, o pega un enlace abajo"
+  placeholder = "Arrastra y suelta una imagen aquí, o pega un enlace abajo",
+  folder = "general",
+  identifier = "file"
 }: ImageUploadWithPreviewProps) {
   const [dragActive, setDragActive] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
@@ -70,32 +74,25 @@ export function ImageUploadWithPreview({
         return
       }
 
-      const fileExt = file.name.split(".").pop()
-      const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`
-      const filePath = `org-images/${fileName}`
+      // Attempt to delete old image from R2 if one was present
+      if (value) {
+        try {
+          await deleteFromR2(value)
+        } catch (delErr) {
+          console.warn("Failed to delete old image from R2:", delErr)
+        }
+      }
 
-      // Attempt upload to Supabase Storage
-      const { error } = await supabase.storage
-        .from("organizations")
-        .upload(filePath, file, {
-          cacheControl: "3600",
-          upsert: false
-        })
-
-      if (error) {
-        console.warn("Supabase Storage upload failed, falling back to Base64:", error)
-        // Fallback: convert to base64
-        const base64String = await convertToBase64(file)
-        onChange(base64String)
-        toast.info("Imagen cargada localmente (almacenada en base de datos)")
-      } else {
-        // Get public URL
-        const { data: { publicUrl } } = supabase.storage
-          .from("organizations")
-          .getPublicUrl(filePath)
-
+      // Upload to Cloudflare R2
+      try {
+        const publicUrl = await uploadToR2(file, folder, identifier)
         onChange(publicUrl)
         toast.success("Imagen subida exitosamente")
+      } catch (uploadErr: any) {
+        console.warn("R2 upload failed, falling back to Base64:", uploadErr)
+        const base64String = await convertToBase64(file)
+        onChange(base64String)
+        toast.info("Imagen cargada localmente (Base64)")
       }
     } catch (err: any) {
       console.error("Error processing image upload:", err)
@@ -122,15 +119,27 @@ export function ImageUploadWithPreview({
     }
   }
 
-  const handleRemove = (e: React.MouseEvent) => {
+  const handleRemove = async (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
+    const oldUrl = value
     onChange("")
     setPreviewUrl("")
     if (fileInputRef.current) {
       fileInputRef.current.value = ""
     }
-    toast.success("Imagen removida")
+    
+    if (oldUrl) {
+      try {
+        await deleteFromR2(oldUrl)
+        toast.success("Imagen eliminada de R2")
+      } catch (err) {
+        console.error("Failed to delete from R2:", err)
+        toast.success("Imagen removida localmente")
+      }
+    } else {
+      toast.success("Imagen removida")
+    }
   }
 
   // Define aspect ratio classes
@@ -165,7 +174,7 @@ export function ImageUploadWithPreview({
     <div className="space-y-3 w-full">
       <label className="text-sm font-medium text-foreground block">{label}</label>
 
-      <div className="flex flex-col  gap-4 items-start w-full">
+      <div className="flex flex-col gap-4 items-start w-full">
         {/* Dropzone Container */}
         <div
           className={getContainerClass()}
@@ -243,7 +252,7 @@ export function ImageUploadWithPreview({
             />
           </div>
           <p className="text-[10px] text-muted-foreground">
-            O si prefieres, pega la dirección directa de una imagen web. Las subidas por arrastre se guardarán en Supabase.
+            O si prefieres, pega la dirección directa de una imagen web. Las subidas por arrastre se guardarán en R2.
           </p>
         </div>
       </div>

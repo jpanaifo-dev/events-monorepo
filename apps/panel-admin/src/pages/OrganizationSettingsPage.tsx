@@ -552,6 +552,8 @@ export function OrganizationSettingsPage() {
                 onChange={setLogoUrl}
                 aspectRatio="square"
                 placeholder="Arrastra tu logotipo aquí, o pega un enlace"
+                folder="organizations"
+                identifier={`${slug}-logo`}
               />
               {errors.logoUrl && (
                 <p className="text-xs text-destructive mt-1.5 font-medium">{errors.logoUrl}</p>
@@ -572,6 +574,8 @@ export function OrganizationSettingsPage() {
                 onChange={setCoverUrl}
                 aspectRatio="banner"
                 placeholder="Arrastra tu banner de portada aquí, o pega un enlace"
+                folder="organizations"
+                identifier={`${slug}-cover`}
               />
               {errors.coverUrl && (
                 <p className="text-xs text-destructive mt-1.5 font-medium">{errors.coverUrl}</p>
@@ -592,6 +596,8 @@ export function OrganizationSettingsPage() {
                 onChange={setFaviconUrl}
                 aspectRatio="favicon"
                 placeholder="Arrastra tu favicon aquí, o pega un enlace"
+                folder="organizations"
+                identifier={`${slug}-favicon`}
               />
               {errors.faviconUrl && (
                 <p className="text-xs text-destructive mt-1.5 font-medium">{errors.faviconUrl}</p>

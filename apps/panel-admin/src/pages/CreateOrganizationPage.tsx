@@ -502,6 +502,8 @@ export function CreateOrganizationPage() {
                   onChange={setLogoUrl}
                   aspectRatio="square"
                   placeholder="Arrastra tu logotipo aquí, o pega un enlace"
+                  folder="organizations"
+                  identifier={`${slug || "temp"}-logo`}
                 />
               </div>
             </div>
@@ -519,6 +521,8 @@ export function CreateOrganizationPage() {
                   onChange={setCoverUrl}
                   aspectRatio="banner"
                   placeholder="Arrastra tu banner de portada aquí, o pega un enlace"
+                  folder="organizations"
+                  identifier={`${slug || "temp"}-cover`}
                 />
               </div>
             </div>
@@ -536,6 +540,8 @@ export function CreateOrganizationPage() {
                   onChange={setFaviconUrl}
                   aspectRatio="favicon"
                   placeholder="Arrastra tu favicon aquí, o pega un enlace"
+                  folder="organizations"
+                  identifier={`${slug || "temp"}-favicon`}
                 />
               </div>
             </div>
