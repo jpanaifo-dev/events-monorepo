@@ -83,7 +83,7 @@ export function NavUser({
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem 
-                onClick={() => navigate("/dashboard/settings/business")}
+                onClick={() => navigate("/dashboard/profile")}
                 className="gap-2 p-2 cursor-pointer"
               >
                 <BadgeCheckIcon className="size-4" />

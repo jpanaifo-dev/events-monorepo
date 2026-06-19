@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { ChevronsUpDown, LogOut, ArrowLeft } from "lucide-react"
+import { ChevronsUpDown, LogOut, ArrowLeft, User } from "lucide-react"
 
 const organizationSchema = z.object({
   name: z.string().min(3, "El nombre de la organización debe tener al menos 3 caracteres"),
@@ -173,8 +173,12 @@ export function CreateOrganizationPage() {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="gap-2 p-2" disabled>
-                <span className="text-xs text-muted-foreground">Configuración en desarrollo</span>
+              <DropdownMenuItem
+                onClick={() => navigate("/dashboard/profile")}
+                className="gap-2 p-2 cursor-pointer focus:bg-muted"
+              >
+                <User className="size-4" />
+                Editar Perfil
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem

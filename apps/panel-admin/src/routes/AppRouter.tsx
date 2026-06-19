@@ -3,6 +3,7 @@ import { AuthGuard } from "./AuthGuard"
 import { LoginPage } from "@/pages/LoginPage"
 import { OrganizationsPage } from "@/pages/OrganizationsPage"
 import { CreateOrganizationPage } from "@/pages/CreateOrganizationPage"
+import { ProfilePage } from "@/pages/ProfilePage"
 import { EventsPage } from "@/pages/EventsPage"
 import { EventDetailPage } from "@/pages/EventDetailPage"
 import { DashboardPage } from "@/pages/DashboardPage"
@@ -30,6 +31,15 @@ export function AppRouter() {
           element={
             <AuthGuard requireSelectedOrganization={false}>
               <CreateOrganizationPage />
+            </AuthGuard>
+          }
+        />
+
+        <Route
+          path="/dashboard/profile"
+          element={
+            <AuthGuard requireSelectedOrganization={false}>
+              <ProfilePage />
             </AuthGuard>
           }
         />

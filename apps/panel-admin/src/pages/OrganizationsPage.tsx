@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom"
 import { useAuthStore } from "@/store/auth.store"
 import { useEventStore } from "@/store/event.store"
 import { supabase } from "@/utils/supabase"
-import { Search, Plus, Layers, ChevronsUpDown, LogOut } from "lucide-react"
+import { Search, Plus, Layers, ChevronsUpDown, LogOut, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ThemeSwitch } from "@/components/ui/theme-switch"
@@ -137,8 +137,12 @@ export function OrganizationsPage() {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="gap-2 p-2" disabled>
-                <span className="text-xs text-muted-foreground">Configuración en desarrollo</span>
+              <DropdownMenuItem
+                onClick={() => navigate("/dashboard/profile")}
+                className="gap-2 p-2 cursor-pointer focus:bg-muted"
+              >
+                <User className="size-4" />
+                Editar Perfil
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
