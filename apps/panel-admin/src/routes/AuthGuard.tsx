@@ -16,34 +16,48 @@ export function AuthGuard({
   const { isAuthenticated, user, selectedOrganization, isLoading } = useAuthStore()
   const location = useLocation()
 
-  // Show a clean SVG loading spinner while checking auth session
+  // Show a premium workspace layout skeleton while checking auth session
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 text-foreground">
-        <div className="flex flex-col items-center gap-4">
-          <svg
-            className="animate-spin h-8 w-8 text-primary"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-            />
-          </svg>
-          <p className="text-sm font-medium tracking-tight text-muted-foreground animate-pulse">
-            Verificando credenciales...
-          </p>
+      <div className="flex h-screen w-screen bg-background overflow-hidden text-foreground">
+        {/* Sidebar Skeleton */}
+        <div className="w-[270px] bg-card border-r border-border hidden md:flex flex-col p-6 space-y-6 shrink-0 animate-pulse">
+          <div className="h-8 w-32 bg-muted rounded-md" />
+          <div className="space-y-3 flex-1 pt-6">
+            <div className="h-10 w-full bg-muted rounded-md" />
+            <div className="h-10 w-full bg-muted rounded-md" />
+            <div className="h-10 w-full bg-muted rounded-md" />
+          </div>
+          <div className="h-12 w-full bg-muted rounded-lg" />
+        </div>
+
+        {/* Content Area Skeleton */}
+        <div className="flex flex-col flex-1 h-full overflow-hidden">
+          {/* Header Skeleton */}
+          <div className="h-16 bg-card border-b border-border flex items-center justify-between px-8 flex-shrink-0 animate-pulse">
+            <div className="h-5 w-32 bg-muted rounded-md" />
+            <div className="h-8 w-24 bg-muted rounded-md" />
+          </div>
+          
+          {/* Main Area Skeleton */}
+          <div className="flex-1 p-8 space-y-8 animate-pulse bg-muted/5">
+            <div className="space-y-2">
+              <div className="h-8 w-48 bg-muted rounded-md" />
+              <div className="h-4 w-72 bg-muted rounded-md" />
+            </div>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="bg-card border border-border rounded-xl p-6 h-[140px] flex items-start gap-4">
+                  <div className="size-10 bg-muted rounded-lg shrink-0" />
+                  <div className="space-y-2 flex-1">
+                    <div className="h-4 bg-muted rounded w-1/3" />
+                    <div className="h-3 bg-muted rounded w-1/4" />
+                    <div className="h-3 bg-muted/60 rounded w-3/4 mt-2" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     )
