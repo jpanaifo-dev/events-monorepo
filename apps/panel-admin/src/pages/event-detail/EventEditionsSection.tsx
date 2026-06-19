@@ -2,7 +2,7 @@ import { useState } from "react"
 import { useParams } from "react-router-dom"
 import { useEventStore } from "@/store/event.store"
 import type { Edition } from "@/store/event.store"
-import { Plus, Edit2, Trash2 } from "lucide-react"
+import { Plus, Trash2, Edit } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
@@ -116,7 +116,11 @@ export function EventEditionsSection() {
             <tbody className="divide-y divide-border/60">
               {eventEditions.map((ed) => (
                 <tr key={ed.id} className="hover:bg-muted/10 transition-colors">
-                  <td className="p-3 font-semibold">{ed.name}</td>
+                  <td className="p-3 font-semibold">{ed.name}
+                    <p className="font-normal text-xs text-muted-foreground">
+                      {ed?.description || 'Sin descripcion'}
+                    </p>
+                  </td>
                   <td className="p-3 text-xs text-muted-foreground">
                     {ed.startDate && ed.endDate
                       ? `${new Date(ed.startDate).toLocaleDateString("es-ES")} – ${new Date(ed.endDate).toLocaleDateString("es-ES")}`
@@ -130,7 +134,7 @@ export function EventEditionsSection() {
                   <td className="p-3 text-right">
                     <div className="flex items-center justify-end gap-1">
                       <Button onClick={() => openEdit(ed)} variant="ghost" className="size-7 p-0">
-                        <Edit2 className="size-3.5" />
+                        <Edit className="size-3.5" />
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
