@@ -1,4 +1,6 @@
+import { useEffect } from "react"
 import { useParams, useNavigate, NavLink, Outlet } from "react-router-dom"
+import { useAuthStore } from "@/store/auth.store"
 import { useEventStore } from "@/store/event.store"
 import { AlertCircle, Settings, Layers, BookOpen, Clock, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -16,7 +18,14 @@ const NAV_ITEMS = [
 export function EventDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { events, editions, speakers, agendaItems, attendees, isLoading } = useEventStore()
+  const { selectedOrganization } = useAuthStore()
+  const { events, editions, speakers, agendaItems, attendees, isLoading, loadData } = useEventStore()
+
+  useEffect(() => {
+    if (selectedOrganization?.id) {
+      loadData(selectedOrganization.id)
+    }
+  }, [selectedOrganization?.id, loadData])
 
   const event = events.find((e) => e.id === id)
 
@@ -35,7 +44,7 @@ export function EventDetailPage() {
   if (isLoading && !event) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
-        <main className="max-w-4xl mx-auto px-6 py-12 flex-1 w-full">
+        <main className="max-w-7xl mx-auto px-6 py-12 flex-1 w-full">
           <div className="space-y-6">
             <Skeleton className="h-10 w-48" />
             <Skeleton className="h-10 w-full" />
