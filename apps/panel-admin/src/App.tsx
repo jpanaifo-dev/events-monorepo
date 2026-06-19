@@ -2,6 +2,7 @@ import { useEffect } from "react"
 import { AppRouter } from "./routes/AppRouter"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { useThemeStore } from "./store/theme.store"
+import { Toaster } from "sonner"
 
 function App() {
   const theme = useThemeStore((state) => state.theme)
@@ -15,6 +16,7 @@ function App() {
   return (
     <TooltipProvider>
       <AppRouter />
+      <Toaster position="top-right" richColors closeButton />
     </TooltipProvider>
   )
 }

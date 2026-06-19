@@ -1,12 +1,12 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 import { AuthGuard } from "./AuthGuard"
-import { LoginPage } from "../pages/LoginPage"
-import { OrganizationsPage } from "../pages/OrganizationsPage"
-import { CreateOrganizationPage } from "../pages/CreateOrganizationPage"
-import { EventsPage } from "../pages/EventsPage"
-import { EventDetailPage } from "../pages/EventDetailPage"
-import { DashboardPage } from "../pages/DashboardPage"
-import { PrivateLayout } from "../layouts/PrivateLayout"
+import { LoginPage } from "@/pages/LoginPage"
+import { OrganizationsPage } from "@/pages/OrganizationsPage"
+import { CreateOrganizationPage } from "@/pages/CreateOrganizationPage"
+import { EventsPage } from "@/pages/EventsPage"
+import { EventDetailPage } from "@/pages/EventDetailPage"
+import { DashboardPage } from "@/pages/DashboardPage"
+import { PrivateLayout } from "@/layouts/PrivateLayout"
 
 export function AppRouter() {
   return (
@@ -48,19 +48,19 @@ export function AppRouter() {
 
           {/* Events Catalog */}
           <Route path="events" element={<EventsPage />} />
-          
+
           {/* Event manager workspace */}
           <Route path="events/:id" element={<EventDetailPage />} />
 
           {/* Placeholder Settings Page */}
-          <Route 
-            path="settings/business" 
+          <Route
+            path="settings/business"
             element={
               <div className="p-6 bg-card rounded-xl border border-border">
                 <h2 className="text-xl font-bold mb-2">Ajustes de la Organización</h2>
                 <p className="text-muted-foreground">Esta sección está en desarrollo para EventHive.</p>
               </div>
-            } 
+            }
           />
         </Route>
 
