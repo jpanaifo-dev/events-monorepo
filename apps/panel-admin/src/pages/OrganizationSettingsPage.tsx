@@ -105,10 +105,6 @@ export function OrganizationSettingsPage() {
   const [isDeleting, setIsDeleting] = useState(false)
 
   const [members, setMembers] = useState<any[]>([])
-  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false)
-  const [inviteEmail, setInviteEmail] = useState("")
-  const [inviteRole, setInviteRole] = useState<"Owner" | "Administrator" | "Developer">("Developer")
-  const [isInviting, setIsInviting] = useState(false)
   const [isMembersDbError, setIsMembersDbError] = useState(false)
 
   useEffect(() => {
@@ -199,21 +195,29 @@ export function OrganizationSettingsPage() {
           console.warn("Failed to fetch members, using fallback. Error details:", mErr)
           // Fallback member (current user)
           if (user) {
-            setMembers([
-              {
-                id: "fallback-member-id",
-                role: "Owner",
-                is_active: true,
-                profile_id: user.id,
-                profile: {
-                  id: user.id,
-                  first_name: user.full_name?.split(" ")[0] || "",
-                  last_name: user.full_name?.split(" ").slice(1).join(" ") || "",
-                  email: user.email,
-                  avatar_url: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.full_name || user.email || "U")}`
+            const storedKey = `mock_members_${selectedOrganization.id}`
+            const stored = localStorage.getItem(storedKey)
+            if (stored) {
+              setMembers(JSON.parse(stored))
+            } else {
+              const defaultMember = [
+                {
+                  id: "fallback-member-id",
+                  role: "Owner",
+                  is_active: true,
+                  profile_id: user.id,
+                  profile: {
+                    id: user.id,
+                    first_name: user.full_name?.split(" ")[0] || "",
+                    last_name: user.full_name?.split(" ").slice(1).join(" ") || "",
+                    email: user.email,
+                    avatar_url: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.full_name || user.email || "U")}`
+                  }
                 }
-              }
-            ])
+              ]
+              setMembers(defaultMember)
+              localStorage.setItem(storedKey, JSON.stringify(defaultMember))
+            }
           }
         }
       } catch (err) {
@@ -503,89 +507,7 @@ export function OrganizationSettingsPage() {
     }
   }
 
-  const handleInviteMember = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!selectedOrganization?.id || !inviteEmail.trim()) return
-    setIsInviting(true)
-    try {
-      // 1. Search profile by email
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("id, first_name, last_name, email, avatar_url")
-        .eq("email", inviteEmail.trim())
-        .maybeSingle()
 
-      if (profileError) throw profileError
-
-      if (!profileData) {
-        toast.error("No se encontró ningún usuario registrado con ese correo.")
-        setIsInviting(false)
-        return
-      }
-
-      // If the database error is active, we cannot perform real database inserts, but we can simulate it
-      if (isMembersDbError) {
-        // Mock add member to local state
-        const newMockMember = {
-          id: `mock-member-${Date.now()}`,
-          role: inviteRole,
-          is_active: true,
-          profile_id: profileData.id,
-          profile: profileData
-        }
-        setMembers([...members, newMockMember])
-        toast.success(`Miembro agregado (Modo Demo): ${profileData.email}`)
-        setIsInviteModalOpen(false)
-        setInviteEmail("")
-        return
-      }
-
-      // 2. Insert into organization_members
-      const { error: insertError } = await supabase
-        .from("organization_members")
-        .insert({
-          organization_id: selectedOrganization.id,
-          profile_id: profileData.id,
-          role: inviteRole,
-          is_active: true
-        })
-
-      if (insertError) {
-        if (insertError.message?.includes("unique_organization_profile") || insertError.code === "23505") {
-          throw new Error("El usuario ya es miembro de esta organización.")
-        }
-        throw insertError
-      }
-
-      // 3. Reload members list
-      const { data: updatedMembers } = await supabase
-        .from("organization_members")
-        .select(`
-          id,
-          role,
-          is_active,
-          profile_id,
-          profile:profiles (
-            id,
-            first_name,
-            last_name,
-            email,
-            avatar_url
-          )
-        `)
-        .eq("organization_id", selectedOrganization.id)
-
-      setMembers(updatedMembers || [])
-      toast.success(`Invitación enviada con éxito a ${inviteEmail}`)
-      setIsInviteModalOpen(false)
-      setInviteEmail("")
-    } catch (err: any) {
-      console.error("Error inviting team member:", err)
-      toast.error(err.message || "Error al invitar al miembro del equipo.")
-    } finally {
-      setIsInviting(false)
-    }
-  }
 
   const handleRemoveMember = async (memberId: string, email: string) => {
     if (!selectedOrganization?.id) return
@@ -604,7 +526,9 @@ export function OrganizationSettingsPage() {
     try {
       if (isMembersDbError || memberId.startsWith("mock-member-")) {
         // Mock remove
-        setMembers(members.filter(m => m.id !== memberId))
+        const filtered = members.filter(m => m.id !== memberId)
+        setMembers(filtered)
+        localStorage.setItem(`mock_members_${selectedOrganization.id}`, JSON.stringify(filtered))
         toast.success(`Miembro removido (Modo Demo): ${email}`)
         return
       }
@@ -1135,7 +1059,7 @@ export function OrganizationSettingsPage() {
             <div className="flex gap-2.5">
               <button
                 type="button"
-                onClick={() => setIsInviteModalOpen(true)}
+                onClick={() => navigate("/dashboard/settings/members/new")}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-lg text-xs font-semibold select-none transition-colors cursor-pointer outline-none flex items-center gap-1.5"
               >
                 <svg className="size-3.5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
@@ -1235,125 +1159,6 @@ export function OrganizationSettingsPage() {
           </div>
         </div>
       </div>
-
-      {/* Invite Member Modal */}
-      {isInviteModalOpen && (
-        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-card border border-border rounded-xl max-w-md w-full shadow-2xl p-6 space-y-6 animate-in zoom-in-95 duration-200 font-sans">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <h3 className="text-lg font-bold text-foreground">
-                  Invitar miembros al equipo
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  Envía invitaciones y elige el nivel de acceso para tu organización.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsInviteModalOpen(false)
-                  setInviteEmail("")
-                }}
-                className="text-muted-foreground hover:text-foreground cursor-pointer"
-              >
-                <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <form onSubmit={handleInviteMember} className="space-y-5">
-              {/* Role Select Options mimicking mockup exactly */}
-              <div className="space-y-3">
-                <label className="text-xs font-semibold text-muted-foreground block">
-                  Rol del miembro
-                </label>
-                <div className="space-y-2">
-                  {[
-                    {
-                      value: "Owner",
-                      label: "Owner (Dueño)",
-                      desc: "Acceso total, incluyendo eliminación de la organización e invitación de administradores."
-                    },
-                    {
-                      value: "Administrator",
-                      label: "Administrator (Administrador)",
-                      desc: "Administra miembros, sedes y configuración del proyecto. No puede eliminar dueños o la organización."
-                    },
-                    {
-                      value: "Developer",
-                      label: "Developer (Desarrollador)",
-                      desc: "Administra el contenido del proyecto (eventos, actividades). No puede cambiar la configuración comercial."
-                    }
-                  ].map((roleOpt) => (
-                    <label
-                      key={roleOpt.value}
-                      className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${inviteRole === roleOpt.value
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:bg-muted/50"
-                        }`}
-                    >
-                      <input
-                        type="radio"
-                        name="invite-role"
-                        value={roleOpt.value}
-                        checked={inviteRole === roleOpt.value}
-                        onChange={() => setInviteRole(roleOpt.value as any)}
-                        className="mt-1 accent-primary"
-                      />
-                      <div className="grid leading-tight">
-                        <span className="font-semibold text-sm text-foreground">{roleOpt.label}</span>
-                        <span className="text-xs text-muted-foreground mt-0.5">{roleOpt.desc}</span>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {/* Email Addresses input block */}
-              <div className="space-y-2">
-                <label htmlFor="invite-email" className="text-xs font-semibold text-muted-foreground block">
-                  Dirección de correo electrónico
-                </label>
-                <Input
-                  id="invite-email"
-                  type="email"
-                  required
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  placeholder="nombre@ejemplo.com"
-                  className="bg-card"
-                  disabled={isInviting}
-                  autoComplete="off"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setIsInviteModalOpen(false)
-                    setInviteEmail("")
-                  }}
-                  disabled={isInviting}
-                  className="cursor-pointer"
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={isInviting || !inviteEmail.trim()}
-                  className="cursor-pointer font-semibold bg-emerald-600 hover:bg-emerald-700 text-white"
-                >
-                  {isInviting ? "Invitando..." : "Enviar invitación"}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Visibilidad Section */}
       <div className="mt-10 space-y-4 font-sans">

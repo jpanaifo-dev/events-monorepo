@@ -11,6 +11,7 @@ import { DashboardPage } from "@/pages/DashboardPage"
 import { PrivateLayout } from "@/layouts/PrivateLayout"
 import { BranchesPage } from "@/pages/BranchesPage"
 import { BranchFormPage } from "@/pages/BranchFormPage"
+import { MembersPage } from "@/pages/MembersPage"
 
 export function AppRouter() {
   return (
@@ -72,6 +73,9 @@ export function AppRouter() {
           <Route path="settings/branches" element={<BranchesPage />} />
           <Route path="settings/branches/new" element={<BranchFormPage />} />
           <Route path="settings/branches/:branchId/edit" element={<BranchFormPage />} />
+
+          {/* Members Pages */}
+          <Route path="settings/members" element={<MembersPage />} />
         </Route>
 
         {/* Fallback redirect */}
