@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom"
 import { useEventStore } from "@/store/event.store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { ImageUploadWithPreview } from "@/components/ImageUploadWithPreview"
 import { toast } from "sonner"
 import { Trash2 } from "lucide-react"
 import {
@@ -156,21 +157,37 @@ export function EventInfoSection() {
 
         <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
           <div className="md:w-1/3 space-y-1">
-            <label htmlFor="evt-cover" className="text-sm font-medium text-foreground">URL de Portada</label>
+            <label htmlFor="evt-cover" className="text-sm font-medium text-foreground">Portada del Evento</label>
             <p className="text-xs text-muted-foreground">Imagen de portada del evento.</p>
           </div>
           <div className="md:w-2/3 max-w-md w-full">
-            <Input id="evt-cover" type="url" placeholder="https://ejemplo.com/portada.jpg" value={coverUrl} onChange={(e) => setCoverUrl(e.target.value)} className="bg-background" />
+            <ImageUploadWithPreview
+              value={coverUrl}
+              onChange={setCoverUrl}
+              label=""
+              aspectRatio="banner"
+              folder={`events/${event.id}`}
+              identifier="cover"
+              placeholder="Arrastra o pega una imagen de portada"
+            />
           </div>
         </div>
 
         <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
           <div className="md:w-1/3 space-y-1">
-            <label htmlFor="evt-logo" className="text-sm font-medium text-foreground">URL del Logo</label>
-            <p className="text-xs text-muted-foreground">Logo del evento o marca.</p>
+            <label htmlFor="evt-logo" className="text-sm font-medium text-foreground">Logo del Evento</label>
+            <p className="text-xs text-muted-foreground">Logo o marca del evento.</p>
           </div>
           <div className="md:w-2/3 max-w-md w-full">
-            <Input id="evt-logo" type="url" placeholder="https://ejemplo.com/logo.png" value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} className="bg-background" />
+            <ImageUploadWithPreview
+              value={logoUrl}
+              onChange={setLogoUrl}
+              label=""
+              aspectRatio="square"
+              folder={`events/${event.id}`}
+              identifier="logo"
+              placeholder="Arrastra o pega el logo"
+            />
           </div>
         </div>
 
