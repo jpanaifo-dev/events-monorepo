@@ -9,6 +9,7 @@ import { toast } from "sonner"
 import { PageHeader } from "@/components/page-header"
 import { ImageUploadWithPreview } from "@/components/ImageUploadWithPreview"
 import { X } from "lucide-react"
+import { deleteFromR2 } from "@/utils/r2-storage"
 
 const organizationSchema = z.object({
   name: z.string().min(3, "El nombre de la organización debe tener al menos 3 caracteres"),
@@ -97,6 +98,12 @@ export function OrganizationSettingsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [slugStatus, setSlugStatus] = useState<"idle" | "checking" | "available" | "taken">("idle")
 
+  const [status, setStatus] = useState("active")
+  const [isUpdatingVisibility, setIsUpdatingVisibility] = useState(false)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [deleteConfirmName, setDeleteConfirmName] = useState("")
+  const [isDeleting, setIsDeleting] = useState(false)
+
   useEffect(() => {
     async function loadOrgDetails() {
       if (!selectedOrganization?.id) {
@@ -138,6 +145,7 @@ export function OrganizationSettingsPage() {
           setCoverUrl(data.cover_image_url || "")
           setFaviconUrl(data.favicon_url || "")
           setPrimaryColor(data.primary_color || "")
+          setStatus(data.status || "active")
         }
 
         // Fetch branches for this organization
@@ -312,6 +320,129 @@ export function OrganizationSettingsPage() {
       toast.error(err.message || "Error al actualizar la organización. Inténtalo de nuevo.")
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const handleUpdateVisibility = async (newStatus: string) => {
+    if (!selectedOrganization?.id) return
+    setIsUpdatingVisibility(true)
+    try {
+      const { error } = await supabase
+        .from("organizations")
+        .update({
+          status: newStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", selectedOrganization.id)
+
+      if (error) throw error
+
+      setStatus(newStatus)
+      
+      // Update auth store
+      const updatedOrg = {
+        ...selectedOrganization,
+        isActive: newStatus === "active",
+      }
+      selectOrganization(updatedOrg)
+
+      const updatedList = organizations.map((org) =>
+        org.id === selectedOrganization.id ? updatedOrg : org
+      )
+      setOrganizations(updatedList)
+
+      toast.success(`Visibilidad actualizada a: ${newStatus === "active" ? "Activo" : "Inactivo"}`)
+    } catch (err: any) {
+      console.error(err)
+      toast.error(err.message || "Error al actualizar la visibilidad.")
+    } finally {
+      setIsUpdatingVisibility(false)
+    }
+  }
+
+  const handleDeleteOrganization = async () => {
+    if (!selectedOrganization?.id) return
+    setIsDeleting(true)
+    try {
+      const orgId = selectedOrganization.id
+
+      // 1. Delete media from Cloudflare R2
+      if (logoUrl) {
+        try {
+          await deleteFromR2(logoUrl)
+        } catch (e) {
+          console.error("Error deleting logo from R2:", e)
+        }
+      }
+      if (coverUrl) {
+        try {
+          await deleteFromR2(coverUrl)
+        } catch (e) {
+          console.error("Error deleting cover from R2:", e)
+        }
+      }
+      if (faviconUrl) {
+        try {
+          await deleteFromR2(faviconUrl)
+        } catch (e) {
+          console.error("Error deleting favicon from R2:", e)
+        }
+      }
+
+      // 2. Delete organization branches
+      const { error: branchesError } = await supabase
+        .from("organization_branches")
+        .delete()
+        .eq("organization_id", orgId)
+      if (branchesError) throw branchesError
+
+      // 3. Delete events
+      const { data: eventsData } = await supabase
+        .from("events")
+        .select("id")
+        .eq("organization_id", orgId)
+      
+      const eventIds = (eventsData || []).map(e => e.id)
+      if (eventIds.length > 0) {
+        // Delete event details
+        await supabase
+          .from("event_details")
+          .delete()
+          .in("event_id", eventIds)
+      }
+
+      const { error: eventsError } = await supabase
+        .from("events")
+        .delete()
+        .eq("organization_id", orgId)
+      if (eventsError) throw eventsError
+
+      // 4. Delete the organization itself
+      const { error: orgError } = await supabase
+        .from("organizations")
+        .delete()
+        .eq("id", orgId)
+      if (orgError) throw orgError
+
+      // 5. Update auth store
+      const updatedList = organizations.filter((org) => org.id !== orgId)
+      setOrganizations(updatedList)
+      
+      if (updatedList.length > 0) {
+        selectOrganization(updatedList[0])
+      } else {
+        selectOrganization(null)
+      }
+
+      toast.success("Organización eliminada permanentemente")
+      setIsDeleteModalOpen(false)
+      setDeleteConfirmName("")
+      navigate("/dashboard/organizations", { replace: true })
+    } catch (err: any) {
+      console.error("Error deleting organization:", err)
+      toast.error(err.message || "Error al eliminar la organización.")
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -780,6 +911,129 @@ export function OrganizationSettingsPage() {
           )}
         </div>
       </div>
+
+      {/* Visibilidad Section */}
+      <div className="mt-10 space-y-4 font-sans">
+        <h3 className="text-xl tracking-tight text-foreground">
+          Visibilidad de la organización
+        </h3>
+        <div className="border border-border rounded-xl bg-card overflow-hidden shadow-sm p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h4 className="font-semibold text-base text-foreground">
+              Estado de publicación
+            </h4>
+            <p className="text-xs text-muted-foreground max-w-lg">
+              Si la organización está inactiva, sus eventos no serán visibles al público en general y no se podrán vender entradas.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            {/* Status indicators */}
+            <div className="flex items-center gap-2 mr-2">
+              <span className={`h-2.5 w-2.5 rounded-full ${status === "active" ? "bg-emerald-500 animate-pulse" : "bg-destructive"}`} />
+              <span className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
+                {status === "active" ? "ACTIVO" : "INACTIVO"}
+              </span>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isUpdatingVisibility}
+              onClick={() => handleUpdateVisibility(status === "active" ? "inactive" : "active")}
+              className={`cursor-pointer text-xs font-semibold ${
+                status === "active"
+                  ? "border-destructive hover:bg-destructive/10 text-destructive"
+                  : "border-emerald-500 hover:bg-emerald-50 text-emerald-600 dark:hover:bg-emerald-950/20 dark:text-emerald-500"
+              }`}
+            >
+              {status === "active" ? "Desactivar" : "Activar"}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Danger Zone Section */}
+      <div className="mt-10 space-y-4 font-sans">
+        <h3 className="text-xl tracking-tight text-destructive font-medium">
+          Zona de Peligro
+        </h3>
+        <div className="border border-destructive/20 rounded-xl bg-destructive/5 overflow-hidden shadow-sm p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h4 className="font-semibold text-base text-destructive">
+              Eliminar esta organización
+            </h4>
+            <p className="text-xs text-muted-foreground max-w-lg">
+              Una vez confirmada la eliminación de la organización, no se podrá recuperar ningún dato. Se borrarán todas las sedes y eventos.
+            </p>
+          </div>
+          <div>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => setIsDeleteModalOpen(true)}
+              className="cursor-pointer font-semibold shadow-sm"
+            >
+              Eliminar Organización
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Confirmation Modal */}
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-card border border-border rounded-xl max-w-md w-full shadow-2xl p-6 space-y-6 animate-in zoom-in-95 duration-200">
+            <div className="space-y-2">
+              <h3 className="text-lg font-bold text-destructive font-sans">
+                ¿Estás absolutamente seguro?
+              </h3>
+              <p className="text-sm text-muted-foreground font-sans">
+                Esta acción <strong className="text-foreground">no se puede deshacer</strong>. Se eliminará permanentemente la organización
+                {" "}<strong className="text-foreground font-semibold">{name}</strong>, todas sus sedes, eventos y los archivos subidos al storage.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="confirm-org-name" className="text-xs text-muted-foreground font-medium block">
+                Escribe <span className="font-semibold text-foreground select-none">{name}</span> para confirmar la eliminación:
+              </label>
+              <Input
+                id="confirm-org-name"
+                type="text"
+                value={deleteConfirmName}
+                onChange={(e) => setDeleteConfirmName(e.target.value)}
+                placeholder="Nombre de la organización"
+                className="border-destructive/50 focus-visible:ring-destructive"
+                autoComplete="off"
+              />
+            </div>
+
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsDeleteModalOpen(false)
+                  setDeleteConfirmName("")
+                }}
+                disabled={isDeleting}
+                className="cursor-pointer"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={deleteConfirmName !== name || isDeleting}
+                onClick={handleDeleteOrganization}
+                className="cursor-pointer font-semibold"
+              >
+                {isDeleting ? "Eliminando..." : "Sí, eliminar definitivamente"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

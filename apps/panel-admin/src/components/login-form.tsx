@@ -137,7 +137,10 @@ export function LoginForm({
           organization_email,
           description,
           status,
-          slug
+          slug,
+          logo_url,
+          cover_image_url,
+          favicon_url
         `)
 
       if (busError) {
@@ -150,6 +153,11 @@ export function LoginForm({
         name: org.organization_name,
         slug: org.slug || org.organization_name.toLowerCase().replace(/\s+/g, "-"),
         description: org.description || "",
+        isActive: org.status === "active",
+        type: org.organization_type,
+        logoUrl: org.logo_url || "",
+        coverUrl: org.cover_image_url || "",
+        faviconUrl: org.favicon_url || "",
         plan: "Free Plan",
         projectsCount: 0
       }))

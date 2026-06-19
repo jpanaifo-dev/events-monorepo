@@ -233,6 +233,15 @@ export function OrganizationsPage() {
                   </h3>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
                     <span className="font-medium bg-muted px-2 py-0.5 rounded-md text-primary capitalize">{org.type}</span>
+                    {org.isActive ? (
+                      <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md">
+                        ACTIVO
+                      </span>
+                    ) : (
+                      <span className="bg-destructive/10 text-destructive border border-destructive/20 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md">
+                        INACTIVO
+                      </span>
+                    )}
                   </div>
                   {org.description && (
                     <p className="text-xs text-muted-foreground line-clamp-2 pt-1">{org.description}</p>
