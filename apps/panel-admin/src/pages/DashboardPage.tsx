@@ -2,6 +2,7 @@ import { useAuthStore } from "@/store/auth.store"
 import { useEventStore } from "@/store/event.store"
 import { Users, Calendar, Settings, Plus, BookOpen, Clock } from "lucide-react"
 import { useNavigate } from "react-router-dom"
+import { PageHeader } from "@/components/page-header"
 
 export function DashboardPage() {
   const { selectedOrganization } = useAuthStore()
@@ -45,17 +46,12 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      {/* Welcome Header */}
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight">
-          ¡Hola de nuevo, admin!
-        </h1>
-        <p className="text-muted-foreground text-sm">
-          {selectedOrganization 
-            ? `Administrando el panel para: ${selectedOrganization.name}.` 
-            : "No tienes una organización activa seleccionada."}
-        </p>
-      </div>
+      <PageHeader
+        title="¡Hola de nuevo, admin!"
+        description={selectedOrganization 
+          ? `Administrando el panel para: ${selectedOrganization.name}.` 
+          : "No tienes una organización activa seleccionada."}
+      />
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-3">

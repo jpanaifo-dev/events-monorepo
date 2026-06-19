@@ -1,5 +1,6 @@
 import { ChevronRight } from "lucide-react"
 import { useLocation, Link } from "react-router-dom"
+import { cn } from "@/lib/utils"
 
 import {
     Collapsible,
@@ -54,10 +55,20 @@ export function NavAdmin({
                                         <SidebarMenuButton 
                                             tooltip={item.title} 
                                             isActive={isActive || isSubActive}
-                                            className="w-full justify-between hover:bg-muted/50 active:bg-muted rounded-md transition-colors"
+                                            className={cn(
+                                                "w-full justify-between hover:bg-muted/50 active:bg-muted rounded-md transition-colors",
+                                                (isActive || isSubActive) && "bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
+                                            )}
                                         >
                                             <div className="flex items-center gap-3">
-                                                {item.icon && <item.icon className="size-4 text-muted-foreground group-data-[active=true]:text-primary" />}
+                                                {item.icon && (
+                                                    <item.icon 
+                                                        className={cn(
+                                                            "size-4 transition-colors", 
+                                                            (isActive || isSubActive) ? "text-primary" : "text-muted-foreground"
+                                                        )} 
+                                                    />
+                                                )}
                                                 <span className="text-sm font-medium">{item.title}</span>
                                             </div>
                                             <ChevronRight className="size-4 ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90 text-muted-foreground" />
@@ -72,7 +83,10 @@ export function NavAdmin({
                                                         <SidebarMenuSubButton 
                                                             isActive={isChildActive} 
                                                             asChild
-                                                            className="w-full text-left hover:bg-muted/50 rounded-md transition-colors px-3 py-1.5"
+                                                            className={cn(
+                                                                "w-full text-left hover:bg-muted/50 rounded-md transition-colors px-3 py-1.5",
+                                                                isChildActive && "bg-sidebar-accent text-sidebar-accent-foreground font-semibold text-primary"
+                                                            )}
                                                         >
                                                             <Link to={subItem.url} className="w-full block">
                                                                 <span className="text-xs font-medium">{subItem.title}</span>
@@ -93,10 +107,20 @@ export function NavAdmin({
                                 tooltip={item.title} 
                                 isActive={isActive} 
                                 asChild
-                                className="hover:bg-muted/50 active:bg-muted rounded-md transition-colors"
+                                className={cn(
+                                    "hover:bg-muted/50 active:bg-muted rounded-md transition-colors",
+                                    isActive && "bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
+                                )}
                             >
                                 <Link to={item.url} className="flex items-center gap-3 w-full">
-                                    {item.icon && <item.icon className="size-4 text-muted-foreground group-data-[active=true]:text-primary" />}
+                                    {item.icon && (
+                                        <item.icon 
+                                            className={cn(
+                                                "size-4 transition-colors", 
+                                                isActive ? "text-primary" : "text-muted-foreground"
+                                            )} 
+                                        />
+                                    )}
                                     <span className="text-sm font-medium">{item.title}</span>
                                 </Link>
                             </SidebarMenuButton>

@@ -6,6 +6,7 @@ import { Search, Plus, Calendar, MapPin, X, Globe, Video } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
+import { PageHeader } from "@/components/page-header"
 
 export function EventsPage() {
   const { selectedOrganization } = useAuthStore()
@@ -82,20 +83,19 @@ export function EventsPage() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
-      {/* Title Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Eventos</h1>
-          <p className="text-sm text-muted-foreground">Administra el catálogo de conferencias y congresos para {selectedOrganization?.name}.</p>
-        </div>
-        <Button 
-          onClick={() => setIsModalOpen(true)}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-2"
-        >
-          <Plus className="size-4" />
-          Nuevo Evento
-        </Button>
-      </div>
+      <PageHeader
+        title="Eventos"
+        description={`Administra el catálogo de conferencias y congresos para ${selectedOrganization?.name}.`}
+        actionButton={
+          <Button 
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center gap-2"
+          >
+            <Plus className="size-4" />
+            Nuevo Evento
+          </Button>
+        }
+      />
 
       {/* Filter Row */}
       <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-card p-4 rounded-xl border border-border">
@@ -113,25 +113,25 @@ export function EventsPage() {
         <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto">
           <button
             onClick={() => setStatusFilter("all")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold select-none transition-colors shrink-0 ${statusFilter === "all" ? "bg-emerald-500 text-white" : "hover:bg-muted"}`}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold select-none transition-colors shrink-0 ${statusFilter === "all" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
           >
             Todos
           </button>
           <button
             onClick={() => setStatusFilter("published")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold select-none transition-colors shrink-0 ${statusFilter === "published" ? "bg-emerald-500 text-white" : "hover:bg-muted"}`}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold select-none transition-colors shrink-0 ${statusFilter === "published" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
           >
             Publicados
           </button>
           <button
             onClick={() => setStatusFilter("draft")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold select-none transition-colors shrink-0 ${statusFilter === "draft" ? "bg-emerald-500 text-white" : "hover:bg-muted"}`}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold select-none transition-colors shrink-0 ${statusFilter === "draft" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
           >
             Borradores
           </button>
           <button
             onClick={() => setStatusFilter("finished")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold select-none transition-colors shrink-0 ${statusFilter === "finished" ? "bg-emerald-500 text-white" : "hover:bg-muted"}`}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold select-none transition-colors shrink-0 ${statusFilter === "finished" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
           >
             Finalizados
           </button>
@@ -292,7 +292,7 @@ export function EventsPage() {
                   <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
                     Cancelar
                   </Button>
-                  <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                  <Button type="submit">
                     Crear Evento
                   </Button>
                 </div>

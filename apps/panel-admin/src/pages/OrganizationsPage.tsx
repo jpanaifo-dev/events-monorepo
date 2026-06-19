@@ -1,25 +1,83 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuthStore } from "@/store/auth.store"
 import { useEventStore } from "@/store/event.store"
-import { Search, Plus, Layers, ShieldCheck, X } from "lucide-react"
+import { supabase } from "@/utils/supabase"
+import { Search, Plus, Layers, ChevronsUpDown, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
+import { ThemeSwitch } from "@/components/ui/theme-switch"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+
+const OrganizationCardSkeleton = () => (
+  <div className="bg-card border border-border rounded-xl p-6 h-[140px] animate-pulse flex items-start gap-4">
+    <div className="size-10 bg-muted rounded-lg shrink-0" />
+    <div className="space-y-2 flex-1">
+      <div className="h-4 bg-muted rounded w-1/3" />
+      <div className="h-3 bg-muted rounded w-1/4" />
+      <div className="h-3 bg-muted/60 rounded w-3/4 mt-2" />
+    </div>
+  </div>
+)
 
 export function OrganizationsPage() {
-  const { organizations, selectOrganization, setOrganizations } = useAuthStore()
+  const { user, organizations, selectOrganization, setOrganizations, logout } = useAuthStore()
   const { loadData } = useEventStore()
   const navigate = useNavigate()
 
   const [search, setSearch] = useState("")
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [newOrgName, setNewOrgName] = useState("")
-  const [newOrgDesc, setNewOrgDesc] = useState("")
+  const [isLoadingList, setIsLoadingList] = useState(true)
 
-  const filteredOrgs = organizations.filter((org) =>
-    org.name.toLowerCase().includes(search.toLowerCase())
-  )
+  const fetchOrganizations = async () => {
+    if (!user?.id) return
+    setIsLoadingList(true)
+    try {
+      const { data, error } = await supabase
+        .from("business_user_roles")
+        .select(`
+          business_id,
+          businesses:business_id (
+            id,
+            name,
+            description,
+            is_active
+          )
+        `)
+        .eq("user_id", user.id)
+
+      if (error) throw error
+
+      const formatted = (data || [])
+        .map((row: any) => row.businesses)
+        .filter(Boolean)
+        .map((b: any) => ({
+          id: b.id,
+          name: b.name,
+          slug: b.name.toLowerCase().replace(/\s+/g, "-"),
+          description: b.description || "",
+          isActive: b.is_active ?? true,
+          plan: "Free Plan",
+          projectsCount: 0 // Will compute dynamically if events store counts match
+        }))
+      setOrganizations(formatted)
+    } catch (err) {
+      console.error("Error loading organizations:", err)
+    } finally {
+      setIsLoadingList(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchOrganizations()
+  }, [user])
 
   const handleSelect = (org: any) => {
     selectOrganization(org)
@@ -27,161 +85,152 @@ export function OrganizationsPage() {
     navigate("/dashboard")
   }
 
-  const handleCreate = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newOrgName.trim()) return
-
-    const newOrg = {
-      id: crypto.randomUUID(),
-      name: newOrgName,
-      slug: newOrgName.toLowerCase().replace(/\s+/g, "-"),
-      description: newOrgDesc,
-      isActive: true,
-      plan: "Free Plan",
-      projectsCount: 0
-    }
-
-    const updated = [...organizations, newOrg]
-    setOrganizations(updated)
-    setIsModalOpen(false)
-    setNewOrgName("")
-    setNewOrgDesc("")
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    logout()
+    navigate("/login", { replace: true })
   }
 
+  const filteredOrgs = organizations.filter((org) =>
+    org.name.toLowerCase().includes(search.toLowerCase())
+  )
+
   return (
-    <div className="min-h-screen bg-background text-foreground p-8 md:p-16 max-w-6xl mx-auto space-y-12 animate-in fade-in duration-300">
-      {/* Top Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-border pb-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight font-sans">EventHive</h1>
-          <p className="text-muted-foreground text-sm mt-1">Elige o crea una organización para administrar tus eventos.</p>
+    <div className="min-h-screen bg-background text-foreground font-sans flex flex-col">
+      {/* Top Header Navbar */}
+      <header className="h-16 bg-card border-b border-border flex items-center justify-between px-8 flex-shrink-0">
+        <div className="flex items-center gap-6">
+          <span className="font-bold text-xl text-emerald-600 dark:text-emerald-500 tracking-tighter flex items-center gap-1.5">
+            EventHive
+          </span>
         </div>
-        <div className="flex items-center gap-4 text-xs font-semibold px-3 py-1.5 bg-emerald-500/10 text-emerald-600 rounded-full w-fit">
-          <ShieldCheck className="size-4" />
-          Sesión Activa
+
+        <div className="flex items-center gap-6 text-sm">
+          <ThemeSwitch />
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-2 outline-none p-1.5 rounded-lg hover:bg-muted transition-colors border border-transparent hover:border-border cursor-pointer">
+                <Avatar className="h-8 w-8 rounded-lg border border-border">
+                  <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user?.full_name || user?.email || "E")}`} alt={user?.full_name || ""} />
+                  <AvatarFallback className="rounded-lg">US</AvatarFallback>
+                </Avatar>
+                <div className="hidden md:grid text-left text-xs leading-tight">
+                  <span className="truncate font-semibold text-sm text-foreground">{user?.full_name || "Usuario"}</span>
+                  <span className="truncate text-[10px] text-muted-foreground">{user?.email}</span>
+                </div>
+                <ChevronsUpDown className="ml-1 size-3.5 text-muted-foreground" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-56" align="end" sideOffset={4}>
+              <DropdownMenuLabel className="p-0 font-normal">
+                <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+                  <Avatar className="h-8 w-8 rounded-lg border border-border">
+                    <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user?.full_name || user?.email || "E")}`} alt={user?.full_name || ""} />
+                    <AvatarFallback className="rounded-lg">US</AvatarFallback>
+                  </Avatar>
+                  <div className="grid flex-1 text-left text-sm leading-tight">
+                    <span className="truncate font-semibold">{user?.full_name || "Usuario"}</span>
+                    <span className="truncate text-xs text-muted-foreground">{user?.email}</span>
+                  </div>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="gap-2 p-2" disabled>
+                <span className="text-xs text-muted-foreground">Configuración en desarrollo</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={handleLogout}
+                className="gap-2 p-2 cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10"
+              >
+                <LogOut className="size-4" />
+                Cerrar Sesión
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-      </div>
+      </header>
 
-      {/* Main title & Action Row */}
-      <div className="space-y-6">
-        <h2 className="text-xl font-bold font-sans">Tus Organizaciones</h2>
-
-        <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-          <div className="relative w-full md:max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar organización..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 bg-card"
-            />
-          </div>
-          <Button
-            onClick={() => setIsModalOpen(true)}
-            className="w-full md:w-auto bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-2"
-          >
-            <Plus className="size-4" />
-            Nueva organización
-          </Button>
+      {/* Main Content Workspace */}
+      <main className="flex-1 max-w-6xl w-full mx-auto p-8 md:p-16 space-y-12 animate-in fade-in duration-300">
+        {/* Welcome Section */}
+        <div className="border-b border-border pb-6">
+          <h1 className="text-3xl font-bold tracking-tight">Hola, estas son tus organizaciones</h1>
+          <p className="text-muted-foreground text-sm mt-1">Selecciona o crea una organización para administrar tus eventos.</p>
         </div>
-      </div>
 
-      {/* Grid of Organizations */}
-      {filteredOrgs.length === 0 ? (
-        <div className="p-12 text-center border border-dashed border-border rounded-xl bg-card space-y-4">
-          <Layers className="size-12 mx-auto text-muted-foreground" />
-          <h3 className="font-bold text-lg">No se encontraron organizaciones</h3>
-          <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-            {search ? "Intenta con otro término de búsqueda o" : "Registra tu primera organización para"} empezar a publicar eventos.
-          </p>
-          {!search && (
-            <Button onClick={() => setIsModalOpen(true)} variant="outline">
-              Crear Organización
+        {/* Control Bar */}
+        <div className="space-y-6">
+          <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+            <div className="relative w-full md:max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar organización..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9 bg-card"
+              />
+            </div>
+            <Button
+              onClick={() => navigate("/dashboard/organizations/new")}
+              className="w-full md:w-auto bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-2"
+            >
+              <Plus className="size-4" />
+              Nueva organización
             </Button>
-          )}
-        </div>
-      ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {filteredOrgs.map((org) => (
-            <div
-              key={org.id}
-              onClick={() => handleSelect(org)}
-              className="group p-6 bg-card border border-border rounded-xl hover:border-emerald-500 hover:shadow-md cursor-pointer transition-all flex items-start gap-4"
-            >
-              {/* Left logo icon */}
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-600/10 text-emerald-600 font-bold text-sm group-hover:bg-emerald-600 group-hover:text-white transition-colors">
-                {org.name.charAt(0).toUpperCase()}
-              </div>
-              {/* Metadata */}
-              <div className="space-y-1 overflow-hidden flex-1">
-                <h3 className="font-semibold text-base truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
-                  {org.name}
-                </h3>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
-                  <span className="font-medium bg-muted px-2 py-0.5 rounded-md">{org.plan || "Free Plan"}</span>
-                  <span>•</span>
-                  <span>{org.projectsCount ?? 2} eventos</span>
-                </div>
-                {org.description && (
-                  <p className="text-xs text-muted-foreground line-clamp-1 pt-1">{org.description}</p>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Creation Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-card border border-border p-6 rounded-xl w-full max-w-md relative shadow-xl space-y-6 animate-in zoom-in-95 duration-200">
-            <button
-              onClick={() => setIsModalOpen(false)}
-              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground outline-none"
-            >
-              <X className="size-4" />
-            </button>
-            <div className="space-y-1">
-              <h3 className="text-lg font-bold">Crear Nueva Organización</h3>
-              <p className="text-xs text-muted-foreground">Escribe el nombre y la descripción para registrar tu organización.</p>
-            </div>
-
-            <form onSubmit={handleCreate} className="space-y-4">
-              <FieldGroup>
-                <Field>
-                  <FieldLabel htmlFor="orgName">Nombre de la Organización</FieldLabel>
-                  <Input
-                    id="orgName"
-                    value={newOrgName}
-                    onChange={(e) => setNewOrgName(e.target.value)}
-                    placeholder="Ej. Tech Latam, Open Source Group"
-                    required
-                    className="bg-background"
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="orgDesc">Descripción (Opcional)</FieldLabel>
-                  <Input
-                    id="orgDesc"
-                    value={newOrgDesc}
-                    onChange={(e) => setNewOrgDesc(e.target.value)}
-                    placeholder="Ej. Organización enfocada en eventos tecnológicos de Latinoamérica."
-                    className="bg-background"
-                  />
-                </Field>
-                <div className="flex justify-end gap-3 pt-2">
-                  <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
-                    Cancelar
-                  </Button>
-                  <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white">
-                    Crear y Continuar
-                  </Button>
-                </div>
-              </FieldGroup>
-            </form>
           </div>
         </div>
-      )}
+
+        {/* Content Render Grid */}
+        {isLoadingList ? (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <OrganizationCardSkeleton />
+            <OrganizationCardSkeleton />
+            <OrganizationCardSkeleton />
+          </div>
+        ) : filteredOrgs.length === 0 ? (
+          <div className="p-12 text-center border border-dashed border-border rounded-xl bg-card space-y-4">
+            <Layers className="size-12 mx-auto text-muted-foreground" />
+            <h3 className="font-bold text-lg">No se encontraron organizaciones</h3>
+            <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+              {search ? "Intenta con otro término de búsqueda o" : "Registra tu primera organización para"} empezar a publicar eventos.
+            </p>
+            {!search && (
+              <Button onClick={() => navigate("/dashboard/organizations/new")} variant="outline" className="cursor-pointer">
+                Crear Organización
+              </Button>
+            )}
+          </div>
+        ) : (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {filteredOrgs.map((org) => (
+              <div
+                key={org.id}
+                onClick={() => handleSelect(org)}
+                className="group p-6 bg-card border border-border rounded-xl hover:border-emerald-500 hover:shadow-md cursor-pointer transition-all flex items-start gap-4"
+              >
+                {/* Left logo icon */}
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-600/10 text-emerald-600 font-bold text-sm group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                  {org.name.charAt(0).toUpperCase()}
+                </div>
+                {/* Metadata */}
+                <div className="space-y-1 overflow-hidden flex-1">
+                  <h3 className="font-semibold text-base truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                    {org.name}
+                  </h3>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                    <span className="font-medium bg-muted px-2 py-0.5 rounded-md">{org.plan || "Free Plan"}</span>
+                  </div>
+                  {org.description && (
+                    <p className="text-xs text-muted-foreground line-clamp-2 pt-1">{org.description}</p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </main>
     </div>
   )
 }
