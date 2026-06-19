@@ -16,6 +16,8 @@ import { CreateEventPage } from "@/pages/CreateEventPage"
 import { EditEventPage } from "@/pages/EditEventPage"
 import { CreateEditionPage } from "@/pages/CreateEditionPage"
 import { EditEditionPage } from "@/pages/EditEditionPage"
+import { CreateSpeakerPage } from "@/pages/CreateSpeakerPage"
+import { EditSpeakerPage } from "@/pages/EditSpeakerPage"
 import {
   EventInfoSection,
   EventEditionsSection,
@@ -117,6 +119,22 @@ export function AppRouter() {
           element={
             <AuthGuard requireSelectedOrganization={true}>
               <EditEditionPage />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/dashboard/events/:eventId/speakers/new"
+          element={
+            <AuthGuard requireSelectedOrganization={true}>
+              <CreateSpeakerPage />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/dashboard/events/:eventId/speakers/:speakerId/edit"
+          element={
+            <AuthGuard requireSelectedOrganization={true}>
+              <EditSpeakerPage />
             </AuthGuard>
           }
         />

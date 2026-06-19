@@ -39,7 +39,14 @@ export interface Edition {
 export interface Speaker {
   id: string
   eventId: string
+  editionId: string | null
+  profileId: string
+  roleId: string
+  roleSlug: string
+  firstName: string
+  lastName: string
   name: string
+  email: string
   avatar: string
   talkTitle: string
   talkDescription: string
@@ -76,6 +83,20 @@ export interface ParticipantRole {
   createdAt: string
 }
 
+export interface AddSpeakerInput {
+  eventId: string
+  editionId: string | null
+  profileId: string | null
+  roleId: string
+  firstName: string
+  lastName: string
+  email: string
+  avatar: string
+  talkTitle: string
+  talkDescription: string
+  bio: string
+}
+
 export interface EventFilters {
   search?: string
   status?: string
@@ -105,8 +126,8 @@ interface EventState {
   updateEdition: (id: string, updates: Partial<Edition>) => Promise<void>
   deleteEdition: (id: string) => Promise<void>
 
-  addSpeaker: (speaker: Omit<Speaker, "id">) => Promise<void>
-  updateSpeaker: (id: string, updates: Partial<Speaker>) => Promise<void>
+  addSpeaker: (speaker: AddSpeakerInput) => Promise<void>
+  updateSpeaker: (id: string, updates: Partial<AddSpeakerInput>) => Promise<void>
   deleteSpeaker: (id: string) => Promise<void>
 
   addAgendaItem: (item: Omit<AgendaItem, "id">) => Promise<void>
@@ -251,17 +272,17 @@ export const useEventStore = create<EventState>((set, get) => ({
       }
 
       // Fetch speakers and attendees from event_participants
-      const editionIds = formattedEditions.map((ed) => ed.id)
       const formattedAttendees: Attendee[] = []
       const formattedSpeakers: Speaker[] = []
 
-      if (editionIds.length > 0) {
+      if (mainEventIds.length > 0) {
         const { data: participantsData } = await supabase
           .from("event_participants")
           .select(`
             id,
             main_event_id,
             edition_id,
+            role_id,
             check_in_status,
             ticket_reference,
             created_at,
@@ -272,19 +293,27 @@ export const useEventStore = create<EventState>((set, get) => ({
               slug
             )
           `)
-          .in("edition_id", editionIds)
+          .in("main_event_id", mainEventIds)
 
         if (participantsData) {
           participantsData.forEach((part: any) => {
             const profile = part.profile || {}
             const roleSlug = part.role?.slug || "attendee"
+            const roleId = part.role_id || ""
             const fullName = `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || "Participante"
 
-            if (roleSlug === "speaker") {
+            if (roleSlug === "speaker" || roleSlug === "keynote-speaker") {
               formattedSpeakers.push({
                 id: part.id,
                 eventId: part.main_event_id,
+                editionId: part.edition_id,
+                profileId: profile.id || "",
+                roleId: roleId,
+                roleSlug: roleSlug,
+                firstName: profile.first_name || "",
+                lastName: profile.last_name || "",
                 name: fullName,
+                email: profile.email || "",
                 avatar: profile.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fullName)}`,
                 talkTitle: part.ticket_reference || "Presentación Especial",
                 talkDescription: profile.bio || "",
@@ -513,125 +542,128 @@ export const useEventStore = create<EventState>((set, get) => ({
 
   addSpeaker: async (speakerData) => {
     try {
-      const state = get()
-      let edition = state.editions.find((ed) => ed.mainEventId === speakerData.eventId)
+      let profileId = speakerData.profileId
 
-      if (!edition) {
-        const editionId = crypto.randomUUID()
-        const defaultEdition = {
-          id: editionId,
-          main_event_id: speakerData.eventId,
-          slug: `default-${editionId.substring(0, 8)}`,
-          year: new Date().getFullYear(),
-          name: { es: "Edición Principal" },
-          start_date: new Date().toISOString().split("T")[0],
-          end_date: new Date().toISOString().split("T")[0],
-          is_current: true
-        }
-        await supabase.from("editions").insert([defaultEdition])
-
-        const newEd: Edition = {
-          id: editionId,
-          mainEventId: speakerData.eventId,
-          slug: defaultEdition.slug,
-          year: defaultEdition.year,
-          name: "Edición Principal",
-          startDate: defaultEdition.start_date,
-          endDate: defaultEdition.end_date,
-          isCurrent: true,
-          description: "",
-          coverUrl: "",
-        }
-
-        set((state) => ({
-          editions: [...state.editions, newEd]
-        }))
-        edition = newEd
-      }
-
-      const profileId = crypto.randomUUID()
-      const participantId = crypto.randomUUID()
-      const nameParts = speakerData.name.trim().split(" ")
-      const firstName = nameParts[0] || "Ponente"
-      const lastName = nameParts.slice(1).join(" ") || ""
-
-      await supabase.from("profiles").insert([{
-        id: profileId,
-        first_name: firstName,
-        last_name: lastName,
+      // 1. Profile handling (Insert or Update)
+      const profilePayload = {
+        first_name: speakerData.firstName,
+        last_name: speakerData.lastName,
+        email: speakerData.email,
         avatar_url: speakerData.avatar,
-        bio: speakerData.bio
-      }])
-
-      const { data: roleData } = await supabase
-        .from("participant_roles")
-        .select("id")
-        .eq("slug", "speaker")
-        .eq("main_event_id", speakerData.eventId)
-        .maybeSingle()
-
-      let roleId = roleData?.id
-      if (!roleId) {
-        roleId = crypto.randomUUID()
-        await supabase.from("participant_roles").insert([{
-          id: roleId,
-          main_event_id: speakerData.eventId,
-          slug: "speaker",
-          name: { es: "Ponente" }
-        }])
+        bio: speakerData.bio,
       }
 
+      if (profileId) {
+        // Update existing profile
+        await supabase.from("profiles").update(profilePayload).eq("id", profileId)
+      } else {
+        // Create new profile
+        profileId = crypto.randomUUID()
+        await supabase.from("profiles").insert([{ id: profileId, ...profilePayload }])
+      }
+
+      // 2. Insert participant
+      const participantId = crypto.randomUUID()
       await supabase.from("event_participants").insert([{
         id: participantId,
         main_event_id: speakerData.eventId,
-        edition_id: edition.id,
+        edition_id: speakerData.editionId,
         profile_id: profileId,
-        role_id: roleId,
-        ticket_reference: speakerData.talkTitle
+        role_id: speakerData.roleId,
+        ticket_reference: speakerData.talkTitle,
       }])
 
+      // 3. Find role slug
+      const { data: roleData } = await supabase
+        .from("participant_roles")
+        .select("slug")
+        .eq("id", speakerData.roleId)
+        .maybeSingle()
+
+      const roleSlug = roleData?.slug || "speaker"
+
+      // 4. Update local state
+      const fullName = `${speakerData.firstName} ${speakerData.lastName}`.trim()
+      const newSpeaker: Speaker = {
+        id: participantId,
+        eventId: speakerData.eventId,
+        editionId: speakerData.editionId,
+        profileId,
+        roleId: speakerData.roleId,
+        roleSlug,
+        firstName: speakerData.firstName,
+        lastName: speakerData.lastName,
+        name: fullName,
+        email: speakerData.email,
+        avatar: speakerData.avatar,
+        talkTitle: speakerData.talkTitle,
+        talkDescription: speakerData.talkDescription,
+        bio: speakerData.bio,
+      }
+
       set((state) => ({
-        speakers: [...state.speakers, { id: participantId, ...speakerData }]
+        speakers: [...state.speakers, newSpeaker]
       }))
     } catch (e) {
       console.error("Error adding speaker:", e)
+      throw e
     }
   },
 
   updateSpeaker: async (id, updates) => {
     try {
-      const { data: partData } = await supabase
-        .from("event_participants")
-        .select("profile_id")
-        .eq("id", id)
-        .maybeSingle()
+      const current = get().speakers.find((s) => s.id === id)
+      if (!current) throw new Error("Speaker not found")
 
-      if (partData?.profile_id) {
-        const profileUpdates: any = {}
-        if (updates.name !== undefined) {
-          const nameParts = updates.name.trim().split(" ")
-          profileUpdates.first_name = nameParts[0] || ""
-          profileUpdates.last_name = nameParts.slice(1).join(" ") || ""
-        }
-        if (updates.avatar !== undefined) profileUpdates.avatar_url = updates.avatar
-        if (updates.bio !== undefined) profileUpdates.bio = updates.bio
+      // 1. Update Profile in DB
+      const profileUpdates: any = {}
+      if (updates.firstName !== undefined) profileUpdates.first_name = updates.firstName
+      if (updates.lastName !== undefined) profileUpdates.last_name = updates.lastName
+      if (updates.email !== undefined) profileUpdates.email = updates.email
+      if (updates.avatar !== undefined) profileUpdates.avatar_url = updates.avatar
+      if (updates.bio !== undefined) profileUpdates.bio = updates.bio
 
-        if (Object.keys(profileUpdates).length > 0) {
-          await supabase.from("profiles").update(profileUpdates).eq("id", partData.profile_id)
-        }
+      if (Object.keys(profileUpdates).length > 0) {
+        await supabase.from("profiles").update(profileUpdates).eq("id", current.profileId)
       }
 
-      if (updates.talkTitle !== undefined) {
-        await supabase.from("event_participants").update({
-          ticket_reference: updates.talkTitle
-        }).eq("id", id)
+      // 2. Update Participant in DB
+      const participantUpdates: any = {}
+      if (updates.editionId !== undefined) participantUpdates.edition_id = updates.editionId
+      if (updates.roleId !== undefined) participantUpdates.role_id = updates.roleId
+      if (updates.talkTitle !== undefined) participantUpdates.ticket_reference = updates.talkTitle
+
+      if (Object.keys(participantUpdates).length > 0) {
+        await supabase.from("event_participants").update(participantUpdates).eq("id", id)
+      }
+
+      // 3. Update local state
+      let updatedRoleSlug = current.roleSlug
+      if (updates.roleId && updates.roleId !== current.roleId) {
+        const { data: roleData } = await supabase
+          .from("participant_roles")
+          .select("slug")
+          .eq("id", updates.roleId)
+          .maybeSingle()
+        if (roleData) updatedRoleSlug = roleData.slug
       }
 
       set((state) => ({
-        speakers: state.speakers.map((s) => s.id === id ? { ...s, ...updates } : s)
+        speakers: state.speakers.map((s) => {
+          if (s.id === id) {
+            const merged = { ...s, ...updates }
+            if (updates.firstName !== undefined || updates.lastName !== undefined) {
+              merged.name = `${updates.firstName ?? s.firstName} ${updates.lastName ?? s.lastName}`.trim()
+            }
+            merged.roleSlug = updatedRoleSlug
+            return merged
+          }
+          return s
+        })
       }))
     } catch (e) {
       console.error("Error updating speaker:", e)
+      throw e
     }
   },
 
