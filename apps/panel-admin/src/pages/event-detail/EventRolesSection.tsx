@@ -95,6 +95,10 @@ export function EventRolesSection() {
   const eventEditions = editions.filter((ed) => ed.mainEventId === id)
   const currentEdition = eventEditions.find((ed) => ed.isCurrent)
 
+  const availableSuggestions = SUGGESTIONS.filter(
+    (sug) => !eventRoles.some((r) => r.slug.trim().toLowerCase() === sug.slug.trim().toLowerCase())
+  )
+
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   
@@ -251,20 +255,17 @@ export function EventRolesSection() {
       </div>
 
       {/* Suggested Roles Cards Block */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground">
-          <Sparkles className="size-4 text-primary" />
-          <span>Sugerencias rápidas de roles</span>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {SUGGESTIONS.map((sug) => {
-            const alreadyExists = eventRoles.some((r) => r.slug === sug.slug)
-            return (
+      {availableSuggestions.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground">
+            <Sparkles className="size-4 text-primary" />
+            <span>Sugerencias rápidas de roles</span>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {availableSuggestions.map((sug) => (
               <div
                 key={sug.slug}
-                className={`p-4 rounded-xl border bg-card/40 flex flex-col justify-between space-y-3 hover:border-border transition-all duration-300 relative overflow-hidden group ${
-                  alreadyExists ? "opacity-60 border-border/40" : "border-border/60"
-                }`}
+                className="p-4 rounded-xl border border-border/60 bg-card/40 flex flex-col justify-between space-y-3 hover:border-border transition-all duration-300 relative overflow-hidden group"
               >
                 {/* Visual glass color blur */}
                 <div
@@ -287,23 +288,16 @@ export function EventRolesSection() {
 
                 <Button
                   onClick={() => openCreateWithSuggestion(sug)}
-                  disabled={alreadyExists}
                   variant="outline"
                   className="w-full text-xs h-7 py-1 px-2 border-border/80 hover:bg-muted"
                 >
-                  {alreadyExists ? (
-                    <span className="flex items-center gap-1">
-                      <Check className="size-3 text-emerald-500" /> Creado
-                    </span>
-                  ) : (
-                    "Usar sugerencia"
-                  )}
+                  Usar sugerencia
                 </Button>
               </div>
-            )
-          })}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Table list of roles */}
       {eventRoles.length === 0 ? (
