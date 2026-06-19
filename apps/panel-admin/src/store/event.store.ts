@@ -588,7 +588,7 @@ export const useEventStore = create<EventState>((set, get) => ({
         id: participantId,
         eventId: speakerData.eventId,
         editionId: speakerData.editionId,
-        profileId,
+        profileId: profileId!,
         roleId: speakerData.roleId,
         roleSlug,
         firstName: speakerData.firstName,
@@ -651,7 +651,8 @@ export const useEventStore = create<EventState>((set, get) => ({
       set((state) => ({
         speakers: state.speakers.map((s) => {
           if (s.id === id) {
-            const merged = { ...s, ...updates }
+            const { profileId, email, ...safeUpdates } = updates
+            const merged = { ...s, ...safeUpdates }
             if (updates.firstName !== undefined || updates.lastName !== undefined) {
               merged.name = `${updates.firstName ?? s.firstName} ${updates.lastName ?? s.lastName}`.trim()
             }
