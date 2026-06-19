@@ -21,18 +21,11 @@ import { toast } from "sonner"
 const organizationSchema = z.object({
   name: z.string().min(3, "El nombre de la organización debe tener al menos 3 caracteres"),
   type: z.string().min(2, "El tipo de organización es requerido"),
-  email: z.string().email("Correo electrónico inválido"),
+  email: z.string().email("Correo electrónico inválido").or(z.literal("")).optional(),
   slug: z.string()
     .min(3, "El slug debe tener al menos 3 caracteres")
     .regex(/^[a-z0-9-]+$/, "El slug solo debe contener letras minúsculas, números y guiones"),
   description: z.string().optional(),
-  contactPhone: z.string().optional(),
-  address: z.string().optional(),
-  documentNumber: z.string().optional(),
-  brand: z.string().optional(),
-  logoUrl: z.string().url("Enlace de logo inválido").or(z.literal("")).optional(),
-  coverUrl: z.string().url("Enlace de portada inválido").or(z.literal("")).optional(),
-  primaryColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Color hexadecimal inválido (ej. #7C3AED)").or(z.literal("")).optional(),
 })
 
 type OrganizationInput = z.infer<typeof organizationSchema>
@@ -46,16 +39,10 @@ export function CreateOrganizationPage() {
   const [email, setEmail] = useState("")
   const [slug, setSlug] = useState("")
   const [description, setDescription] = useState("")
-  const [contactPhone, setContactPhone] = useState("")
-  const [address, setAddress] = useState("")
-  const [documentNumber, setDocumentNumber] = useState("")
-  const [brand, setBrand] = useState("")
-  const [logoUrl, setLogoUrl] = useState("")
-  const [coverUrl, setCoverUrl] = useState("")
-  const [primaryColor, setPrimaryColor] = useState("")
 
   const [errors, setErrors] = useState<Partial<Record<keyof OrganizationInput, string>>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [slugStatus, setSlugStatus] = useState<"idle" | "checking" | "available" | "taken">("idle")
 
   // Auto-generate slug from name
   useEffect(() => {
@@ -70,6 +57,38 @@ export function CreateOrganizationPage() {
 
     setSlug(generatedSlug)
   }, [name])
+
+  // Real-time slug availability check
+  useEffect(() => {
+    if (slug.length < 3) {
+      setSlugStatus("idle")
+      return
+    }
+
+    setSlugStatus("checking")
+    const timer = setTimeout(async () => {
+      try {
+        const { data, error } = await supabase
+          .from("organizations")
+          .select("id")
+          .eq("slug", slug)
+          .maybeSingle()
+
+        if (error) throw error
+
+        if (data) {
+          setSlugStatus("taken")
+        } else {
+          setSlugStatus("available")
+        }
+      } catch (err) {
+        console.error("Error checking slug availability:", err)
+        setSlugStatus("idle")
+      }
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [slug])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -88,13 +107,6 @@ export function CreateOrganizationPage() {
       email,
       slug,
       description,
-      contactPhone,
-      address,
-      documentNumber,
-      brand,
-      logoUrl,
-      coverUrl,
-      primaryColor,
     })
 
     if (!validation.success) {
@@ -110,6 +122,12 @@ export function CreateOrganizationPage() {
       return
     }
 
+    if (slugStatus === "taken") {
+      toast.error("El slug seleccionado ya está en uso por otra organización.")
+      setIsSubmitting(false)
+      return
+    }
+
     try {
       if (!user?.id) throw new Error("Sesión de usuario no válida.")
 
@@ -119,16 +137,9 @@ export function CreateOrganizationPage() {
         .insert([{
           organization_name: name,
           organization_type: type,
-          organization_email: email,
+          organization_email: email || null,
           slug,
           description: description || null,
-          contact_phone: contactPhone || null,
-          address: address || null,
-          document_number: documentNumber || null,
-          brand: brand || null,
-          logo_url: logoUrl || null,
-          cover_image_url: coverUrl || null,
-          primary_color: primaryColor || null,
           status: "active",
           validation_status: "pending"
         }])
@@ -307,11 +318,11 @@ export function CreateOrganizationPage() {
               </div>
             </div>
 
-            {/* Email Row */}
+            {/* Email Row (Optional) */}
             <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
               <div className="md:w-1/3 space-y-1">
                 <label htmlFor="org-email" className="text-sm font-medium text-foreground">
-                  Correo Electrónico <span className="text-destructive">*</span>
+                  Correo Electrónico
                 </label>
                 <p className="text-xs text-muted-foreground">Correo oficial para notificaciones y contacto de eventos.</p>
               </div>
@@ -354,6 +365,29 @@ export function CreateOrganizationPage() {
                     disabled={isSubmitting}
                   />
                 </div>
+                {slug.length >= 3 && (
+                  <div className="flex items-center gap-1.5 mt-2 text-xs font-medium">
+                    {slugStatus === "checking" && (
+                      <span className="text-muted-foreground animate-pulse">Verificando disponibilidad...</span>
+                    )}
+                    {slugStatus === "available" && (
+                      <span className="text-emerald-600 dark:text-emerald-500 flex items-center gap-1">
+                        <svg className="size-3.5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
+                        </svg>
+                        {slug} está disponible.
+                      </span>
+                    )}
+                    {slugStatus === "taken" && (
+                      <span className="text-destructive flex items-center gap-1">
+                        <svg className="size-3.5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clipRule="evenodd" />
+                        </svg>
+                        {slug} ya está en uso.
+                      </span>
+                    )}
+                  </div>
+                )}
                 {errors.slug && (
                   <p className="text-xs text-destructive mt-1.5 font-medium">{errors.slug}</p>
                 )}
@@ -376,144 +410,6 @@ export function CreateOrganizationPage() {
                   className="w-full px-3 py-2 text-sm bg-background border border-input rounded-md outline-none focus:ring-2 focus:ring-ring/50 text-foreground"
                   disabled={isSubmitting}
                 />
-              </div>
-            </div>
-
-            {/* Phone Row */}
-            <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
-              <div className="md:w-1/3 space-y-1">
-                <label htmlFor="org-phone" className="text-sm font-medium text-foreground">Teléfono de Contacto</label>
-                <p className="text-xs text-muted-foreground">Número de teléfono oficial de la organización.</p>
-              </div>
-              <div className="md:w-2/3 max-w-md w-full">
-                <Input
-                  id="org-phone"
-                  type="tel"
-                  placeholder="Ej. +51 987654321"
-                  value={contactPhone}
-                  onChange={(e) => setContactPhone(e.target.value)}
-                  disabled={isSubmitting}
-                />
-              </div>
-            </div>
-
-            {/* Address Row */}
-            <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
-              <div className="md:w-1/3 space-y-1">
-                <label htmlFor="org-address" className="text-sm font-medium text-foreground">Dirección Física</label>
-                <p className="text-xs text-muted-foreground">Ubicación de la oficina o sede principal.</p>
-              </div>
-              <div className="md:w-2/3 max-w-md w-full">
-                <Input
-                  id="org-address"
-                  type="text"
-                  placeholder="Ej. Av. Larco 123, Miraflores"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  disabled={isSubmitting}
-                />
-              </div>
-            </div>
-
-            {/* Document Number Row */}
-            <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
-              <div className="md:w-1/3 space-y-1">
-                <label htmlFor="org-doc" className="text-sm font-medium text-foreground">Número de Documento Fiscal</label>
-                <p className="text-xs text-muted-foreground">Identificación tributaria legal (RUC, NIT, RFC, etc.).</p>
-              </div>
-              <div className="md:w-2/3 max-w-md w-full">
-                <Input
-                  id="org-doc"
-                  type="text"
-                  placeholder="Ej. 20123456789"
-                  value={documentNumber}
-                  onChange={(e) => setDocumentNumber(e.target.value)}
-                  disabled={isSubmitting}
-                />
-              </div>
-            </div>
-
-            {/* Brand Row */}
-            <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
-              <div className="md:w-1/3 space-y-1">
-                <label htmlFor="org-brand" className="text-sm font-medium text-foreground">Marca comercial</label>
-                <p className="text-xs text-muted-foreground">Nombre corto o marca con la que se conoce a la organización.</p>
-              </div>
-              <div className="md:w-2/3 max-w-md w-full">
-                <Input
-                  id="org-brand"
-                  type="text"
-                  placeholder="Ej. TechLatam"
-                  value={brand}
-                  onChange={(e) => setBrand(e.target.value)}
-                  disabled={isSubmitting}
-                />
-              </div>
-            </div>
-
-            {/* Logo URL Row */}
-            <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
-              <div className="md:w-1/3 space-y-1">
-                <label htmlFor="org-logo" className="text-sm font-medium text-foreground">URL del Logotipo</label>
-                <p className="text-xs text-muted-foreground">Enlace directo a una imagen cuadrada de tu logo.</p>
-              </div>
-              <div className="md:w-2/3 max-w-md w-full">
-                <Input
-                  id="org-logo"
-                  type="url"
-                  placeholder="https://ejemplo.com/logo.png"
-                  value={logoUrl}
-                  onChange={(e) => setLogoUrl(e.target.value)}
-                  className={errors.logoUrl ? "border-destructive focus-visible:ring-destructive" : ""}
-                  disabled={isSubmitting}
-                />
-                {errors.logoUrl && (
-                  <p className="text-xs text-destructive mt-1.5 font-medium">{errors.logoUrl}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Cover URL Row */}
-            <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
-              <div className="md:w-1/3 space-y-1">
-                <label htmlFor="org-cover" className="text-sm font-medium text-foreground">URL de Imagen de Portada</label>
-                <p className="text-xs text-muted-foreground">Enlace directo a una imagen de banner para tu organización.</p>
-              </div>
-              <div className="md:w-2/3 max-w-md w-full">
-                <Input
-                  id="org-cover"
-                  type="url"
-                  placeholder="https://ejemplo.com/cover.png"
-                  value={coverUrl}
-                  onChange={(e) => setCoverUrl(e.target.value)}
-                  className={errors.coverUrl ? "border-destructive focus-visible:ring-destructive" : ""}
-                  disabled={isSubmitting}
-                />
-                {errors.coverUrl && (
-                  <p className="text-xs text-destructive mt-1.5 font-medium">{errors.coverUrl}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Primary Color Row */}
-            <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
-              <div className="md:w-1/3 space-y-1">
-                <label htmlFor="org-color" className="text-sm font-medium text-foreground">Color Primario de Marca</label>
-                <p className="text-xs text-muted-foreground">Código de color hexadecimal representativo de la marca.</p>
-              </div>
-              <div className="md:w-2/3 max-w-md w-full font-mono">
-                <Input
-                  id="org-color"
-                  type="text"
-                  placeholder="Ej. #7C3AED"
-                  value={primaryColor}
-                  onChange={(e) => setPrimaryColor(e.target.value)}
-                  className={errors.primaryColor ? "border-destructive focus-visible:ring-destructive" : ""}
-                  disabled={isSubmitting}
-                />
-                {errors.primaryColor && (
-                  <p className="text-xs text-destructive mt-1.5 font-medium">{errors.primaryColor}</p>
-                )}
               </div>
             </div>
 
