@@ -192,7 +192,7 @@ export function CreateOrganizationPage() {
         .insert([{
           organization_name: name,
           organization_type: type,
-          organization_email: currentEmails.join(", ") || null,
+          organization_email: currentEmails,
           slug,
           description: description || null,
           logo_url: logoUrl || null,

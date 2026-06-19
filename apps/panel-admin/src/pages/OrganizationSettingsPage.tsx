@@ -100,7 +100,13 @@ export function OrganizationSettingsPage() {
         if (data) {
           setName(data.organization_name || "")
           setType(data.organization_type || "")
-          setEmails(data.organization_email ? data.organization_email.split(",").map((e: string) => e.trim()).filter(Boolean) : [])
+          let loadedEmails: string[] = []
+          if (Array.isArray(data.organization_email)) {
+            loadedEmails = data.organization_email.filter(Boolean)
+          } else if (typeof data.organization_email === "string") {
+            loadedEmails = data.organization_email.split(",").map((e: string) => e.trim()).filter(Boolean)
+          }
+          setEmails(loadedEmails)
           setSlug(data.slug || "")
           setDescription(data.description || "")
           setContactPhone(data.contact_phone || "")
@@ -234,7 +240,7 @@ export function OrganizationSettingsPage() {
         .update({
           organization_name: name,
           organization_type: type,
-          organization_email: currentEmails.join(", ") || null,
+          organization_email: currentEmails,
           slug,
           description: description || null,
           contact_phone: contactPhone || null,
@@ -442,7 +448,7 @@ export function OrganizationSettingsPage() {
                     <span className="text-muted-foreground animate-pulse">Verificando disponibilidad...</span>
                   )}
                   {slugStatus === "available" && (
-                    <span className="text-primary flex items-center gap-1">
+                    <span className="text-emerald-600 dark:text-emerald-500 flex items-center gap-1">
                       <svg className="size-3.5" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
                       </svg>

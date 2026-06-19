@@ -137,7 +137,7 @@ export function ImageUploadWithPreview({
   const getContainerClass = () => {
     const base = "relative group border border-dashed rounded-xl overflow-hidden bg-muted/20 flex flex-col items-center justify-center transition-all duration-200 cursor-pointer"
     const hoverBorder = dragActive ? "border-primary bg-primary/5" : "border-border hover:border-primary hover:bg-muted/30"
-    
+
     switch (aspectRatio) {
       case "banner":
         return `${base} ${hoverBorder} aspect-[21/9] w-full max-w-full`
@@ -164,8 +164,8 @@ export function ImageUploadWithPreview({
   return (
     <div className="space-y-3 w-full">
       <label className="text-sm font-medium text-foreground block">{label}</label>
-      
-      <div className="flex flex-col md:flex-row gap-4 items-start w-full">
+
+      <div className="flex flex-col  gap-4 items-start w-full">
         {/* Dropzone Container */}
         <div
           className={getContainerClass()}
@@ -191,7 +191,7 @@ export function ImageUploadWithPreview({
                 alt="Vista previa"
                 className={getPreviewImageClass()}
               />
-              
+
               {/* Overlay on hover */}
               <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition-opacity duration-200">
                 <button
