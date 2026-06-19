@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import { PageHeader } from "@/components/page-header"
 import { Search, X, UserPlus } from "lucide-react"
+import { OrganizationMemberRole } from "@/types/auth.types"
 
 export function MembersPage() {
   const navigate = useNavigate()
@@ -20,7 +21,7 @@ export function MembersPage() {
   // Invite modal states
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false)
   const [inviteEmail, setInviteEmail] = useState("")
-  const [inviteRole, setInviteRole] = useState<"Owner" | "Administrator" | "Developer">("Developer")
+  const [inviteRole, setInviteRole] = useState<OrganizationMemberRole>(OrganizationMemberRole.DEVELOPER)
   const [isInviting, setIsInviting] = useState(false)
 
   // Search profiles modal states (inside invite modal)
@@ -517,19 +518,19 @@ export function MembersPage() {
                   Rol del miembro
                 </label>
                 <div className="space-y-2">
-                  {[
+                   {[
                     {
-                      value: "Owner",
+                      value: OrganizationMemberRole.OWNER,
                       label: "Owner (Dueño)",
                       desc: "Acceso total, incluyendo la eliminación de la organización e invitación de otros administradores."
                     },
                     {
-                      value: "Administrator",
+                      value: OrganizationMemberRole.ADMINISTRATOR,
                       label: "Administrator (Administrador)",
                       desc: "Administra miembros, sedes y configuración del proyecto. No puede eliminar dueños o la organización."
                     },
                     {
-                      value: "Developer",
+                      value: OrganizationMemberRole.DEVELOPER,
                       label: "Developer (Desarrollador)",
                       desc: "Administra el contenido del proyecto (eventos, actividades). No puede cambiar la configuración comercial."
                     }

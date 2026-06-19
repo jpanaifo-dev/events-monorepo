@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom"
 import { z } from "zod"
 import { useAuthStore } from "@/store/auth.store"
 import { supabase } from "@/utils/supabase"
+import { OrganizationMemberRole } from "@/types/auth.types"
 import { ThemeSwitch } from "@/components/ui/theme-switch"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -205,6 +206,46 @@ export function CreateOrganizationPage() {
         .single()
 
       if (insertError) throw insertError
+
+      // Assign the creator as Owner of the organization in organization_members
+      try {
+        const { error: memberError } = await supabase
+          .from("organization_members")
+          .insert({
+            organization_id: orgData.id,
+            profile_id: user.id,
+            role: OrganizationMemberRole.OWNER,
+            is_active: true
+          })
+
+        if (memberError) {
+          if (memberError.code === "P0001" || memberError.message.includes("does not exist")) {
+            console.warn("organization_members table does not exist, creating local fallback mock member.")
+            const storedKey = `mock_members_${orgData.id}`
+            const defaultMember = [
+              {
+                id: "fallback-member-id",
+                role: OrganizationMemberRole.OWNER,
+                is_active: true,
+                profile_id: user.id,
+                profile: {
+                  id: user.id,
+                  first_name: user.full_name?.split(" ")[0] || "",
+                  last_name: user.full_name?.split(" ").slice(1).join(" ") || "",
+                  email: user.email,
+                  avatar_url: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.full_name || user.email || "U")}`
+                }
+              }
+            ]
+            localStorage.setItem(storedKey, JSON.stringify(defaultMember))
+          } else {
+            throw memberError
+          }
+        }
+      } catch (memErr: any) {
+        console.error("Failed to assign creator as Owner in DB:", memErr)
+        toast.warning("Organización creada, pero no se pudo registrar su rol de Dueño automáticamente.")
+      }
 
       // Format organization for Zustand store selection
       const formattedOrg = {

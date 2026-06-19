@@ -127,24 +127,51 @@ export function LoginForm({
 
       const userRole = (roleData?.role as any) || "SERVICE_OWNER"
 
-      // Fetch organizations directly
-      const { data: orgsData, error: busError } = await supabase
-        .from("organizations")
+      // Fetch organizations associated with user membership
+      let orgsData: any[] = []
+      const { data: memberData, error: memberError } = await supabase
+        .from("organization_members")
         .select(`
-          id,
-          organization_name,
-          organization_type,
-          organization_email,
-          description,
-          status,
-          slug,
-          logo_url,
-          cover_image_url,
-          favicon_url
+          organization:organizations (
+            id,
+            organization_name,
+            organization_type,
+            organization_email,
+            description,
+            status,
+            slug,
+            logo_url,
+            cover_image_url,
+            favicon_url
+          )
         `)
+        .eq("profile_id", sessionUser.id)
 
-      if (busError) {
-        console.error("Error fetching organizations:", busError)
+      if (memberError) {
+        if (memberError.code === "P0001" || memberError.message.includes("does not exist")) {
+          console.warn("organization_members table does not exist, loading all organizations instead.")
+          const { data: allOrgs, error: allOrgsErr } = await supabase
+            .from("organizations")
+            .select(`
+              id,
+              organization_name,
+              organization_type,
+              organization_email,
+              description,
+              status,
+              slug,
+              logo_url,
+              cover_image_url,
+              favicon_url
+            `)
+          if (!allOrgsErr) {
+            orgsData = allOrgs || []
+          }
+        } else {
+          console.error("Error fetching organizations during login:", memberError)
+        }
+      } else {
+        orgsData = (memberData || []).map((item: any) => item.organization).filter(Boolean)
       }
 
       // Map to Organization model

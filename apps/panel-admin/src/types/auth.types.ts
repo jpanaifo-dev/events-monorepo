@@ -1,5 +1,15 @@
 export type UserRole = "SAAS_ADMIN" | "SERVICE_OWNER"
 
+export type OrganizationMemberRole = "Owner" | "Administrator" | "Developer"
+
+export const OrganizationMemberRole = {
+  OWNER: "Owner" as const,
+  ADMINISTRATOR: "Administrator" as const,
+  DEVELOPER: "Developer" as const
+} as const
+
+
+
 export interface User {
   id: string
   email: string
