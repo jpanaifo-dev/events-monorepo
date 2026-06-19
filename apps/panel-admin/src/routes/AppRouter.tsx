@@ -22,6 +22,7 @@ import {
   EventSpeakersSection,
   EventAgendaSection,
   EventAttendeesSection,
+  EventRolesSection,
 } from "@/pages/event-detail"
 
 export function AppRouter() {
@@ -135,6 +136,7 @@ export function AppRouter() {
           <Route path="speakers" element={<EventSpeakersSection />} />
           <Route path="agenda" element={<EventAgendaSection />} />
           <Route path="attendees" element={<EventAttendeesSection />} />
+          <Route path="roles" element={<EventRolesSection />} />
         </Route>
 
         {/* Fallback redirect */}

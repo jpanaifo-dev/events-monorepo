@@ -65,6 +65,17 @@ export interface Attendee {
   checkedIn: boolean
 }
 
+export interface ParticipantRole {
+  id: string
+  mainEventId: string
+  editionId: string | null
+  slug: string
+  name: Record<string, string> // e.g. { es: string, en?: string }
+  badgeColor: string | null
+  isActive: boolean
+  createdAt: string
+}
+
 export interface EventFilters {
   search?: string
   status?: string
@@ -77,9 +88,14 @@ interface EventState {
   speakers: Speaker[]
   agendaItems: AgendaItem[]
   attendees: Attendee[]
+  roles: ParticipantRole[]
   isLoading: boolean
 
   loadData: (organizationId: string, filters?: EventFilters) => Promise<void>
+  loadRoles: (mainEventId: string) => Promise<void>
+  addRole: (role: Omit<ParticipantRole, "id" | "createdAt">) => Promise<void>
+  updateRole: (id: string, updates: Partial<Omit<ParticipantRole, "id" | "createdAt">>) => Promise<void>
+  deleteRole: (id: string) => Promise<void>
 
   addEvent: (event: Omit<Event, "id" | "createdAt" | "updatedAt" | "ownerId" | "slug">) => Promise<string>
   updateEvent: (id: string, updates: Partial<Event>) => Promise<void>
@@ -150,12 +166,26 @@ function mapEdition(row: any): Edition {
   }
 }
 
+function mapParticipantRole(row: any): ParticipantRole {
+  return {
+    id: row.id,
+    mainEventId: row.main_event_id,
+    editionId: row.edition_id,
+    slug: row.slug,
+    name: typeof row.name === "string" ? JSON.parse(row.name) : (row.name || { es: "" }),
+    badgeColor: row.badge_color,
+    isActive: row.is_active !== false,
+    createdAt: row.created_at || "",
+  }
+}
+
 export const useEventStore = create<EventState>((set, get) => ({
   events: [],
   editions: [],
   speakers: [],
   agendaItems: [],
   attendees: [],
+  roles: [],
   isLoading: false,
 
   loadData: async (organizationId, filters) => {
@@ -537,6 +567,7 @@ export const useEventStore = create<EventState>((set, get) => ({
         .from("participant_roles")
         .select("id")
         .eq("slug", "speaker")
+        .eq("main_event_id", speakerData.eventId)
         .maybeSingle()
 
       let roleId = roleData?.id
@@ -544,6 +575,7 @@ export const useEventStore = create<EventState>((set, get) => ({
         roleId = crypto.randomUUID()
         await supabase.from("participant_roles").insert([{
           id: roleId,
+          main_event_id: speakerData.eventId,
           slug: "speaker",
           name: { es: "Ponente" }
         }])
@@ -734,6 +766,7 @@ export const useEventStore = create<EventState>((set, get) => ({
         .from("participant_roles")
         .select("id")
         .eq("slug", ticketRole)
+        .eq("main_event_id", attendeeData.eventId)
         .maybeSingle()
 
       let roleId = roleData?.id
@@ -741,6 +774,7 @@ export const useEventStore = create<EventState>((set, get) => ({
         roleId = crypto.randomUUID()
         await supabase.from("participant_roles").insert([{
           id: roleId,
+          main_event_id: attendeeData.eventId,
           slug: ticketRole,
           name: { es: attendeeData.ticketType }
         }])
@@ -779,7 +813,6 @@ export const useEventStore = create<EventState>((set, get) => ({
       console.error("Error toggling check-in:", e)
     }
   },
-
   deleteAttendee: async (id) => {
     try {
       const { data: partData } = await supabase
@@ -798,6 +831,105 @@ export const useEventStore = create<EventState>((set, get) => ({
       }))
     } catch (e) {
       console.error("Error deleting attendee:", e)
+    }
+  },
+
+  loadRoles: async (mainEventId) => {
+    try {
+      const { data, error } = await supabase
+        .from("participant_roles")
+        .select("*")
+        .eq("main_event_id", mainEventId)
+        .order("created_at", { ascending: false })
+
+      if (error) throw error
+
+      set({ roles: (data || []).map(mapParticipantRole) })
+    } catch (e) {
+      console.error("Error loading participant roles:", e)
+    }
+  },
+
+  addRole: async (roleData) => {
+    try {
+      const id = crypto.randomUUID()
+      const newRole = {
+        id,
+        main_event_id: roleData.mainEventId,
+        edition_id: roleData.editionId,
+        slug: roleData.slug,
+        name: roleData.name,
+        badge_color: roleData.badgeColor,
+        is_active: roleData.isActive,
+      }
+
+      const { error } = await supabase
+        .from("participant_roles")
+        .insert([newRole])
+
+      if (error) throw error
+
+      const mapped: ParticipantRole = {
+        id,
+        mainEventId: roleData.mainEventId,
+        editionId: roleData.editionId,
+        slug: roleData.slug,
+        name: roleData.name,
+        badgeColor: roleData.badgeColor,
+        isActive: roleData.isActive,
+        createdAt: new Date().toISOString(),
+      }
+
+      set((state) => ({
+        roles: [mapped, ...state.roles]
+      }))
+    } catch (e) {
+      console.error("Error adding role:", e)
+      throw e
+    }
+  },
+
+  updateRole: async (id, updates) => {
+    try {
+      const dbUpdates: any = {}
+      if (updates.mainEventId !== undefined) dbUpdates.main_event_id = updates.mainEventId
+      if (updates.editionId !== undefined) dbUpdates.edition_id = updates.editionId
+      if (updates.slug !== undefined) dbUpdates.slug = updates.slug
+      if (updates.name !== undefined) dbUpdates.name = updates.name
+      if (updates.badgeColor !== undefined) dbUpdates.badge_color = updates.badgeColor
+      if (updates.isActive !== undefined) dbUpdates.is_active = updates.isActive
+
+      const { error } = await supabase
+        .from("participant_roles")
+        .update(dbUpdates)
+        .eq("id", id)
+
+      if (error) throw error
+
+      set((state) => ({
+        roles: state.roles.map((r) => r.id === id ? { ...r, ...updates } : r)
+      }))
+    } catch (e) {
+      console.error("Error updating role:", e)
+      throw e
+    }
+  },
+
+  deleteRole: async (id) => {
+    try {
+      const { error } = await supabase
+        .from("participant_roles")
+        .delete()
+        .eq("id", id)
+
+      if (error) throw error
+
+      set((state) => ({
+        roles: state.roles.filter((r) => r.id !== id)
+      }))
+    } catch (e) {
+      console.error("Error deleting role:", e)
+      throw e
     }
   }
 }))

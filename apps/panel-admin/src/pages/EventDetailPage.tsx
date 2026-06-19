@@ -2,7 +2,7 @@ import { useEffect } from "react"
 import { useParams, useNavigate, NavLink, Outlet } from "react-router-dom"
 import { useAuthStore } from "@/store/auth.store"
 import { useEventStore } from "@/store/event.store"
-import { AlertCircle, Settings, Layers, BookOpen, Clock, Users } from "lucide-react"
+import { AlertCircle, Settings, Layers, BookOpen, Clock, Users, Shield } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/page-header"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -13,13 +13,14 @@ const NAV_ITEMS = [
   { to: "speakers", label: "Ponentes", icon: BookOpen },
   { to: "agenda", label: "Agenda", icon: Clock },
   { to: "attendees", label: "Participantes", icon: Users },
+  { to: "roles", label: "Roles", icon: Shield },
 ]
 
 export function EventDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { selectedOrganization } = useAuthStore()
-  const { events, editions, speakers, agendaItems, attendees, isLoading, loadData } = useEventStore()
+  const { events, editions, speakers, agendaItems, attendees, roles, isLoading, loadData, loadRoles } = useEventStore()
 
   useEffect(() => {
     if (selectedOrganization?.id) {
@@ -27,18 +28,26 @@ export function EventDetailPage() {
     }
   }, [selectedOrganization?.id, loadData])
 
+  useEffect(() => {
+    if (id) {
+      loadRoles(id)
+    }
+  }, [id, loadRoles])
+
   const event = events.find((e) => e.id === id)
 
   const eventEditions = editions.filter((ed) => ed.mainEventId === id)
   const eventSpeakers = speakers.filter((sp) => sp.eventId === id)
   const eventAgenda = agendaItems.filter((ag) => ag.eventId === id)
   const eventAttendees = attendees.filter((at) => at.eventId === id)
+  const eventRoles = roles.filter((r) => r.mainEventId === id)
 
   const counts: Record<string, number> = {
     editions: eventEditions.length,
     speakers: eventSpeakers.length,
     agenda: eventAgenda.length,
     attendees: eventAttendees.length,
+    roles: eventRoles.length,
   }
 
   if (isLoading && !event) {
