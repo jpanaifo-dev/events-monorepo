@@ -23,7 +23,6 @@ const organizationSchema = z.object({
     .regex(/^[a-z0-9-]+$/, "El slug solo debe contener letras minúsculas, números y guiones"),
   description: z.string().optional(),
   contactPhone: z.string().optional(),
-  address: z.string().optional(),
   documentNumber: z.string().optional(),
   brand: z.string().optional(),
   logoUrl: z.string().url("Enlace de logo inválido").or(z.literal("")).optional(),
@@ -607,25 +606,6 @@ export function OrganizationSettingsPage() {
               />
             </div>
           </div>
-
-          {/* Address Row */}
-          <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
-            <div className="md:w-1/3 space-y-1">
-              <label htmlFor="org-address" className="text-sm font-medium text-foreground">Dirección Física</label>
-              <p className="text-xs text-muted-foreground">Ubicación de la oficina o sede principal.</p>
-            </div>
-            <div className="md:w-2/3 max-w-md w-full">
-              <Input
-                id="org-address"
-                type="text"
-                placeholder="Ej. Av. Larco 123, Miraflores"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                disabled={isSubmitting}
-              />
-            </div>
-          </div>
-
           {/* Document Number Row */}
           <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
             <div className="md:w-1/3 space-y-1">
