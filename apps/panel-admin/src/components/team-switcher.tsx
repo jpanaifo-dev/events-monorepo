@@ -18,21 +18,21 @@ import {
 import { ChevronsUpDownIcon, PlusIcon } from "lucide-react"
 
 export function TeamSwitcher() {
-  const { services, selectedService, selectService } = useAuthStore()
+  const { organizations, selectedOrganization, selectOrganization } = useAuthStore()
   const { isMobile } = useSidebar()
   const navigate = useNavigate()
 
-  if (!selectedService) {
+  if (!selectedOrganization) {
     return (
       <SidebarMenu>
         <SidebarMenuItem>
-          <SidebarMenuButton size="lg" onClick={() => navigate("/dashboard/settings/business")}>
+          <SidebarMenuButton size="lg" onClick={() => navigate("/dashboard/organizations")}>
             <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-muted text-muted-foreground font-bold text-sm">
               ?
             </div>
             <div className="grid flex-1 text-left text-sm leading-tight">
-              <span className="truncate font-semibold">Sin Negocio</span>
-              <span className="truncate text-xs text-muted-foreground">Registrar uno nuevo</span>
+              <span className="truncate font-semibold">Sin Organización</span>
+              <span className="truncate text-xs text-muted-foreground">Elegir una activa</span>
             </div>
           </SidebarMenuButton>
         </SidebarMenuItem>
@@ -50,11 +50,11 @@ export function TeamSwitcher() {
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-emerald-600 text-white font-bold text-sm">
-                {selectedService.name.charAt(0).toUpperCase()}
+                {selectedOrganization.name.charAt(0).toUpperCase()}
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">{selectedService.name}</span>
-                <span className="truncate text-xs text-muted-foreground">Negocio Activo</span>
+                <span className="truncate font-semibold">{selectedOrganization.name}</span>
+                <span className="truncate text-xs text-muted-foreground">Org. Activa</span>
               </div>
               <ChevronsUpDownIcon className="ml-auto size-4 text-muted-foreground" />
             </SidebarMenuButton>
@@ -66,30 +66,30 @@ export function TeamSwitcher() {
             sideOffset={4}
           >
             <DropdownMenuLabel className="text-xs text-muted-foreground px-2 py-1.5">
-              Mis Negocios
+              Mis Organizaciones
             </DropdownMenuLabel>
-            {services.map((biz, index) => (
+            {organizations.map((org, index) => (
               <DropdownMenuItem
-                key={biz.id}
-                onClick={() => selectService(biz)}
-                className="gap-2 p-2 focus:bg-accent cursor-pointer"
+                key={org.id}
+                onClick={() => selectOrganization(org)}
+                className="gap-2 p-2 focus:bg-accent cursor-pointer animate-in fade-in duration-200"
               >
                 <div className="flex size-6 items-center justify-center rounded-md border border-border bg-muted text-xs font-bold">
-                  {biz.name.charAt(0).toUpperCase()}
+                  {org.name.charAt(0).toUpperCase()}
                 </div>
-                <span className="flex-1 truncate text-sm font-medium">{biz.name}</span>
+                <span className="flex-1 truncate text-sm font-medium">{org.name}</span>
                 <DropdownMenuShortcut className="text-[10px] font-mono">⌘{index + 1}</DropdownMenuShortcut>
               </DropdownMenuItem>
             ))}
             <DropdownMenuSeparator />
             <DropdownMenuItem 
               className="gap-2 p-2 cursor-pointer focus:bg-accent text-muted-foreground hover:text-foreground"
-              onClick={() => navigate("/dashboard/settings/business")}
+              onClick={() => navigate("/dashboard/organizations")}
             >
               <div className="flex size-6 items-center justify-center rounded-md border border-border bg-transparent">
                 <PlusIcon className="size-4" />
               </div>
-              <div className="font-semibold text-xs">Gestionar Negocios</div>
+              <div className="font-semibold text-xs">Gestionar Organizaciones</div>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

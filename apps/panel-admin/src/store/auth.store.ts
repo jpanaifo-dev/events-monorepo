@@ -1,7 +1,7 @@
 import { create } from "zustand"
 import { persist, createJSONStorage } from "zustand/middleware"
 import type { StateStorage } from "zustand/middleware"
-import type { AuthState, User, TenantService } from "../types/auth.types"
+import type { AuthState, User, Organization } from "../types/auth.types"
 import * as jose from "jose"
 
 let keyUint8: Uint8Array | null = null
@@ -61,17 +61,17 @@ export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
       user: null,
-      services: [],
-      selectedService: null,
+      organizations: [],
+      selectedOrganization: null,
       isAuthenticated: false,
       isProfileComplete: false,
       isLoading: true,
 
-      login: (user: User, services: TenantService[]) =>
+      login: (user: User, organizations: Organization[]) =>
         set({
           user,
-          services,
-          selectedService: services.length > 0 ? services[0] : null,
+          organizations,
+          selectedOrganization: organizations.length > 0 ? organizations[0] : null,
           isAuthenticated: true,
           isProfileComplete: !!(user.full_name && user.phone),
           isLoading: false,
@@ -80,16 +80,16 @@ export const useAuthStore = create<AuthState>()(
       logout: () =>
         set({
           user: null,
-          services: [],
-          selectedService: null,
+          organizations: [],
+          selectedOrganization: null,
           isAuthenticated: false,
           isProfileComplete: false,
           isLoading: false,
         }),
 
-      selectService: (service: TenantService | null) =>
+      selectOrganization: (organization: Organization | null) =>
         set({
-          selectedService: service,
+          selectedOrganization: organization,
         }),
 
       setProfileComplete: (isComplete: boolean) =>
@@ -109,12 +109,12 @@ export const useAuthStore = create<AuthState>()(
           isLoading,
         }),
 
-      setServices: (services: TenantService[]) =>
+      setOrganizations: (organizations: Organization[]) =>
         set((state) => ({
-          services,
-          selectedService: state.selectedService 
-            ? (services.find((s) => s.id === state.selectedService?.id) || null) 
-            : (services.length > 0 ? services[0] : null),
+          organizations,
+          selectedOrganization: state.selectedOrganization 
+            ? (organizations.find((s) => s.id === state.selectedOrganization?.id) || null) 
+            : (organizations.length > 0 ? organizations[0] : null),
         })),
     }),
     {
@@ -122,8 +122,8 @@ export const useAuthStore = create<AuthState>()(
       storage: createJSONStorage(() => cookieStorage),
       partialize: (state) => ({
         user: state.user,
-        services: state.services,
-        selectedService: state.selectedService,
+        organizations: state.organizations,
+        selectedOrganization: state.selectedOrganization,
         isAuthenticated: state.isAuthenticated,
         isProfileComplete: state.isProfileComplete,
       }),

@@ -1,5 +1,5 @@
 import React, { useState } from "react"
-import { useNavigate, useLocation } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
 import { z } from "zod"
 import { useAuthStore } from "@/store/auth.store"
 import { cn } from "@/lib/utils"
@@ -15,7 +15,6 @@ import { Input } from "@/components/ui/input"
 import { supabase } from "@/utils/supabase"
 import { Eye, EyeOff } from "lucide-react"
 
-// Schema inside file to keep it self-contained
 const loginSchema = z.object({
   email: z.string().min(1, "El correo electrónico es requerido").email("Correo electrónico inválido"),
   password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
@@ -28,7 +27,6 @@ export function LoginForm({
   ...props
 }: React.ComponentProps<"form">) {
   const navigate = useNavigate()
-  const location = useLocation()
   const login = useAuthStore((state) => state.login)
   const setLoading = useAuthStore((state) => state.setLoading)
   
@@ -39,7 +37,6 @@ export function LoginForm({
   const [formError, setFormError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
-  const from = (location.state as any)?.from?.pathname || "/dashboard"
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -84,7 +81,7 @@ export function LoginForm({
         return
       }
 
-      // Fetch or insert profile in the public.profiles table
+      // Fetch profile
       let { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("*")
@@ -95,7 +92,6 @@ export function LoginForm({
         console.error("Error fetching profile:", profileError)
       }
 
-      // Fallback: If no profile exists, create one
       if (!profile) {
         const newProfile = {
           id: sessionUser.id,
@@ -119,7 +115,7 @@ export function LoginForm({
         }
       }
 
-      // Fetch user role from user_global_roles
+      // Fetch user role
       const { data: roleData } = await supabase
         .from("user_global_roles")
         .select("role")
@@ -128,7 +124,7 @@ export function LoginForm({
 
       const userRole = (roleData?.role as any) || "SERVICE_OWNER"
 
-      // Fetch businesses through business_user_roles relationship table
+      // Fetch businesses and treat them as Organizations
       const { data: roleBizRelations, error: busError } = await supabase
         .from("business_user_roles")
         .select(`
@@ -145,7 +141,8 @@ export function LoginForm({
         console.error("Error fetching businesses:", busError)
       }
 
-      const formattedServices = (roleBizRelations || [])
+      // Map to Organization model
+      const formattedOrgs = (roleBizRelations || [])
         .map((r: any) => r.businesses)
         .filter(Boolean)
         .map((b: any) => ({
@@ -153,9 +150,10 @@ export function LoginForm({
           name: b.name,
           slug: b.name.toLowerCase().replace(/\s+/g, "-"),
           description: b.description || "",
+          plan: "Free Plan",
+          projectsCount: 2
         }))
 
-      // Update local Zustand store
       login(
         {
           id: sessionUser.id,
@@ -166,11 +164,11 @@ export function LoginForm({
           specialty: profile.specialty || null,
           role: userRole,
         },
-        formattedServices
+        formattedOrgs
       )
 
-      // Redirect to dashboard
-      navigate(from, { replace: true })
+      // Navigating to the Organization Selection dashboard
+      navigate("/dashboard/organizations", { replace: true })
     } catch (err: any) {
       console.error(err)
       setFormError("Ocurrió un error inesperado. Inténtalo de nuevo.")
@@ -186,7 +184,7 @@ export function LoginForm({
         <div className="flex flex-col items-center gap-1 text-center">
           <h1 className="text-2xl font-bold font-sans">Iniciar Sesión</h1>
           <p className="text-sm text-balance text-muted-foreground font-sans">
-            Ingresa tu correo abajo para acceder a tu cuenta
+            Ingresa tu correo abajo para acceder a tu cuenta en EventHive
           </p>
         </div>
         {formError && (
@@ -253,7 +251,7 @@ export function LoginForm({
           </Button>
           <FieldDescription className="text-center mt-4 text-xs">
             ¿No tienes una cuenta?{" "}
-            <a href="#" className="underline underline-offset-4 font-semibold text-primary">
+            <a href="#" className="underline underline-offset-4 font-semibold text-emerald-600 dark:text-emerald-500">
               Regístrate
             </a>
           </FieldDescription>

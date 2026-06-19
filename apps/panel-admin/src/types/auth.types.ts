@@ -13,27 +13,29 @@ export interface User {
   role: UserRole
 }
 
-export interface TenantService {
+export interface Organization {
   id: string
   name: string
   slug: string
   description?: string
   isActive?: boolean
   isIndependent?: boolean | null
+  plan?: string
+  projectsCount?: number
 }
 
 export interface AuthState {
   user: User | null
-  services: TenantService[]
-  selectedService: TenantService | null
+  organizations: Organization[]
+  selectedOrganization: Organization | null
   isAuthenticated: boolean
   isProfileComplete: boolean
   isLoading: boolean
-  login: (user: User, services: TenantService[]) => void
+  login: (user: User, organizations: Organization[]) => void
   logout: () => void
-  selectService: (service: TenantService | null) => void
+  selectOrganization: (organization: Organization | null) => void
   setProfileComplete: (isComplete: boolean) => void
   setUser: (user: User | null) => void
   setLoading: (isLoading: boolean) => void
-  setServices: (services: TenantService[]) => void
+  setOrganizations: (organizations: Organization[]) => void
 }

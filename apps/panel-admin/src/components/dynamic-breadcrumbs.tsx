@@ -10,42 +10,25 @@ import {
 import React from "react";
 
 const routeMap: Record<string, string> = {
-  // Main sections
   dashboard: "Inicio",
-  services: "Servicios",
-  agenda: "Agenda",
-  bookings: "Reservas",
+  events: "Eventos",
+  organizations: "Organizaciones",
   settings: "Ajustes",
-  business: "Negocio",
-  billing: "Facturación",
-  categories: "Categorías",
-  promotions: "Promociones",
-  hours: "Horarios de Atención",
-  locations: "Ubicaciones",
-  team: "Equipo",
-  invite: "Invitar",
-  "admin-settings": "Administración",
-
-  // Operations/Actions
-  new: "Nuevo",
+  business: "Organización",
+  new: "Nuevo Evento",
   edit: "Editar",
-  clients: "Clientes",
   login: "Iniciar Sesión",
 };
 
 const routeRewrites: Record<string, string> = {
   "/dashboard/settings": "/dashboard/settings/business",
-  "/dashboard/agenda": "/dashboard/agenda/hours",
 };
 
 const validRoutes = new Set([
   "/dashboard",
-  "/dashboard/services",
-  "/dashboard/services/categories",
-  "/dashboard/agenda/hours",
-  "/dashboard/agenda/locations",
+  "/dashboard/events",
+  "/dashboard/organizations",
   "/dashboard/settings/business",
-  "/dashboard/settings/business/team",
 ]);
 
 export function DynamicBreadcrumbs() {
@@ -63,7 +46,7 @@ export function DynamicBreadcrumbs() {
           const isClickable = !isLast && (validRoutes.has(originalHref) || routeRewrites[originalHref] !== undefined);
 
           const isUuidOrId = /^[0-9a-fA-F-]+$/.test(segment) || /^\d+$/.test(segment);
-          const label = routeMap[segment] || (isUuidOrId ? "Detalle" : segment.length > 20 ? segment.substring(0, 8) + "..." : segment);
+          const label = routeMap[segment] || (isUuidOrId ? "Workspace del Evento" : segment.length > 25 ? segment.substring(0, 15) + "..." : segment);
 
           return (
             <React.Fragment key={originalHref}>

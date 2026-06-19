@@ -21,8 +21,8 @@ export function LoginPage() {
       <div className="flex-1 flex flex-col justify-between p-8 md:p-12 lg:p-16 max-w-xl mx-auto w-full">
         {/* Top Header Branding */}
         <div>
-          <Link to="/dashboard" className="font-bold text-2xl text-[#059669] tracking-tighter flex items-center gap-1.5 w-fit">
-            Gesti Admin
+          <Link to="/dashboard" className="font-bold text-2xl text-emerald-600 dark:text-emerald-500 tracking-tighter flex items-center gap-1.5 w-fit">
+            EventHive
           </Link>
         </div>
 
@@ -33,24 +33,22 @@ export function LoginPage() {
 
         {/* Footer info */}
         <div className="text-xs text-muted-foreground">
-          © {new Date().getFullYear()} Gesti. Todos los derechos reservados.
+          © {new Date().getFullYear()} EventHive. Todos los derechos reservados.
         </div>
       </div>
 
       {/* Right side: Image banner */}
       <div className="hidden md:block flex-1 relative bg-muted overflow-hidden">
-        {/* Subtle dark shade */}
         <div className="absolute inset-0 bg-neutral-900 flex flex-col justify-end p-12 text-white">
-          {/* Decorative background grid pattern */}
           <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent pointer-events-none" />
           
           <blockquote className="space-y-2 relative z-10">
             <p className="text-lg font-medium leading-relaxed">
-              "Gesti ha transformado la manera en que gestionamos nuestras citas y clientes. La plataforma es rápida, intuitiva y sumamente profesional."
+              "EventHive ha transformado por completo la manera en que planificamos y ejecutamos nuestros congresos y conferencias. Administrar ponentes, cronogramas y registros ahora es un proceso fluido e impecable."
             </p>
             <footer className="text-sm font-semibold text-white/80">
-              — Carlos Mendoza, Socio Fundador
+              — Carlos Mendoza, Director de Experiencias
             </footer>
           </blockquote>
         </div>

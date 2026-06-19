@@ -5,22 +5,18 @@ import type { UserRole } from "../types/auth.types"
 interface AuthGuardProps {
   children: React.ReactNode
   allowedRoles?: UserRole[]
-  requireSelectedService?: boolean
-  requireCompleteProfile?: boolean
-  allowIncompleteProfileOnly?: boolean
+  requireSelectedOrganization?: boolean
 }
 
 export function AuthGuard({
   children,
   allowedRoles,
-  requireSelectedService = false,
-  requireCompleteProfile = false, // Made false by default since onboarding page might not exist or be needed yet
-  allowIncompleteProfileOnly = false,
+  requireSelectedOrganization = true,
 }: AuthGuardProps) {
-  const { isAuthenticated, isProfileComplete, user, selectedService, isLoading } = useAuthStore()
+  const { isAuthenticated, user, selectedOrganization, isLoading } = useAuthStore()
   const location = useLocation()
 
-  // Show a clean SVG loading spinner while checking auth session/profile
+  // Show a clean SVG loading spinner while checking auth session
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 text-foreground">
@@ -58,30 +54,18 @@ export function AuthGuard({
     return <Navigate to="/login" state={{ from: location }} replace />
   }
 
-  // 2. If logged in but profile is incomplete
-  if (!isProfileComplete) {
-    if (requireCompleteProfile && !allowIncompleteProfileOnly) {
-      // If we require onboarding but haven't implemented it in panel-admin yet, we can skip it,
-      // or redirect if onboarding is implemented. Since requireCompleteProfile is false by default,
-      // this won't trigger unless explicitly requested.
-      return <Navigate to="/dashboard" replace />
-    }
-  } else {
-    if (allowIncompleteProfileOnly) {
-      return <Navigate to="/dashboard" replace />
-    }
+  // 2. Redirect to organization selection if none chosen (and they are not already navigating to it)
+  if (
+    requireSelectedOrganization &&
+    !selectedOrganization &&
+    location.pathname !== "/dashboard/organizations"
+  ) {
+    return <Navigate to="/dashboard/organizations" replace />
   }
 
-  // 3. Check role restrictions
+  // 3. Check role restrictions if applicable
   if (allowedRoles && !allowedRoles.includes(user.role)) {
     return <Navigate to="/dashboard" replace />
-  }
-
-  // 4. Check active service selection if required
-  if (requireSelectedService && !selectedService) {
-    // If a service selection is required but none is active, we can either redirect to business list
-    // or keep it simple. Let's just render the children or redirect to dashboard.
-    // For now, let's keep it simple.
   }
 
   return <>{children}</>
