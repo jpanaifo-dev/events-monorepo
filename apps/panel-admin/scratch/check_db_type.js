@@ -24,23 +24,23 @@ const supabase = createClient(supabaseUrl, supabaseKey)
 async function run() {
   const { data, error } = await supabase
     .from('organizations')
-    .select('id, organization_name, organization_email')
-    .limit(5)
+    .select('*')
+    .limit(1)
 
   if (error) {
     console.error("Error querying organizations:", error)
     return
   }
 
-  console.log("Organizations query results:")
-  data.forEach(org => {
-    console.log(`ID: ${org.id}`)
-    console.log(`Name: ${org.organization_name}`)
-    console.log(`Email value:`, org.organization_email)
-    console.log(`Email typeof:`, typeof org.organization_email)
-    console.log(`Email Array.isArray:`, Array.isArray(org.organization_email))
-    console.log("---")
-  })
+  if (data && data[0]) {
+    const org = data[0]
+    console.log("Organization record keys:", Object.keys(org))
+    console.log("contact_phone value:", org.contact_phone)
+    console.log("contact_phone type:", typeof org.contact_phone)
+    console.log("contact_phone Array.isArray:", Array.isArray(org.contact_phone))
+  } else {
+    console.log("No organization record found.")
+  }
 }
 
 run()
