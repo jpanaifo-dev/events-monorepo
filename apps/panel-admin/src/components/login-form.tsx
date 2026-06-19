@@ -124,39 +124,32 @@ export function LoginForm({
 
       const userRole = (roleData?.role as any) || "SERVICE_OWNER"
 
-      // Fetch organizations and treat them as Organizations
-      const { data: roleBizRelations, error: busError } = await supabase
-        .from("organization_followers")
+      // Fetch organizations directly
+      const { data: orgsData, error: busError } = await supabase
+        .from("organizations")
         .select(`
-          organization_id,
-          organizations:organization_id (
-            id,
-            organization_name,
-            organization_type,
-            organization_email,
-            description,
-            status,
-            slug
-          )
+          id,
+          organization_name,
+          organization_type,
+          organization_email,
+          description,
+          status,
+          slug
         `)
-        .eq("user_id", sessionUser.id)
 
       if (busError) {
         console.error("Error fetching organizations:", busError)
       }
 
       // Map to Organization model
-      const formattedOrgs = (roleBizRelations || [])
-        .map((r: any) => r.organizations)
-        .filter(Boolean)
-        .map((org: any) => ({
-          id: org.id,
-          name: org.organization_name,
-          slug: org.slug || org.organization_name.toLowerCase().replace(/\s+/g, "-"),
-          description: org.description || "",
-          plan: "Free Plan",
-          projectsCount: 0
-        }))
+      const formattedOrgs = (orgsData || []).map((org: any) => ({
+        id: org.id,
+        name: org.organization_name,
+        slug: org.slug || org.organization_name.toLowerCase().replace(/\s+/g, "-"),
+        description: org.description || "",
+        plan: "Free Plan",
+        projectsCount: 0
+      }))
 
       login(
         {

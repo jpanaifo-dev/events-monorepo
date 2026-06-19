@@ -42,35 +42,28 @@ export function OrganizationsPage() {
     setIsLoadingList(true)
     try {
       const { data, error } = await supabase
-        .from("organization_followers")
+        .from("organizations")
         .select(`
-          organization_id,
-          organizations:organization_id (
-            id,
-            organization_name,
-            organization_type,
-            organization_email,
-            description,
-            status,
-            slug
-          )
+          id,
+          organization_name,
+          organization_type,
+          organization_email,
+          description,
+          status,
+          slug
         `)
-        .eq("user_id", user.id)
 
       if (error) throw error
 
-      const formatted = (data || [])
-        .map((row: any) => row.organizations)
-        .filter(Boolean)
-        .map((org: any) => ({
-          id: org.id,
-          name: org.organization_name,
-          slug: org.slug || org.organization_name.toLowerCase().replace(/\s+/g, "-"),
-          description: org.description || "",
-          isActive: org.status === "active",
-          plan: "Free Plan",
-          projectsCount: 0
-        }))
+      const formatted = (data || []).map((org: any) => ({
+        id: org.id,
+        name: org.organization_name,
+        slug: org.slug || org.organization_name.toLowerCase().replace(/\s+/g, "-"),
+        description: org.description || "",
+        isActive: org.status === "active",
+        plan: "Free Plan",
+        projectsCount: 0
+      }))
       setOrganizations(formatted)
     } catch (err) {
       console.error("Error loading organizations:", err)

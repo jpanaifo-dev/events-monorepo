@@ -148,16 +148,6 @@ export function CreateOrganizationPage() {
 
       if (insertError) throw insertError
 
-      // 2. Map user as follower to allow retrieval on Organizations list page
-      const { error: roleError } = await supabase
-        .from("organization_followers")
-        .insert([{
-          organization_id: orgData.id,
-          user_id: user.id
-        }])
-
-      if (roleError) throw roleError
-
       // Format organization for Zustand store selection
       const formattedOrg = {
         id: orgData.id,
