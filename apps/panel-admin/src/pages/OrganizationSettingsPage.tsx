@@ -509,44 +509,7 @@ export function OrganizationSettingsPage() {
 
 
 
-  const handleRemoveMember = async (memberId: string, email: string) => {
-    if (!selectedOrganization?.id) return
 
-    // Check if they are trying to remove themselves
-    const member = members.find(m => m.id === memberId)
-    if (member && member.profile_id === user?.id) {
-      toast.error("No puedes eliminarte a ti mismo de la organización.")
-      return
-    }
-
-    if (!confirm(`¿Estás seguro de que deseas remover a ${email} de la organización?`)) {
-      return
-    }
-
-    try {
-      if (isMembersDbError || memberId.startsWith("mock-member-")) {
-        // Mock remove
-        const filtered = members.filter(m => m.id !== memberId)
-        setMembers(filtered)
-        localStorage.setItem(`mock_members_${selectedOrganization.id}`, JSON.stringify(filtered))
-        toast.success(`Miembro removido (Modo Demo): ${email}`)
-        return
-      }
-
-      const { error } = await supabase
-        .from("organization_members")
-        .delete()
-        .eq("id", memberId)
-
-      if (error) throw error
-
-      setMembers(members.filter(m => m.id !== memberId))
-      toast.success(`Miembro removido con éxito: ${email}`)
-    } catch (err: any) {
-      console.error("Error removing member:", err)
-      toast.error(err.message || "Error al remover al miembro.")
-    }
-  }
 
   if (isLoading) {
     return (
@@ -1016,16 +979,9 @@ export function OrganizationSettingsPage() {
 
       {/* Miembros del equipo Section */}
       <div className="mt-10 space-y-4 font-sans animate-in fade-in duration-300">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <h3 className="text-xl tracking-tight text-foreground">
-              Miembros del equipo
-            </h3>
-            <p className="text-xs text-muted-foreground">
-              Administra los miembros autorizados en esta organización y sus respectivos roles de acceso.
-            </p>
-          </div>
-        </div>
+        <h3 className="text-xl tracking-tight text-foreground font-sans">
+          Miembros del equipo
+        </h3>
 
         {/* Database notice/warning if table does not exist */}
         {isMembersDbError && (
@@ -1044,47 +1000,39 @@ export function OrganizationSettingsPage() {
 
         {/* Card Container faithful to the mockup */}
         <div className="border border-border rounded-xl bg-card overflow-hidden shadow-sm">
-          {/* Header Row with Filter & Actions */}
-          <div className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border bg-card">
-            <div className="relative w-full sm:max-w-xs">
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <input
-                type="text"
-                placeholder="Filtrar miembros..."
-                className="w-full pl-9 pr-4 py-2 border border-input rounded-lg text-xs bg-background outline-none focus:ring-1 focus:ring-primary/50 text-foreground"
-              />
+          {/* Header Row */}
+          <div className="p-6 flex items-center justify-between gap-4 border-b border-border bg-card">
+            <div className="space-y-1">
+              <h4 className="font-semibold text-base text-foreground font-sans">
+                Acceso a Miembros
+              </h4>
+              <p className="text-xs text-muted-foreground font-sans">
+                Administra los miembros autorizados en esta organización y sus respectivos roles de acceso.
+              </p>
             </div>
-            <div className="flex gap-2.5">
-              <button
-                type="button"
-                onClick={() => navigate("/dashboard/settings/members/new")}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-lg text-xs font-semibold select-none transition-colors cursor-pointer outline-none flex items-center gap-1.5"
-              >
-                <svg className="size-3.5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                </svg>
-                Invitar miembros
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => navigate("/dashboard/settings/members")}
+              className="border border-border hover:bg-muted text-foreground px-3.5 py-2 rounded-lg text-xs font-semibold select-none transition-colors cursor-pointer outline-none font-sans"
+            >
+              Gestionar miembros
+            </button>
           </div>
 
           {/* List of Members */}
           {members.length > 0 ? (
             <div className="w-full">
-              {/* Column labels matching the mockup */}
-              <div className="grid grid-cols-3 px-6 py-3 border-b border-border bg-muted/15 text-[10px] font-bold tracking-wider text-muted-foreground/80 font-mono uppercase">
+              {/* Sub-Header Column Labels */}
+              <div className="grid grid-cols-2 px-6 py-3 border-b border-border bg-muted/15 text-[10px] font-bold tracking-wider text-muted-foreground/80 font-mono uppercase">
                 <div>Miembro</div>
-                <div>MFA</div>
-                <div className="text-right">Rol / Acciones</div>
+                <div className="text-right">Rol</div>
               </div>
 
               {/* Rows */}
               <div className="divide-y divide-border/60">
                 {members.map((member) => (
-                  <div key={member.id} className="grid grid-cols-3 px-6 py-4 items-center text-sm hover:bg-muted/5 transition-colors">
-                    {/* Left Details: Member Profile */}
+                  <div key={member.id} className="grid grid-cols-2 px-6 py-4 items-center text-sm hover:bg-muted/5 transition-colors font-sans">
+                    {/* Left details: Member Profile */}
                     <div className="flex items-center gap-3 overflow-hidden">
                       <div className="size-8 rounded-full overflow-hidden border border-border shrink-0 bg-muted/40">
                         {member.profile?.avatar_url ? (
@@ -1096,10 +1044,10 @@ export function OrganizationSettingsPage() {
                         )}
                       </div>
                       <div className="grid leading-tight min-w-0">
-                        <span className="font-semibold text-foreground truncate">
+                        <span className="font-medium text-foreground truncate">
                           {member.profile?.first_name || member.profile?.last_name
                             ? `${member.profile.first_name || ""} ${member.profile.last_name || ""}`.trim()
-                            : member.profile?.email.split("@")[0]}
+                            : member.profile?.email?.split("@")[0]}
                         </span>
                         <div className="flex items-center gap-1.5 min-w-0">
                           <span className="text-xs text-muted-foreground truncate">{member.profile?.email}</span>
@@ -1112,44 +1060,19 @@ export function OrganizationSettingsPage() {
                       </div>
                     </div>
 
-                    {/* Middle Details: MFA Status */}
-                    <div className="text-xs text-muted-foreground/90 font-medium flex items-center gap-1">
-                      <span>Desactivado</span>
-                      <svg className="size-3.5 text-muted-foreground/50" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </div>
-
-                    {/* Right Details: Role and Remove Button */}
-                    <div className="flex items-center justify-end gap-4">
+                    {/* Right details: Role */}
+                    <div className="text-right text-muted-foreground text-xs font-normal">
                       <span className="text-xs font-semibold px-2 py-0.5 rounded bg-muted border border-border text-foreground capitalize select-none">
                         {member.role || "Developer"}
                       </span>
-                      {member.profile_id === user?.id ? (
-                        <button
-                          type="button"
-                          disabled
-                          className="text-xs text-muted-foreground font-medium py-1.5 px-3 rounded-lg border border-border bg-muted/50 cursor-not-allowed select-none"
-                        >
-                          Salir
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveMember(member.id, member.profile?.email || "")}
-                          className="text-xs text-destructive hover:bg-destructive/10 font-medium py-1.5 px-3 rounded-lg border border-transparent hover:border-destructive/20 transition-all cursor-pointer"
-                        >
-                          Remover
-                        </button>
-                      )}
                     </div>
                   </div>
                 ))}
               </div>
             </div>
           ) : (
-            <div className="p-8 text-center text-xs text-muted-foreground italic">
-              No hay miembros registrados para esta organización.
+            <div className="p-8 text-center text-xs text-muted-foreground italic font-sans">
+              No hay miembros registrados para esta organización. Haz clic en "Gestionar miembros" para añadir uno.
             </div>
           )}
 

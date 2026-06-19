@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import { PageHeader } from "@/components/page-header"
-import { ArrowLeft, Search, X, UserPlus } from "lucide-react"
+import { Search, X, UserPlus } from "lucide-react"
 
 export function MembersPage() {
   const navigate = useNavigate()
@@ -292,21 +292,12 @@ export function MembersPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-12 w-full font-sans">
-      {/* Volver button and Header */}
-      <div className="mb-8 flex items-center gap-4 animate-in fade-in duration-200">
-        <button
-          onClick={() => navigate("/dashboard/settings/business")}
-          className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors py-1.5 px-3 border border-border rounded-md bg-muted/20 cursor-pointer"
-        >
-          <ArrowLeft className="size-3.5" />
-          Volver
-        </button>
-      </div>
-
+    <div className="container mx-auto px-6 py-12 w-full font-sans">
       <div className="mb-10">
         <PageHeader
           title="Miembros de la Organización"
+          showBackButton
+          onBackClick={() => navigate("/dashboard/settings/business")}
           description="Administra los niveles de acceso, permisos y colaboradores en tu espacio de trabajo."
         />
       </div>
