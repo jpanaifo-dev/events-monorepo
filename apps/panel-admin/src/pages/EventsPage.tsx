@@ -66,14 +66,14 @@ export function EventsPage() {
       case "hybrid":
         return <span className="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-xs px-2 py-0.5 rounded-md flex items-center gap-1"><Globe className="size-3.5" /> Híbrido</span>
       default:
-        return <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs px-2 py-0.5 rounded-md flex items-center gap-1"><MapPin className="size-3.5" /> Presencial</span>
+        return <span className="bg-primary/10 text-primary text-xs px-2 py-0.5 rounded-md flex items-center gap-1"><MapPin className="size-3.5" /> Presencial</span>
     }
   }
 
   const getStatusBadge = (st: string) => {
     switch (st) {
       case "published":
-        return <span className="bg-emerald-500 text-white text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full">Publicado</span>
+        return <span className="bg-primary text-white text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full">Publicado</span>
       case "finished":
         return <span className="bg-muted text-muted-foreground text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full">Finalizado</span>
       default:
@@ -180,7 +180,7 @@ export function EventsPage() {
                       {event.date || "Fecha por definir"}
                     </span>
                   </div>
-                  <h3 className="font-bold text-lg truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                  <h3 className="font-bold text-lg truncate group-hover:text-primary transition-colors">
                     {event.title}
                   </h3>
                   <p className="text-xs text-muted-foreground line-clamp-2">
@@ -193,7 +193,7 @@ export function EventsPage() {
                     <MapPin className="size-3.5 shrink-0 text-muted-foreground/60" />
                     {event.location || "Ubicación por definir"}
                   </span>
-                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-full shrink-0">
+                  <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full shrink-0">
                     Administrar
                   </span>
                 </div>

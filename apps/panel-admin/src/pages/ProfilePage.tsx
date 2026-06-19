@@ -133,7 +133,7 @@ export function ProfilePage() {
             <ArrowLeft className="size-3.5" />
             Volver
           </button>
-          <span className="font-bold text-xl text-emerald-600 dark:text-emerald-500 tracking-tighter ml-2">
+          <span className="font-bold text-xl text-primary tracking-tighter ml-2">
             EventHive
           </span>
         </div>

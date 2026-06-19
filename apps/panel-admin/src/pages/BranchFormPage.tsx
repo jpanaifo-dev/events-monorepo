@@ -119,8 +119,19 @@ export function BranchFormPage() {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
       }).addTo(mapRef.current)
 
+      const customIcon = window.L.icon({
+        iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+        iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+        shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowSize: [41, 41]
+      })
+
       markerRef.current = window.L.marker([latVal, lngVal], {
-        draggable: true
+        draggable: true,
+        icon: customIcon
       }).addTo(mapRef.current)
 
       // Event listener for dragging marker

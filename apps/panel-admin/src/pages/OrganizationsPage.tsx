@@ -100,7 +100,7 @@ export function OrganizationsPage() {
       {/* Top Header Navbar */}
       <header className="h-16 bg-card border-b border-border flex items-center justify-between px-8 flex-shrink-0">
         <div className="flex items-center gap-6">
-          <span className="font-bold text-xl text-emerald-600 dark:text-emerald-500 tracking-tighter flex items-center gap-1.5">
+          <span className="font-bold text-xl text-primary tracking-tighter flex items-center gap-1.5">
             EventHive
           </span>
         </div>
@@ -214,13 +214,13 @@ export function OrganizationsPage() {
                 className="group p-6 bg-card border border-border rounded-xl hover:shadow-md cursor-pointer transition-all flex items-start gap-4 min-h-36"
               >
                 {/* Left logo icon or avatar fallback */}
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg overflow-hidden border border-border bg-muted/10 group-hover:border-emerald-500 transition-colors">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg overflow-hidden border border-border bg-muted/10 group-hover:border-primary transition-colors">
                   {org.logoUrl ? (
                     <img src={org.logoUrl} alt={org.name} className="size-full object-cover" />
                   ) : (
                     <Avatar className="h-full w-full rounded-none">
                       <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(org.name)}`} alt={org.name} />
-                      <AvatarFallback className="rounded-none bg-emerald-600/10 text-emerald-600 font-bold text-sm">
+                      <AvatarFallback className="rounded-none bg-primary/10 text-primary font-bold text-sm">
                         {org.name.charAt(0).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
@@ -228,11 +228,11 @@ export function OrganizationsPage() {
                 </div>
                 {/* Metadata */}
                 <div className="space-y-1 overflow-hidden flex-1">
-                  <h3 className="font-medium text-sm line-clamp-3 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors break-words">
+                  <h3 className="font-medium text-sm line-clamp-3 group-hover:text-primary transition-colors break-words">
                     {org.name}
                   </h3>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
-                    <span className="font-medium bg-muted px-2 py-0.5 rounded-md text-emerald-600 dark:text-emerald-400 capitalize">{org.type}</span>
+                    <span className="font-medium bg-muted px-2 py-0.5 rounded-md text-primary capitalize">{org.type}</span>
                   </div>
                   {org.description && (
                     <p className="text-xs text-muted-foreground line-clamp-2 pt-1">{org.description}</p>

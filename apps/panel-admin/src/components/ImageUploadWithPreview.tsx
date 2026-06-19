@@ -136,7 +136,7 @@ export function ImageUploadWithPreview({
   // Define aspect ratio classes
   const getContainerClass = () => {
     const base = "relative group border border-dashed rounded-xl overflow-hidden bg-muted/20 flex flex-col items-center justify-center transition-all duration-200 cursor-pointer"
-    const hoverBorder = dragActive ? "border-emerald-500 bg-emerald-500/5" : "border-border hover:border-emerald-500 hover:bg-muted/30"
+    const hoverBorder = dragActive ? "border-primary bg-primary/5" : "border-border hover:border-primary hover:bg-muted/30"
     
     switch (aspectRatio) {
       case "banner":
@@ -207,9 +207,9 @@ export function ImageUploadWithPreview({
           ) : (
             <div className="p-4 text-center flex flex-col items-center justify-center space-y-2 select-none">
               {isUploading ? (
-                <Loader2 className="size-6 text-emerald-500 animate-spin" />
+                <Loader2 className="size-6 text-primary animate-spin" />
               ) : (
-                <Upload className="size-6 text-muted-foreground group-hover:text-emerald-500 transition-colors" />
+                <Upload className="size-6 text-muted-foreground group-hover:text-primary transition-colors" />
               )}
               {aspectRatio !== "favicon" && (
                 <span className="text-[10px] text-muted-foreground text-center line-clamp-2 max-w-[130px]">
@@ -222,7 +222,7 @@ export function ImageUploadWithPreview({
           {isUploading && (
             <div className="absolute inset-0 bg-background/75 flex items-center justify-center">
               <div className="flex flex-col items-center gap-1">
-                <Loader2 className="size-5 text-emerald-500 animate-spin" />
+                <Loader2 className="size-5 text-primary animate-spin" />
                 <span className="text-[9px] text-muted-foreground font-medium">Subiendo...</span>
               </div>
             </div>

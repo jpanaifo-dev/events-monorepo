@@ -295,7 +295,7 @@ export function EventDetailPage() {
         <div className="p-6 md:p-8 flex-1 flex flex-col justify-between gap-4">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">
+              <span className="bg-primary/10 text-primary text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">
                 {status === "published" ? "Publicado" : status === "finished" ? "Finalizado" : "Borrador"}
               </span>
               <span className="bg-muted text-muted-foreground text-xs px-2 py-0.5 rounded-md font-semibold capitalize">
@@ -366,7 +366,7 @@ export function EventDetailPage() {
             <h3 className="text-lg font-bold border-b border-border pb-2">Información del Evento</h3>
 
             {isSavedAlertOpen && (
-              <div className="p-3 text-xs font-semibold text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-center gap-2">
+              <div className="p-3 text-xs font-semibold text-primary bg-primary/10 border border-primary/20 rounded-lg flex items-center gap-2">
                 <CheckCircle2 className="size-4 shrink-0" />
                 Los cambios se guardaron con éxito en base de datos.
               </div>
@@ -467,7 +467,7 @@ export function EventDetailPage() {
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <span className="font-semibold text-sm">{ed.name}</span>
-                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase ${ed.status === "active" ? "bg-emerald-500/10 text-emerald-600" : ed.status === "completed" ? "bg-muted text-muted-foreground" : "bg-amber-500/10 text-amber-600"
+                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase ${ed.status === "active" ? "bg-primary/10 text-primary" : ed.status === "completed" ? "bg-muted text-muted-foreground" : "bg-amber-500/10 text-amber-600"
                           }`}>
                           {ed.status === "active" ? "Activo" : ed.status === "completed" ? "Completado" : "Planeado"}
                         </span>
@@ -522,7 +522,7 @@ export function EventDetailPage() {
                       </div>
 
                       <div className="p-3 bg-muted/40 border border-border/60 rounded-lg space-y-1">
-                        <span className="text-[10px] font-bold text-emerald-600 block uppercase tracking-wider">Ponencia</span>
+                        <span className="text-[10px] font-bold text-primary block uppercase tracking-wider">Ponencia</span>
                         <p className="text-xs font-semibold leading-snug">{sp.talkTitle}</p>
                         <p className="text-[10px] text-muted-foreground leading-normal line-clamp-2">{sp.talkDescription}</p>
                       </div>
@@ -556,7 +556,7 @@ export function EventDetailPage() {
                   return (
                     <div key={orgEventId(item.id)} className="relative group bg-background border border-border p-4 rounded-xl shadow-xs">
                       {/* Timeline dot */}
-                      <span className="absolute -left-[31px] top-5 size-4 bg-emerald-500 rounded-full border-4 border-card" />
+                      <span className="absolute -left-[31px] top-5 size-4 bg-primary rounded-full border-4 border-card" />
 
                       <div className="absolute top-4 right-4 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Button onClick={() => handleEditAgendaItem(item)} variant="ghost" className="size-7 p-0"><Edit2 className="size-3.5" /></Button>
@@ -610,7 +610,7 @@ export function EventDetailPage() {
               </div>
               <div>
                 <p className="text-[10px] font-bold text-muted-foreground uppercase">Asistencia (Check-in)</p>
-                <p className="text-xl font-bold text-emerald-600 dark:text-emerald-500">{attendanceRate}%</p>
+                <p className="text-xl font-bold text-primary">{attendanceRate}%</p>
               </div>
             </div>
 
@@ -645,7 +645,7 @@ export function EventDetailPage() {
                           <button
                             onClick={() => toggleAttendeeCheckIn(at.id)}
                             className={`p-1.5 rounded-full border transition-colors inline-flex ${at.checkedIn
-                                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600"
+                                ? "bg-primary/10 border-primary/30 text-primary"
                                 : "bg-muted/40 border-border/80 text-muted-foreground/60 hover:text-foreground"
                               }`}
                           >

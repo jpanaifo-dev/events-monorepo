@@ -21,7 +21,7 @@ export function LoginPage() {
       <div className="flex-1 flex flex-col justify-between p-8 md:p-12 lg:p-16 max-w-xl mx-auto w-full">
         {/* Top Header Branding */}
         <div>
-          <Link to="/dashboard" className="font-bold text-2xl text-emerald-600 dark:text-emerald-500 tracking-tighter flex items-center gap-1.5 w-fit">
+          <Link to="/dashboard" className="font-bold text-2xl text-primary tracking-tighter flex items-center gap-1.5 w-fit">
             EventHive
           </Link>
         </div>

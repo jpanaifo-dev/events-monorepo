@@ -255,7 +255,7 @@ export function LoginForm({
           </Button>
           <FieldDescription className="text-center mt-4 text-xs">
             ¿No tienes una cuenta?{" "}
-            <a href="#" className="underline underline-offset-4 font-semibold text-emerald-600 dark:text-emerald-500">
+            <a href="#" className="underline underline-offset-4 font-semibold text-primary">
               Regístrate
             </a>
           </FieldDescription>

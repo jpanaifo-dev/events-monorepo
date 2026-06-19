@@ -39,8 +39,8 @@ export function DashboardPage() {
       value: String(totalAttendees),
       desc: "Registrados totales",
       icon: Users,
-      color: "text-emerald-500",
-      bgColor: "bg-emerald-500/10",
+      color: "text-primary",
+      bgColor: "bg-primary/10",
     },
   ]
 
@@ -76,10 +76,10 @@ export function DashboardPage() {
         <div className="col-span-1 md:col-span-2 p-6 bg-card rounded-xl border border-border space-y-4">
           <div className="flex items-center justify-between border-b border-border pb-3">
             <div className="flex items-center gap-2">
-              <Calendar className="size-5 text-emerald-600 dark:text-emerald-400" />
+              <Calendar className="size-5 text-primary" />
               <h3 className="font-bold text-base">Próximos Eventos</h3>
             </div>
-            <span onClick={() => navigate("/dashboard/events")} className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer">Ver todos</span>
+            <span onClick={() => navigate("/dashboard/events")} className="text-xs text-primary hover:underline cursor-pointer">Ver todos</span>
           </div>
           
           {upcomingEvents.length === 0 ? (
@@ -93,7 +93,7 @@ export function DashboardPage() {
                   className="py-3 flex items-center justify-between group cursor-pointer hover:bg-muted/10 px-2 rounded-lg transition-colors"
                 >
                   <div className="space-y-1 overflow-hidden">
-                    <p className="font-semibold text-sm truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">{evt.title}</p>
+                    <p className="font-semibold text-sm truncate group-hover:text-primary transition-colors">{evt.title}</p>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <span>{evt.date}</span>
                       <span>•</span>
@@ -101,7 +101,7 @@ export function DashboardPage() {
                     </div>
                   </div>
                   <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase ${
-                    evt.status === "published" ? "bg-emerald-500/10 text-emerald-600" : "bg-amber-500/10 text-amber-600"
+                    evt.status === "published" ? "bg-primary/10 text-primary" : "bg-amber-500/10 text-amber-600"
                   }`}>
                     {evt.status === "published" ? "Publicado" : "Borrador"}
                   </span>
@@ -114,7 +114,7 @@ export function DashboardPage() {
         {/* Right Card: Quick Actions */}
         <div className="p-6 bg-card rounded-xl border border-border space-y-4">
           <div className="flex items-center gap-2 border-b border-border pb-3">
-            <Settings className="size-5 text-emerald-600 dark:text-emerald-400" />
+            <Settings className="size-5 text-primary" />
             <h3 className="font-bold text-base">Accesos Rápidos</h3>
           </div>
           <ul className="space-y-2 text-sm font-medium">
@@ -124,7 +124,7 @@ export function DashboardPage() {
                 className="flex items-center justify-between w-full p-2 hover:bg-muted/50 rounded-lg transition-colors group text-left"
               >
                 <span className="text-muted-foreground group-hover:text-foreground">Ver todos los eventos</span>
-                <Plus className="size-4 text-muted-foreground group-hover:text-emerald-600" />
+                <Plus className="size-4 text-muted-foreground group-hover:text-primary" />
               </button>
             </li>
             <li>
@@ -133,7 +133,7 @@ export function DashboardPage() {
                 className="flex items-center justify-between w-full p-2 hover:bg-muted/50 rounded-lg transition-colors group text-left"
               >
                 <span className="text-muted-foreground group-hover:text-foreground">Cambiar de organización</span>
-                <Clock className="size-4 text-muted-foreground group-hover:text-emerald-600" />
+                <Clock className="size-4 text-muted-foreground group-hover:text-primary" />
               </button>
             </li>
             <li>
@@ -142,7 +142,7 @@ export function DashboardPage() {
                 className="flex items-center justify-between w-full p-2 hover:bg-muted/50 rounded-lg transition-colors group text-left"
               >
                 <span className="text-muted-foreground group-hover:text-foreground">Ajustes de organización</span>
-                <Settings className="size-4 text-muted-foreground group-hover:text-emerald-600" />
+                <Settings className="size-4 text-muted-foreground group-hover:text-primary" />
               </button>
             </li>
           </ul>

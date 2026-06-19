@@ -47,15 +47,20 @@ export function OrganizationSettingsPage() {
 
   const addEmail = (e: React.MouseEvent) => {
     e.preventDefault()
-    const trimmed = newEmail.trim()
-    if (trimmed && !emails.includes(trimmed)) {
-      if (!/\S+@\S+\.\S+/.test(trimmed)) {
-        toast.error("Por favor ingresa un correo válido.")
-        return
-      }
-      setEmails([...emails, trimmed])
-      setNewEmail("")
+    const parts = newEmail.split(/[\s,;]+/).map(p => p.trim()).filter(Boolean)
+    if (parts.length === 0) return
+
+    const invalidParts = parts.filter(p => !/\S+@\S+\.\S+/.test(p))
+    if (invalidParts.length > 0) {
+      toast.error(`Uno o más correos son inválidos: ${invalidParts.join(", ")}`)
+      return
     }
+
+    const uniqueNew = parts.filter(p => !emails.includes(p))
+    if (uniqueNew.length > 0) {
+      setEmails([...emails, ...uniqueNew])
+    }
+    setNewEmail("")
   }
 
   const removeEmail = (index: number) => {
@@ -170,10 +175,28 @@ export function OrganizationSettingsPage() {
     setErrors({})
     setIsSubmitting(true)
 
+    let currentEmails = [...emails]
+    if (newEmail.trim()) {
+      const parts = newEmail.split(/[\s,;]+/).map(p => p.trim()).filter(Boolean)
+      const invalidParts = parts.filter(p => !/\S+@\S+\.\S+/.test(p))
+      if (invalidParts.length > 0) {
+        toast.error(`Uno o más correos en el campo de entrada son inválidos: ${invalidParts.join(", ")}`)
+        setIsSubmitting(false)
+        return
+      }
+      parts.forEach(p => {
+        if (!currentEmails.includes(p)) {
+          currentEmails.push(p)
+        }
+      })
+      setEmails(currentEmails)
+      setNewEmail("")
+    }
+
     const validation = organizationSchema.safeParse({
       name,
       type,
-      email: emails.join(", "),
+      email: currentEmails.join(", "),
       slug,
       description,
       contactPhone,
@@ -211,7 +234,7 @@ export function OrganizationSettingsPage() {
         .update({
           organization_name: name,
           organization_type: type,
-          organization_email: emails.join(", ") || null,
+          organization_email: currentEmails.join(", ") || null,
           slug,
           description: description || null,
           contact_phone: contactPhone || null,
@@ -419,7 +442,7 @@ export function OrganizationSettingsPage() {
                     <span className="text-muted-foreground animate-pulse">Verificando disponibilidad...</span>
                   )}
                   {slugStatus === "available" && (
-                    <span className="text-emerald-600 dark:text-emerald-500 flex items-center gap-1">
+                    <span className="text-primary flex items-center gap-1">
                       <svg className="size-3.5" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
                       </svg>
@@ -673,7 +696,7 @@ export function OrganizationSettingsPage() {
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-foreground">{branch.name}</span>
                       {branch.is_main && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider font-sans">
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-primary/10 border border-primary/20 text-primary font-bold uppercase tracking-wider font-sans">
                           Principal
                         </span>
                       )}
