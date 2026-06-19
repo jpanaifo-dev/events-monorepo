@@ -42,14 +42,17 @@ export function OrganizationsPage() {
     setIsLoadingList(true)
     try {
       const { data, error } = await supabase
-        .from("business_user_roles")
+        .from("organization_followers")
         .select(`
-          business_id,
-          businesses:business_id (
+          organization_id,
+          organizations:organization_id (
             id,
-            name,
+            organization_name,
+            organization_type,
+            organization_email,
             description,
-            is_active
+            status,
+            slug
           )
         `)
         .eq("user_id", user.id)
@@ -57,16 +60,16 @@ export function OrganizationsPage() {
       if (error) throw error
 
       const formatted = (data || [])
-        .map((row: any) => row.businesses)
+        .map((row: any) => row.organizations)
         .filter(Boolean)
-        .map((b: any) => ({
-          id: b.id,
-          name: b.name,
-          slug: b.name.toLowerCase().replace(/\s+/g, "-"),
-          description: b.description || "",
-          isActive: b.is_active ?? true,
+        .map((org: any) => ({
+          id: org.id,
+          name: org.organization_name,
+          slug: org.slug || org.organization_name.toLowerCase().replace(/\s+/g, "-"),
+          description: org.description || "",
+          isActive: org.status === "active",
           plan: "Free Plan",
-          projectsCount: 0 // Will compute dynamically if events store counts match
+          projectsCount: 0
         }))
       setOrganizations(formatted)
     } catch (err) {

@@ -191,25 +191,36 @@ export function ProfilePage() {
         </div>
 
         {isLoadingProfile ? (
-          <div className="border border-border rounded-xl bg-card p-12 text-center flex flex-col items-center justify-center space-y-4">
-            <svg
-              className="animate-spin h-8 w-8 text-primary"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-            </svg>
-            <p className="text-sm text-muted-foreground">Cargando perfil...</p>
+          <div className="border border-border rounded-xl bg-card p-6 space-y-6 animate-pulse">
+            <div className="flex flex-col md:flex-row md:items-center justify-between py-4 border-b border-border">
+              <div className="h-4 bg-muted rounded w-1/4" />
+              <div className="h-10 bg-muted rounded w-full md:w-2/3 max-w-md" />
+            </div>
+            <div className="flex flex-col md:flex-row md:items-center justify-between py-4 border-b border-border">
+              <div className="h-4 bg-muted rounded w-1/4" />
+              <div className="h-10 bg-muted rounded w-full md:w-2/3 max-w-md" />
+            </div>
+            <div className="flex flex-col md:flex-row md:items-center justify-between py-4 border-b border-border">
+              <div className="h-4 bg-muted rounded w-1/4" />
+              <div className="h-10 bg-muted rounded w-full md:w-2/3 max-w-md" />
+            </div>
+            <div className="flex flex-col md:flex-row md:items-center justify-between py-4 border-b border-border">
+              <div className="h-4 bg-muted rounded w-1/4" />
+              <div className="h-10 bg-muted rounded w-full md:w-2/3 max-w-md" />
+            </div>
+            <div className="flex justify-end gap-3 pt-4">
+              <div className="h-10 bg-muted rounded w-24" />
+              <div className="h-10 bg-muted rounded w-32" />
+            </div>
           </div>
         ) : (
           <form onSubmit={handleSave} className="space-y-6">
             <div className="border border-border rounded-xl bg-card overflow-hidden">
               {/* Email Row (Disabled) */}
-              <div className="flex flex-col md:flex-row md:items-center justify-between p-6 gap-4 border-b border-border">
-                <div className="md:w-1/3">
+              <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+                <div className="md:w-1/3 space-y-1">
                   <label className="text-sm font-medium text-foreground">Correo Electrónico</label>
+                  <p className="text-xs text-muted-foreground">Tu dirección de correo no puede ser modificada.</p>
                 </div>
                 <div className="md:w-2/3 max-w-md w-full">
                   <div className="flex items-stretch rounded-md border border-input bg-muted/35 overflow-hidden text-sm px-3 py-2 select-none text-muted-foreground">
@@ -219,9 +230,12 @@ export function ProfilePage() {
               </div>
 
               {/* Name Row */}
-              <div className="flex flex-col md:flex-row md:items-center justify-between p-6 gap-4 border-b border-border">
-                <div className="md:w-1/3">
-                  <label htmlFor="first-name" className="text-sm font-medium text-foreground">Nombre</label>
+              <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+                <div className="md:w-1/3 space-y-1">
+                  <label htmlFor="first-name" className="text-sm font-medium text-foreground">
+                    Nombre <span className="text-destructive">*</span>
+                  </label>
+                  <p className="text-xs text-muted-foreground">Tu nombre o nombres de pila.</p>
                 </div>
                 <div className="md:w-2/3 max-w-md w-full">
                   <Input
@@ -237,9 +251,12 @@ export function ProfilePage() {
               </div>
 
               {/* Last Name Row */}
-              <div className="flex flex-col md:flex-row md:items-center justify-between p-6 gap-4 border-b border-border">
-                <div className="md:w-1/3">
-                  <label htmlFor="last-name" className="text-sm font-medium text-foreground">Apellido</label>
+              <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+                <div className="md:w-1/3 space-y-1">
+                  <label htmlFor="last-name" className="text-sm font-medium text-foreground">
+                    Apellido <span className="text-destructive">*</span>
+                  </label>
+                  <p className="text-xs text-muted-foreground">Tus apellidos paterno y materno.</p>
                 </div>
                 <div className="md:w-2/3 max-w-md w-full">
                   <Input
@@ -255,9 +272,10 @@ export function ProfilePage() {
               </div>
 
               {/* Phone Row */}
-              <div className="flex flex-col md:flex-row md:items-center justify-between p-6 gap-4 border-b border-border">
-                <div className="md:w-1/3">
+              <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+                <div className="md:w-1/3 space-y-1">
                   <label htmlFor="phone" className="text-sm font-medium text-foreground">Teléfono</label>
+                  <p className="text-xs text-muted-foreground">Número de contacto telefónico con código de país.</p>
                 </div>
                 <div className="md:w-2/3 max-w-md w-full">
                   <Input
@@ -272,9 +290,10 @@ export function ProfilePage() {
               </div>
 
               {/* Avatar URL Row */}
-              <div className="flex flex-col md:flex-row md:items-center justify-between p-6 gap-4 border-b border-border">
-                <div className="md:w-1/3">
+              <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+                <div className="md:w-1/3 space-y-1">
                   <label htmlFor="avatar-url" className="text-sm font-medium text-foreground">Enlace del Avatar (URL)</label>
+                  <p className="text-xs text-muted-foreground">Enlace directo a tu foto de perfil.</p>
                 </div>
                 <div className="md:w-2/3 max-w-md w-full">
                   <Input
@@ -289,9 +308,10 @@ export function ProfilePage() {
               </div>
 
               {/* Institution Row */}
-              <div className="flex flex-col md:flex-row md:items-center justify-between p-6 gap-4 border-b border-border">
-                <div className="md:w-1/3">
+              <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+                <div className="md:w-1/3 space-y-1">
                   <label htmlFor="institution" className="text-sm font-medium text-foreground">Institución</label>
+                  <p className="text-xs text-muted-foreground">La universidad, empresa u organización a la que representas.</p>
                 </div>
                 <div className="md:w-2/3 max-w-md w-full">
                   <Input
@@ -306,9 +326,10 @@ export function ProfilePage() {
               </div>
 
               {/* Dedication Row */}
-              <div className="flex flex-col md:flex-row md:items-center justify-between p-6 gap-4 border-b border-border">
-                <div className="md:w-1/3">
+              <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+                <div className="md:w-1/3 space-y-1">
                   <label htmlFor="dedication" className="text-sm font-medium text-foreground">Dedicación / Rol Profesional</label>
+                  <p className="text-xs text-muted-foreground">Tu cargo, ocupación o especialidad principal.</p>
                 </div>
                 <div className="md:w-2/3 max-w-md w-full">
                   <Input
@@ -323,9 +344,10 @@ export function ProfilePage() {
               </div>
 
               {/* Bio Row */}
-              <div className="flex flex-col md:flex-row md:items-center justify-between p-6 gap-4 border-b border-border">
-                <div className="md:w-1/3">
+              <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+                <div className="md:w-1/3 space-y-1">
                   <label htmlFor="bio" className="text-sm font-medium text-foreground">Biografía</label>
+                  <p className="text-xs text-muted-foreground">Breve resumen de tu perfil profesional o académico.</p>
                 </div>
                 <div className="md:w-2/3 max-w-md w-full">
                   <textarea

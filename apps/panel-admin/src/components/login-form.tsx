@@ -124,34 +124,38 @@ export function LoginForm({
 
       const userRole = (roleData?.role as any) || "SERVICE_OWNER"
 
-      // Fetch businesses and treat them as Organizations
+      // Fetch organizations and treat them as Organizations
       const { data: roleBizRelations, error: busError } = await supabase
-        .from("business_user_roles")
+        .from("organization_followers")
         .select(`
-          business_id,
-          businesses:business_id (
+          organization_id,
+          organizations:organization_id (
             id,
-            name,
-            description
+            organization_name,
+            organization_type,
+            organization_email,
+            description,
+            status,
+            slug
           )
         `)
         .eq("user_id", sessionUser.id)
 
       if (busError) {
-        console.error("Error fetching businesses:", busError)
+        console.error("Error fetching organizations:", busError)
       }
 
       // Map to Organization model
       const formattedOrgs = (roleBizRelations || [])
-        .map((r: any) => r.businesses)
+        .map((r: any) => r.organizations)
         .filter(Boolean)
-        .map((b: any) => ({
-          id: b.id,
-          name: b.name,
-          slug: b.name.toLowerCase().replace(/\s+/g, "-"),
-          description: b.description || "",
+        .map((org: any) => ({
+          id: org.id,
+          name: org.organization_name,
+          slug: org.slug || org.organization_name.toLowerCase().replace(/\s+/g, "-"),
+          description: org.description || "",
           plan: "Free Plan",
-          projectsCount: 2
+          projectsCount: 0
         }))
 
       login(
