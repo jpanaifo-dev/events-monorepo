@@ -21,6 +21,10 @@ export interface Organization {
   isActive?: boolean
   isIndependent?: boolean | null
   plan?: string
+  type?: string
+  logoUrl?: string
+  coverUrl?: string
+  faviconUrl?: string
   projectsCount?: number
 }
 

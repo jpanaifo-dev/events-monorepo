@@ -15,17 +15,25 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { ChevronsUpDown, LogOut, ArrowLeft } from "lucide-react"
+import { ChevronsUpDown, LogOut, ArrowLeft, X } from "lucide-react"
 import { toast } from "sonner"
+import { ImageUploadWithPreview } from "@/components/ImageUploadWithPreview"
 
 const organizationSchema = z.object({
   name: z.string().min(3, "El nombre de la organización debe tener al menos 3 caracteres"),
   type: z.string().min(2, "El tipo de organización es requerido"),
-  email: z.string().email("Correo electrónico inválido").or(z.literal("")).optional(),
+  email: z.string().refine((val) => {
+    if (!val) return true;
+    const parts = val.split(",").map(p => p.trim());
+    return parts.every(p => !p || /\S+@\S+\.\S+/.test(p));
+  }, "Uno o más correos son inválidos").optional(),
   slug: z.string()
     .min(3, "El slug debe tener al menos 3 caracteres")
     .regex(/^[a-z0-9-]+$/, "El slug solo debe contener letras minúsculas, números y guiones"),
   description: z.string().optional(),
+  logoUrl: z.string().url("Enlace de logo inválido").or(z.literal("")).optional(),
+  coverUrl: z.string().url("Enlace de portada inválido").or(z.literal("")).optional(),
+  faviconUrl: z.string().url("Enlace de favicon inválido").or(z.literal("")).optional(),
 })
 
 type OrganizationInput = z.infer<typeof organizationSchema>
@@ -36,9 +44,30 @@ export function CreateOrganizationPage() {
 
   const [name, setName] = useState("")
   const [type, setType] = useState("")
-  const [email, setEmail] = useState("")
+  const [emails, setEmails] = useState<string[]>([])
+  const [newEmail, setNewEmail] = useState("")
   const [slug, setSlug] = useState("")
   const [description, setDescription] = useState("")
+
+  const addEmail = (e: React.MouseEvent) => {
+    e.preventDefault()
+    const trimmed = newEmail.trim()
+    if (trimmed && !emails.includes(trimmed)) {
+      if (!/\S+@\S+\.\S+/.test(trimmed)) {
+        toast.error("Por favor ingresa un correo válido.")
+        return
+      }
+      setEmails([...emails, trimmed])
+      setNewEmail("")
+    }
+  }
+
+  const removeEmail = (index: number) => {
+    setEmails(emails.filter((_, i) => i !== index))
+  }
+  const [logoUrl, setLogoUrl] = useState("")
+  const [coverUrl, setCoverUrl] = useState("")
+  const [faviconUrl, setFaviconUrl] = useState("")
 
   const [errors, setErrors] = useState<Partial<Record<keyof OrganizationInput, string>>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -104,9 +133,12 @@ export function CreateOrganizationPage() {
     const validation = organizationSchema.safeParse({
       name,
       type,
-      email,
+      email: emails.join(", "),
       slug,
       description,
+      logoUrl,
+      coverUrl,
+      faviconUrl,
     })
 
     if (!validation.success) {
@@ -137,9 +169,12 @@ export function CreateOrganizationPage() {
         .insert([{
           organization_name: name,
           organization_type: type,
-          organization_email: email || null,
+          organization_email: emails.join(", ") || null,
           slug,
           description: description || null,
+          logo_url: logoUrl || null,
+          cover_image_url: coverUrl || null,
+          favicon_url: faviconUrl || null,
           status: "active",
           validation_status: "pending"
         }])
@@ -155,6 +190,10 @@ export function CreateOrganizationPage() {
         slug: orgData.slug,
         description: orgData.description || "",
         isActive: orgData.status === "active",
+        type: orgData.organization_type,
+        logoUrl: orgData.logo_url || "",
+        coverUrl: orgData.cover_image_url || "",
+        faviconUrl: orgData.favicon_url || "",
         plan: "Free Plan",
         projectsCount: 0
       }
@@ -311,21 +350,45 @@ export function CreateOrganizationPage() {
             {/* Email Row (Optional) */}
             <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
               <div className="md:w-1/3 space-y-1">
-                <label htmlFor="org-email" className="text-sm font-medium text-foreground">
-                  Correo Electrónico
+                <label className="text-sm font-medium text-foreground">
+                  Correos Electrónicos
                 </label>
-                <p className="text-xs text-muted-foreground">Correo oficial para notificaciones y contacto de eventos.</p>
+                <p className="text-xs text-muted-foreground">Correos oficiales para notificaciones y contacto de eventos.</p>
               </div>
-              <div className="md:w-2/3 max-w-md w-full">
-                <Input
-                  id="org-email"
-                  type="email"
-                  placeholder="contacto@miorganizacion.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className={errors.email ? "border-destructive focus-visible:ring-destructive" : ""}
-                  disabled={isSubmitting}
-                />
+              <div className="md:w-2/3 max-w-md w-full space-y-2">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Ej. contacto@miorganizacion.com"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value.trim())}
+                    disabled={isSubmitting}
+                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addEmail(e as any))}
+                  />
+                  <Button type="button" variant="outline" onClick={addEmail} disabled={isSubmitting} className="cursor-pointer">
+                    Agregar
+                  </Button>
+                </div>
+                {/* Render email chips */}
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {emails.map((email, index) => (
+                    <span
+                      key={index}
+                      className="bg-muted border border-border text-foreground text-xs px-2.5 py-1 rounded-lg flex items-center gap-1.5 font-medium animate-in zoom-in-95 duration-100"
+                    >
+                      {email}
+                      <button
+                        type="button"
+                        onClick={() => removeEmail(index)}
+                        className="text-muted-foreground hover:text-destructive cursor-pointer outline-none"
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </span>
+                  ))}
+                  {emails.length === 0 && (
+                    <span className="text-xs text-muted-foreground italic">No hay correos registrados.</span>
+                  )}
+                </div>
                 {errors.email && (
                   <p className="text-xs text-destructive mt-1.5 font-medium">{errors.email}</p>
                 )}
@@ -399,6 +462,57 @@ export function CreateOrganizationPage() {
                   onChange={(e) => setDescription(e.target.value)}
                   className="w-full px-3 py-2 text-sm bg-background border border-input rounded-md outline-none focus:ring-2 focus:ring-ring/50 text-foreground"
                   disabled={isSubmitting}
+                />
+              </div>
+            </div>
+
+            {/* Logo Row */}
+            <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+              <div className="md:w-1/3 space-y-1">
+                <label className="text-sm font-medium text-foreground">Logotipo de la Organización</label>
+                <p className="text-xs text-muted-foreground">Imagen representativa de la organización.</p>
+              </div>
+              <div className="md:w-2/3 max-w-md w-full">
+                <ImageUploadWithPreview
+                  label=""
+                  value={logoUrl}
+                  onChange={setLogoUrl}
+                  aspectRatio="square"
+                  placeholder="Arrastra tu logotipo aquí, o pega un enlace"
+                />
+              </div>
+            </div>
+
+            {/* Cover Row */}
+            <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+              <div className="md:w-1/3 space-y-1">
+                <label className="text-sm font-medium text-foreground">Portada / Banner</label>
+                <p className="text-xs text-muted-foreground">Banner de fondo que se mostrará en los eventos y portal.</p>
+              </div>
+              <div className="md:w-2/3 max-w-md w-full">
+                <ImageUploadWithPreview
+                  label=""
+                  value={coverUrl}
+                  onChange={setCoverUrl}
+                  aspectRatio="banner"
+                  placeholder="Arrastra tu banner de portada aquí, o pega un enlace"
+                />
+              </div>
+            </div>
+
+            {/* Favicon Row */}
+            <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+              <div className="md:w-1/3 space-y-1">
+                <label className="text-sm font-medium text-foreground">Favicon</label>
+                <p className="text-xs text-muted-foreground">Icono de página web pequeño (generalmente 1:1).</p>
+              </div>
+              <div className="md:w-2/3 max-w-md w-full">
+                <ImageUploadWithPreview
+                  label=""
+                  value={faviconUrl}
+                  onChange={setFaviconUrl}
+                  aspectRatio="favicon"
+                  placeholder="Arrastra tu favicon aquí, o pega un enlace"
                 />
               </div>
             </div>

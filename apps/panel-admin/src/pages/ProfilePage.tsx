@@ -86,7 +86,8 @@ export function ProfilePage() {
     try {
       const { error } = await supabase
         .from("profiles")
-        .update({
+        .upsert({
+          id: user.id,
           first_name: firstName,
           last_name: lastName,
           phone,
@@ -96,7 +97,6 @@ export function ProfilePage() {
           avatar_url: avatarUrl,
           updated_at: new Date().toISOString()
         })
-        .eq("id", user.id)
 
       if (error) throw error
 

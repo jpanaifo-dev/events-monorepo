@@ -65,7 +65,8 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
     try {
       const { error } = await supabase
         .from("profiles")
-        .update({
+        .upsert({
+          id: user.id,
           first_name: firstName,
           last_name: lastName,
           phone,
@@ -75,7 +76,6 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
           avatar_url: avatarUrl,
           updated_at: new Date().toISOString()
         })
-        .eq("id", user.id)
 
       if (error) throw error
 

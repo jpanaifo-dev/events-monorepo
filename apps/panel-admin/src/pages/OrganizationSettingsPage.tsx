@@ -7,11 +7,17 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import { PageHeader } from "@/components/page-header"
+import { ImageUploadWithPreview } from "@/components/ImageUploadWithPreview"
+import { X } from "lucide-react"
 
 const organizationSchema = z.object({
   name: z.string().min(3, "El nombre de la organización debe tener al menos 3 caracteres"),
   type: z.string().min(2, "El tipo de organización es requerido"),
-  email: z.string().email("Correo electrónico inválido").or(z.literal("")).optional(),
+  email: z.string().refine((val) => {
+    if (!val) return true;
+    const parts = val.split(",").map(p => p.trim());
+    return parts.every(p => !p || /\S+@\S+\.\S+/.test(p));
+  }, "Uno o más correos son inválidos").optional(),
   slug: z.string()
     .min(3, "El slug debe tener al menos 3 caracteres")
     .regex(/^[a-z0-9-]+$/, "El slug solo debe contener letras minúsculas, números y guiones"),
@@ -22,6 +28,7 @@ const organizationSchema = z.object({
   brand: z.string().optional(),
   logoUrl: z.string().url("Enlace de logo inválido").or(z.literal("")).optional(),
   coverUrl: z.string().url("Enlace de portada inválido").or(z.literal("")).optional(),
+  faviconUrl: z.string().url("Enlace de favicon inválido").or(z.literal("")).optional(),
   primaryColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, "Color hexadecimal inválido (ej. #7C3AED)").or(z.literal("")).optional(),
 })
 
@@ -33,16 +40,36 @@ export function OrganizationSettingsPage() {
 
   const [name, setName] = useState("")
   const [type, setType] = useState("")
-  const [email, setEmail] = useState("")
+  const [emails, setEmails] = useState<string[]>([])
+  const [newEmail, setNewEmail] = useState("")
   const [slug, setSlug] = useState("")
   const [description, setDescription] = useState("")
+
+  const addEmail = (e: React.MouseEvent) => {
+    e.preventDefault()
+    const trimmed = newEmail.trim()
+    if (trimmed && !emails.includes(trimmed)) {
+      if (!/\S+@\S+\.\S+/.test(trimmed)) {
+        toast.error("Por favor ingresa un correo válido.")
+        return
+      }
+      setEmails([...emails, trimmed])
+      setNewEmail("")
+    }
+  }
+
+  const removeEmail = (index: number) => {
+    setEmails(emails.filter((_, i) => i !== index))
+  }
   const [contactPhone, setContactPhone] = useState("")
   const [address, setAddress] = useState("")
   const [documentNumber, setDocumentNumber] = useState("")
   const [brand, setBrand] = useState("")
   const [logoUrl, setLogoUrl] = useState("")
   const [coverUrl, setCoverUrl] = useState("")
+  const [faviconUrl, setFaviconUrl] = useState("")
   const [primaryColor, setPrimaryColor] = useState("")
+  const [branches, setBranches] = useState<any[]>([])
 
   const [errors, setErrors] = useState<Partial<Record<keyof OrganizationInput, string>>>({})
   const [isLoading, setIsLoading] = useState(true)
@@ -68,7 +95,7 @@ export function OrganizationSettingsPage() {
         if (data) {
           setName(data.organization_name || "")
           setType(data.organization_type || "")
-          setEmail(data.organization_email || "")
+          setEmails(data.organization_email ? data.organization_email.split(",").map((e: string) => e.trim()).filter(Boolean) : [])
           setSlug(data.slug || "")
           setDescription(data.description || "")
           setContactPhone(data.contact_phone || "")
@@ -77,7 +104,20 @@ export function OrganizationSettingsPage() {
           setBrand(data.brand || "")
           setLogoUrl(data.logo_url || "")
           setCoverUrl(data.cover_image_url || "")
+          setFaviconUrl(data.favicon_url || "")
           setPrimaryColor(data.primary_color || "")
+        }
+
+        // Fetch branches for this organization
+        const { data: branchesData, error: branchesError } = await supabase
+          .from("organization_branches")
+          .select("*")
+          .eq("organization_id", selectedOrganization.id)
+          .order("is_main", { ascending: false })
+          .order("created_at", { ascending: true })
+
+        if (!branchesError) {
+          setBranches(branchesData || [])
         }
       } catch (err) {
         console.error("Error loading organization settings:", err)
@@ -133,7 +173,7 @@ export function OrganizationSettingsPage() {
     const validation = organizationSchema.safeParse({
       name,
       type,
-      email,
+      email: emails.join(", "),
       slug,
       description,
       contactPhone,
@@ -142,6 +182,7 @@ export function OrganizationSettingsPage() {
       brand,
       logoUrl,
       coverUrl,
+      faviconUrl,
       primaryColor,
     })
 
@@ -170,7 +211,7 @@ export function OrganizationSettingsPage() {
         .update({
           organization_name: name,
           organization_type: type,
-          organization_email: email || null,
+          organization_email: emails.join(", ") || null,
           slug,
           description: description || null,
           contact_phone: contactPhone || null,
@@ -179,6 +220,7 @@ export function OrganizationSettingsPage() {
           brand: brand || null,
           logo_url: logoUrl || null,
           cover_image_url: coverUrl || null,
+          favicon_url: faviconUrl || null,
           primary_color: primaryColor || null,
           updated_at: new Date().toISOString()
         })
@@ -192,6 +234,10 @@ export function OrganizationSettingsPage() {
         name,
         slug,
         description: description || "",
+        type,
+        logoUrl,
+        coverUrl,
+        faviconUrl,
       }
       selectOrganization(updatedOrg)
 
@@ -299,21 +345,45 @@ export function OrganizationSettingsPage() {
           {/* Email Row (Optional) */}
           <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
             <div className="md:w-1/3 space-y-1">
-              <label htmlFor="org-email" className="text-sm font-medium text-foreground">
-                Correo Electrónico
+              <label className="text-sm font-medium text-foreground">
+                Correos Electrónicos
               </label>
-              <p className="text-xs text-muted-foreground">Correo oficial para notificaciones y contacto de eventos.</p>
+              <p className="text-xs text-muted-foreground">Correos oficiales para notificaciones y contacto de eventos.</p>
             </div>
-            <div className="md:w-2/3 max-w-md w-full">
-              <Input
-                id="org-email"
-                type="email"
-                placeholder="contacto@miorganizacion.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className={errors.email ? "border-destructive focus-visible:ring-destructive" : ""}
-                disabled={isSubmitting}
-              />
+            <div className="md:w-2/3 max-w-md w-full space-y-2">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Ej. contacto@miorganizacion.com"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value.trim())}
+                  disabled={isSubmitting}
+                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addEmail(e as any))}
+                />
+                <Button type="button" variant="outline" onClick={addEmail} disabled={isSubmitting} className="cursor-pointer">
+                  Agregar
+                </Button>
+              </div>
+              {/* Render email chips */}
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {emails.map((email, index) => (
+                  <span
+                    key={index}
+                    className="bg-muted border border-border text-foreground text-xs px-2.5 py-1 rounded-lg flex items-center gap-1.5 font-medium animate-in zoom-in-95 duration-100"
+                  >
+                    {email}
+                    <button
+                      type="button"
+                      onClick={() => removeEmail(index)}
+                      className="text-muted-foreground hover:text-destructive cursor-pointer outline-none"
+                    >
+                      <X className="size-3" />
+                    </button>
+                  </span>
+                ))}
+                {emails.length === 0 && (
+                  <span className="text-xs text-muted-foreground italic">No hay correos registrados.</span>
+                )}
+              </div>
               {errors.email && (
                 <p className="text-xs text-destructive mt-1.5 font-medium">{errors.email}</p>
               )}
@@ -412,18 +482,16 @@ export function OrganizationSettingsPage() {
           {/* Logo URL Row */}
           <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
             <div className="md:w-1/3 space-y-1">
-              <label htmlFor="org-logo" className="text-sm font-medium text-foreground">URL del Logotipo</label>
-              <p className="text-xs text-muted-foreground">Enlace directo a una imagen cuadrada de tu logo. (Ej. https://ejemplo.com/logo.png)</p>
+              <label className="text-sm font-medium text-foreground">Logotipo de la Organización</label>
+              <p className="text-xs text-muted-foreground">Imagen representativa de la organización.</p>
             </div>
             <div className="md:w-2/3 max-w-md w-full">
-              <Input
-                id="org-logo"
-                type="url"
-                placeholder="https://ejemplo.com/logo.png"
+              <ImageUploadWithPreview
+                label=""
                 value={logoUrl}
-                onChange={(e) => setLogoUrl(e.target.value)}
-                className={errors.logoUrl ? "border-destructive focus-visible:ring-destructive" : ""}
-                disabled={isSubmitting}
+                onChange={setLogoUrl}
+                aspectRatio="square"
+                placeholder="Arrastra tu logotipo aquí, o pega un enlace"
               />
               {errors.logoUrl && (
                 <p className="text-xs text-destructive mt-1.5 font-medium">{errors.logoUrl}</p>
@@ -434,21 +502,39 @@ export function OrganizationSettingsPage() {
           {/* Cover URL Row */}
           <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
             <div className="md:w-1/3 space-y-1">
-              <label htmlFor="org-cover" className="text-sm font-medium text-foreground">URL de Imagen de Portada</label>
-              <p className="text-xs text-muted-foreground">Enlace directo a una imagen de banner para tu organización. (Ej. https://ejemplo.com/cover.png)</p>
+              <label className="text-sm font-medium text-foreground">Portada / Banner</label>
+              <p className="text-xs text-muted-foreground">Banner de fondo que se mostrará en los eventos y portal.</p>
             </div>
             <div className="md:w-2/3 max-w-md w-full">
-              <Input
-                id="org-cover"
-                type="url"
-                placeholder="https://ejemplo.com/cover.png"
+              <ImageUploadWithPreview
+                label=""
                 value={coverUrl}
-                onChange={(e) => setCoverUrl(e.target.value)}
-                className={errors.coverUrl ? "border-destructive focus-visible:ring-destructive" : ""}
-                disabled={isSubmitting}
+                onChange={setCoverUrl}
+                aspectRatio="banner"
+                placeholder="Arrastra tu banner de portada aquí, o pega un enlace"
               />
               {errors.coverUrl && (
                 <p className="text-xs text-destructive mt-1.5 font-medium">{errors.coverUrl}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Favicon URL Row */}
+          <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+            <div className="md:w-1/3 space-y-1">
+              <label className="text-sm font-medium text-foreground">Favicon</label>
+              <p className="text-xs text-muted-foreground">Icono de página web pequeño (generalmente 1:1).</p>
+            </div>
+            <div className="md:w-2/3 max-w-md w-full">
+              <ImageUploadWithPreview
+                label=""
+                value={faviconUrl}
+                onChange={setFaviconUrl}
+                aspectRatio="favicon"
+                placeholder="Arrastra tu favicon aquí, o pega un enlace"
+              />
+              {errors.faviconUrl && (
+                <p className="text-xs text-destructive mt-1.5 font-medium">{errors.faviconUrl}</p>
               )}
             </div>
           </div>
@@ -541,6 +627,87 @@ export function OrganizationSettingsPage() {
           </div>
         </div>
       </form>
+
+      {/* Branches Section */}
+      <div className="mt-10 space-y-4">
+        {/* Section title above card container matching the image */}
+        <h3 className="text-xl tracking-tight text-foreground font-sans">
+          Sedes de la organización
+        </h3>
+
+        {/* Card Container faithful to the mockup */}
+        <div className="border border-border rounded-xl bg-card overflow-hidden shadow-sm">
+          {/* Header Row */}
+          <div className="p-6 flex items-center justify-between gap-4 border-b border-border bg-card">
+            <div className="space-y-1">
+              <h4 className="font-semibold text-base text-foreground font-sans">
+                Acceso a Sedes
+              </h4>
+              <p className="text-xs text-muted-foreground font-sans">
+                Todas las sucursales, oficinas y ubicaciones físicas autorizadas en esta organización.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate("/dashboard/settings/branches")}
+              className="border border-border hover:bg-muted text-foreground px-3.5 py-2 rounded-lg text-xs font-semibold select-none transition-colors cursor-pointer outline-none font-sans"
+            >
+              Gestionar sedes
+            </button>
+          </div>
+
+          {/* List of sedes like members in mockup */}
+          {branches.length > 0 ? (
+            <div className="w-full">
+              {/* Sub-Header Column Labels */}
+              <div className="grid grid-cols-2 px-6 py-3 border-b border-border bg-muted/15 text-[10px] font-bold tracking-wider text-muted-foreground/80 font-mono uppercase">
+                <div>Sede</div>
+                <div className="text-right">Ubicación / Rol</div>
+              </div>
+
+              {/* Rows */}
+              <div className="divide-y divide-border/60">
+                {branches.map((branch) => (
+                  <div key={branch.id} className="grid grid-cols-2 px-6 py-4 items-center text-sm hover:bg-muted/5 transition-colors font-sans">
+                    {/* Left details */}
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-foreground">{branch.name}</span>
+                      {branch.is_main && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider font-sans">
+                          Principal
+                        </span>
+                      )}
+                      {!branch.is_active && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-muted border border-border text-muted-foreground font-bold uppercase tracking-wider font-sans">
+                          Inactivo
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Right details */}
+                    <div className="text-right text-muted-foreground text-xs font-normal">
+                      {branch.address ? (
+                        <span>
+                          {branch.address}
+                          {(branch.district || branch.province) && " ("}
+                          {[branch.district, branch.province].filter(Boolean).join(", ")}
+                          {(branch.district || branch.province) && ")"}
+                        </span>
+                      ) : (
+                        <span>{[branch.district, branch.province, branch.department].filter(Boolean).join(", ") || "Sin ubicación"}</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="p-8 text-center text-xs text-muted-foreground italic font-sans">
+              No hay sedes registradas para esta organización. Haz clic en "Gestionar sedes" para añadir una.
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

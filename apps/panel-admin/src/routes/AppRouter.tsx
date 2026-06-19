@@ -9,6 +9,8 @@ import { EventsPage } from "@/pages/EventsPage"
 import { EventDetailPage } from "@/pages/EventDetailPage"
 import { DashboardPage } from "@/pages/DashboardPage"
 import { PrivateLayout } from "@/layouts/PrivateLayout"
+import { BranchesPage } from "@/pages/BranchesPage"
+import { BranchFormPage } from "@/pages/BranchFormPage"
 
 export function AppRouter() {
   return (
@@ -65,6 +67,11 @@ export function AppRouter() {
 
           {/* Settings Page */}
           <Route path="settings/business" element={<OrganizationSettingsPage />} />
+
+          {/* Branches Pages */}
+          <Route path="settings/branches" element={<BranchesPage />} />
+          <Route path="settings/branches/new" element={<BranchFormPage />} />
+          <Route path="settings/branches/:branchId/edit" element={<BranchFormPage />} />
         </Route>
 
         {/* Fallback redirect */}

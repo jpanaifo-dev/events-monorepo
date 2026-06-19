@@ -95,10 +95,13 @@ export function LoginForm({
       if (!profile) {
         const newProfile = {
           id: sessionUser.id,
-          full_name: null,
+          first_name: "",
+          last_name: "",
           phone: null,
           bio: null,
-          specialty: null,
+          dedication: null,
+          avatar_url: null,
+          institution: null
         }
 
         const { data: insertedProfile, error: insertError } = await supabase
@@ -151,14 +154,18 @@ export function LoginForm({
         projectsCount: 0
       }))
 
+      const computedFullName = profile.first_name || profile.last_name
+        ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim()
+        : (profile.full_name || null)
+
       login(
         {
           id: sessionUser.id,
           email: sessionUser.email || email,
-          full_name: profile.full_name,
+          full_name: computedFullName,
           phone: profile.phone,
           bio: profile.bio || null,
-          specialty: profile.specialty || null,
+          specialty: profile.dedication || profile.specialty || null,
           role: userRole,
         },
         formattedOrgs
