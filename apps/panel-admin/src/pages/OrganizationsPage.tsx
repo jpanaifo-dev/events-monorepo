@@ -154,7 +154,7 @@ export function OrganizationsPage() {
       </header>
 
       {/* Main Content Workspace */}
-      <main className="flex-1 max-w-6xl w-full mx-auto p-8 md:p-16 space-y-12 animate-in fade-in duration-300">
+      <main className="flex-1 container w-full mx-auto p-8 md:p-16 space-y-12 animate-in fade-in duration-300">
         <PageHeader
           title="Hola, estas son tus organizaciones"
           description="Selecciona o crea una organización para administrar tus eventos."
