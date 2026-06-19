@@ -36,24 +36,20 @@ async function decrypt(jwe: string): Promise<string> {
   }
 }
 
-// Custom cookie storage for Zustand using Jose JWE
-const cookieStorage: StateStorage = {
+// Custom localStorage storage for Zustand using Jose JWE
+const localStorageStorage: StateStorage = {
   getItem: async (name): Promise<string | null> => {
-    const cookies = document.cookie.split("; ")
-    const cookie = cookies.find((row) => row.startsWith(`${name}=`))
-    if (!cookie) return null
-    const val = cookie.split("=")[1]
-    const decrypted = await decrypt(val)
+    const raw = localStorage.getItem(name)
+    if (!raw) return null
+    const decrypted = await decrypt(raw)
     return decrypted || null
   },
   setItem: async (name, value): Promise<void> => {
     const encrypted = await encrypt(value)
-    const date = new Date()
-    date.setTime(date.getTime() + 7 * 24 * 60 * 60 * 1000) // 7 days expiration
-    document.cookie = `${name}=${encrypted}; expires=${date.toUTCString()}; path=/; SameSite=Strict; Secure`
+    localStorage.setItem(name, encrypted)
   },
   removeItem: async (name): Promise<void> => {
-    document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Strict; Secure`
+    localStorage.removeItem(name)
   }
 }
 
@@ -119,7 +115,7 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: "saas-auth-storage",
-      storage: createJSONStorage(() => cookieStorage),
+      storage: createJSONStorage(() => localStorageStorage),
       partialize: (state) => ({
         user: state.user,
         organizations: state.organizations,

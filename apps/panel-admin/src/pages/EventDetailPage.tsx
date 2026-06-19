@@ -68,7 +68,7 @@ export function EventDetailPage() {
   }
 
   // Filter child items to only belong to this event
-  const eventEditions = editions.filter((ed) => ed.eventId === event.id)
+  const eventEditions = editions.filter((ed) => ed.mainEventId === event.id)
   const eventSpeakers = speakers.filter((sp) => sp.eventId === event.id)
   const eventAgenda = agendaItems.filter((ag) => ag.eventId === event.id)
   const eventAttendees = attendees.filter((at) => at.eventId === event.id)
@@ -80,7 +80,7 @@ export function EventDetailPage() {
 
   // Event handlers
   const handleDeleteEvent = () => {
-    if (confirm(`¿Estás seguro de que deseas eliminar permanentemente el evento "${event.title}"? Esta acción no se puede deshacer.`)) {
+    if (confirm(`¿Estás seguro de que deseas eliminar permanentemente el evento "${event.name}"? Esta acción no se puede deshacer.`)) {
       deleteEvent(event.id)
       navigate("/dashboard/events")
     }
@@ -196,7 +196,7 @@ export function EventDetailPage() {
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       <PageHeader
-        title={event.title}
+        title={event.name}
         description="Detalle y gestión del evento, ediciones, ponentes, agenda y asistentes."
         showBackButton
         onBackClick={() => navigate("/dashboard/events")}
@@ -214,25 +214,27 @@ export function EventDetailPage() {
       {/* Main Banner Board */}
       <div className="bg-card border border-border rounded-xl overflow-hidden flex flex-col md:flex-row relative">
         <div className="h-44 md:h-auto md:w-80 shrink-0 bg-muted relative">
-          <img src={event.banner} alt={event.title} className="w-full h-full object-cover" />
+          <img src={event.coverUrl || "https://images.unsplash.com/photo-1511578314322-379afb476865?w=800&auto=format&fit=crop&q=60"} alt={event.name} className="w-full h-full object-cover" />
         </div>
         <div className="p-6 md:p-8 flex-1 flex flex-col justify-between gap-4">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <span className="bg-primary/10 text-primary text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">
-                {event.status === "published" ? "Publicado" : event.status === "finished" ? "Finalizado" : "Borrador"}
+                {event.status === "published" ? "Publicado" : event.status === "archived" ? "Archivado" : "Borrador"}
               </span>
-              <span className="bg-muted text-muted-foreground text-xs px-2 py-0.5 rounded-md font-semibold capitalize">
-                {event.format === "physical" ? "Presencial" : event.format === "online" ? "Online" : "Híbrido"}
-              </span>
+              {!event.isActive && (
+                <span className="bg-red-500/10 text-red-600 text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                  Inactivo
+                </span>
+              )}
             </div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{event.title}</h1>
-            <p className="text-sm text-muted-foreground line-clamp-2">{event.description || "Sin descripción."}</p>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{event.name}</h1>
+            <p className="text-sm text-muted-foreground line-clamp-2">{event.shortDescription || "Sin descripción."}</p>
           </div>
 
           <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1.5"><Calendar className="size-4 text-primary" /> {event.date || "Definir"}</span>
-            <span className="flex items-center gap-1.5"><MapPin className="size-4 text-primary" /> {event.location || "Definir"}</span>
+            <span className="flex items-center gap-1.5"><Calendar className="size-4 text-primary" /> {event.createdAt ? new Date(event.createdAt).toLocaleDateString("es-ES") : "Sin fecha"}</span>
+            {event.contactEmail && <span className="flex items-center gap-1.5"><MapPin className="size-4 text-primary" /> {event.contactEmail}</span>}
           </div>
         </div>
       </div>
@@ -298,27 +300,27 @@ export function EventDetailPage() {
             <div className="grid gap-6 md:grid-cols-2">
               <div className="space-y-4">
                 <div>
-                  <span className="text-xs text-muted-foreground block font-medium">Título del Evento</span>
-                  <span className="text-sm font-semibold">{event.title}</span>
+                  <span className="text-xs text-muted-foreground block font-medium">Nombre del Evento</span>
+                  <span className="text-sm font-semibold">{event.name}</span>
                 </div>
                 <div>
                   <span className="text-xs text-muted-foreground block font-medium">Descripción</span>
                   <p className="text-sm text-card-foreground whitespace-pre-wrap leading-relaxed">
-                    {event.description || "Sin descripción proporcionada."}
+                    {event.shortDescription || "Sin descripción proporcionada."}
                   </p>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <span className="text-xs text-muted-foreground block font-medium">Fecha</span>
+                    <span className="text-xs text-muted-foreground block font-medium">Fecha de Creación</span>
                     <span className="text-sm font-semibold flex items-center gap-1.5 mt-1">
                       <Calendar className="size-4 text-muted-foreground" />
-                      {event.date || "Sin definir"}
+                      {event.createdAt ? new Date(event.createdAt).toLocaleDateString("es-ES") : "Sin definir"}
                     </span>
                   </div>
                   <div>
-                    <span className="text-xs text-muted-foreground block font-medium">Formato</span>
+                    <span className="text-xs text-muted-foreground block font-medium">Estado</span>
                     <span className="text-sm font-semibold mt-1 block">
-                      {event.format === "physical" ? "Presencial" : event.format === "online" ? "Online" : "Híbrido"}
+                      {event.status === "published" ? "Publicado" : event.status === "archived" ? "Archivado" : "Borrador"}
                     </span>
                   </div>
                 </div>
@@ -326,16 +328,18 @@ export function EventDetailPage() {
 
               <div className="space-y-4">
                 <div>
-                  <span className="text-xs text-muted-foreground block font-medium">Ubicación / Plataforma</span>
+                  <span className="text-xs text-muted-foreground block font-medium">Email de Contacto</span>
                   <span className="text-sm font-semibold flex items-center gap-1.5 mt-1">
                     <MapPin className="size-4 text-muted-foreground" />
-                    {event.location || "Sin definir"}
+                    {event.contactEmail || "Sin definir"}
                   </span>
                 </div>
                 <div>
-                  <span className="text-xs text-muted-foreground block font-medium">Estado del Evento</span>
-                  <span className="text-sm font-semibold mt-1 block capitalize">
-                    {event.status === "published" ? "Publicado" : event.status === "finished" ? "Finalizado" : "Borrador"}
+                  <span className="text-xs text-muted-foreground block font-medium">Sitio Web</span>
+                  <span className="text-sm font-semibold mt-1 block">
+                    {event.websiteUrl ? (
+                      <a href={event.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{event.websiteUrl}</a>
+                    ) : "Sin definir"}
                   </span>
                 </div>
                 <div className="pt-4 border-t border-border flex justify-end">
@@ -367,17 +371,17 @@ export function EventDetailPage() {
             ) : (
               <div className="grid gap-4 md:grid-cols-2">
                 {eventEditions.map((ed) => (
-                  <div key={orgEventId(ed.id)} className="p-4 bg-background border border-border rounded-lg flex items-center justify-between shadow-xs">
+                  <div key={ed.id} className="p-4 bg-background border border-border rounded-lg flex items-center justify-between shadow-xs">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <span className="font-semibold text-sm">{ed.name}</span>
-                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase ${ed.status === "active" ? "bg-primary/10 text-primary" : ed.status === "completed" ? "bg-muted text-muted-foreground" : "bg-amber-500/10 text-amber-600"
+                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase ${ed.isCurrent ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
                           }`}>
-                          {ed.status === "active" ? "Activo" : ed.status === "completed" ? "Completado" : "Planeado"}
+                          {ed.isCurrent ? "Actual" : "Planeado"}
                         </span>
                       </div>
                       <p className="text-[10px] text-muted-foreground">
-                        Duración: {ed.startDate} al {ed.endDate}
+                        {ed.startDate && ed.endDate ? `${ed.startDate} al ${ed.endDate}` : "Fechas por definir"}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -409,7 +413,7 @@ export function EventDetailPage() {
             ) : (
               <div className="grid gap-6 md:grid-cols-2">
                 {eventSpeakers.map((sp) => (
-                  <div key={orgEventId(sp.id)} className="p-5 bg-background border border-border rounded-xl flex items-start gap-4 shadow-xs relative group">
+                  <div key={sp.id} className="p-5 bg-background border border-border rounded-xl flex items-start gap-4 shadow-xs relative group">
                     <div className="absolute top-4 right-4 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <Button onClick={() => handleEditSpeaker(sp)} variant="ghost" className="size-7 p-0"><Edit2 className="size-3.5" /></Button>
                       <Button onClick={() => deleteSpeaker(sp.id)} variant="ghost" className="size-7 p-0 text-destructive hover:bg-destructive/10"><Trash2 className="size-3.5" /></Button>
@@ -458,7 +462,7 @@ export function EventDetailPage() {
                 {eventAgenda.map((item) => {
                   const sp = eventSpeakers.find(s => s.id === item.speakerId)
                   return (
-                    <div key={orgEventId(item.id)} className="relative group bg-background border border-border p-4 rounded-xl shadow-xs">
+                    <div key={item.id} className="relative group bg-background border border-border p-4 rounded-xl shadow-xs">
                       {/* Timeline dot */}
                       <span className="absolute -left-[31px] top-5 size-4 bg-primary rounded-full border-4 border-card" />
 
@@ -536,7 +540,7 @@ export function EventDetailPage() {
                   </thead>
                   <tbody className="divide-y divide-border/60">
                     {eventAttendees.map((at) => (
-                      <tr key={orgEventId(at.id)} className="hover:bg-muted/10 transition-colors">
+                      <tr key={at.id} className="hover:bg-muted/10 transition-colors">
                         <td className="p-3 font-semibold">{at.fullName}</td>
                         <td className="p-3 text-xs text-muted-foreground">{at.email}</td>
                         <td className="p-3">
@@ -714,8 +718,4 @@ export function EventDetailPage() {
       )}
     </div>
   )
-}
-
-function orgEventId(id: string) {
-  return id
 }

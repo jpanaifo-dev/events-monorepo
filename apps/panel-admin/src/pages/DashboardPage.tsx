@@ -93,11 +93,15 @@ export function DashboardPage() {
                   className="py-3 flex items-center justify-between group cursor-pointer hover:bg-muted/10 px-2 rounded-lg transition-colors"
                 >
                   <div className="space-y-1 overflow-hidden">
-                    <p className="font-semibold text-sm truncate group-hover:text-primary transition-colors">{evt.title}</p>
+                    <p className="font-semibold text-sm truncate group-hover:text-primary transition-colors">{evt.name}</p>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span>{evt.date}</span>
-                      <span>•</span>
-                      <span className="capitalize">{evt.location}</span>
+                      <span>{evt.createdAt ? new Date(evt.createdAt).toLocaleDateString("es-ES", { year: "numeric", month: "short" }) : ""}</span>
+                      {evt.contactEmail && (
+                        <>
+                          <span>•</span>
+                          <span>{evt.contactEmail}</span>
+                        </>
+                      )}
                     </div>
                   </div>
                   <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase ${

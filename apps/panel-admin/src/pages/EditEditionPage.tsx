@@ -1,17 +1,15 @@
 import React, { useState, useEffect } from "react"
 import { useNavigate, useParams } from "react-router-dom"
-import { useAuthStore } from "@/store/auth.store"
 import { useEventStore } from "@/store/event.store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
-import { ThemeSwitch } from "@/components/ui/theme-switch"
-import { ArrowLeft, Layers, Trash2 } from "lucide-react"
+import { PageHeader } from "@/components/page-header"
+import { Trash2 } from "lucide-react"
 
 export function EditEditionPage() {
   const { eventId, editionId } = useParams<{ eventId: string; editionId: string }>()
   const navigate = useNavigate()
-  const { selectedOrganization } = useAuthStore()
   const { events, editions, updateEdition, deleteEdition } = useEventStore()
 
   const event = events.find((e) => e.id === eventId)
@@ -36,7 +34,7 @@ export function EditEditionPage() {
       setCoverUrl(edition.coverUrl || "")
       setStartDate(edition.startDate || "")
       setEndDate(edition.endDate || "")
-      setStatus(edition.status === "active" ? "active" : "planned")
+      setStatus(edition.isCurrent ? "active" : "planned")
     } else {
       toast.error("Edición no encontrada.")
       navigate(`/dashboard/events/${eventId}`)
@@ -60,7 +58,7 @@ export function EditEditionPage() {
         coverUrl: coverUrl.trim() || "",
         startDate,
         endDate,
-        status
+        isCurrent: status === "active",
       })
 
       toast.success("Edición actualizada exitosamente")
@@ -108,53 +106,27 @@ export function EditEditionPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground font-sans flex flex-col">
-      {/* Top Header Navbar */}
-      <header className="h-16 bg-card border-b border-border flex items-center justify-between px-8 flex-shrink-0">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => navigate(`/dashboard/events/${eventId}`)}
-            className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors py-1.5 px-3 border border-border rounded-md bg-muted/20 cursor-pointer"
-          >
-            <ArrowLeft className="size-3.5" />
-            Volver al Evento
-          </button>
-          <span className="font-bold text-xl text-primary tracking-tighter ml-2">
-            EventHive
-          </span>
-        </div>
-
-        <div className="flex items-center gap-6 text-sm">
-          <ThemeSwitch />
-          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 border border-border rounded-lg bg-muted/10 text-xs">
-            <span className="font-medium text-muted-foreground">Organización Activa:</span>
-            <span className="font-bold text-foreground">{selectedOrganization?.name}</span>
-          </div>
-        </div>
-      </header>
-
       {/* Main Settings Form Container */}
       <main className="max-w-4xl mx-auto px-6 py-12 flex-1 w-full pb-28">
-        <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-10">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-wider">
-              <Layers className="size-4" />
-              Ediciones del Evento
-            </div>
-            <h1 className="text-3xl font-medium tracking-tight text-foreground">Editar Edición</h1>
-            <p className="text-sm text-muted-foreground">
-              Modifica los detalles, años o imagen de portada de la edición del evento <strong>{event.title}</strong>.
-            </p>
-          </div>
-          <Button
-            type="button"
-            variant="destructive"
-            onClick={handleDelete}
-            disabled={isDeleting}
-            className="cursor-pointer gap-2 shrink-0 border border-destructive/20 hover:bg-destructive text-destructive-foreground transition-all"
-          >
-            <Trash2 className="size-4" />
-            Eliminar Edición
-          </Button>
+        <div className="mb-10">
+          <PageHeader
+            title="Editar Edición"
+            description={`Modifica los detalles, años o imagen de portada de la edición del evento ${event.name}.`}
+            showBackButton
+            onBackClick={() => navigate(`/dashboard/events/${eventId}`)}
+            actionButton={
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="cursor-pointer gap-2 shrink-0 border border-destructive/20 hover:bg-destructive text-destructive-foreground transition-all"
+              >
+                <Trash2 className="size-4" />
+                Eliminar Edición
+              </Button>
+            }
+          />
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">

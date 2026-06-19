@@ -5,31 +5,35 @@ import { useAuthStore } from "./auth.store"
 export interface Event {
   id: string
   organizationId: string
-  title: string
-  description: string
-  date: string
-  endDate?: string
-  location: string
-  format: "online" | "hybrid" | "physical"
-  status: "draft" | "published" | "finished"
-  banner: string
-  fullDescription?: string
-  meetingUrl?: string
-  isRecurring?: boolean
-  recurrencePattern?: "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY"
-  recurrenceInterval?: number
-  recurrenceEndDate?: string
+  ownerId: string
+  slug: string
+  name: string
+  shortDescription: string
+  about: any
+  logoUrl: string
+  coverUrl: string
+  brandColors: { primary: string; secondary: string }
+  status: "draft" | "published" | "archived"
+  isActive: boolean
+  websiteUrl: string
+  contactEmail: string
+  socialLinks: { twitter: string; facebook: string; linkedin: string; instagram: string }
+  settings: Record<string, any>
+  createdAt: string
+  updatedAt: string
 }
 
 export interface Edition {
   id: string
-  eventId: string
+  mainEventId: string
+  slug: string
+  year: number
   name: string
+  description: string
+  coverUrl: string
   startDate: string
   endDate: string
-  status: "active" | "completed" | "planned"
-  description?: string
-  coverUrl?: string
+  isCurrent: boolean
 }
 
 export interface Speaker {
@@ -61,6 +65,11 @@ export interface Attendee {
   checkedIn: boolean
 }
 
+export interface EventFilters {
+  search?: string
+  status?: string
+}
+
 interface EventState {
   events: Event[]
   editions: Edition[]
@@ -68,32 +77,79 @@ interface EventState {
   agendaItems: AgendaItem[]
   attendees: Attendee[]
   isLoading: boolean
-  
-  // Actions
-  loadData: (organizationId: string) => Promise<void>
-  
-  addEvent: (event: Omit<Event, "id">) => Promise<void>
+
+  loadData: (organizationId: string, filters?: EventFilters) => Promise<void>
+
+  addEvent: (event: Omit<Event, "id" | "createdAt" | "updatedAt" | "ownerId" | "slug">) => Promise<string>
   updateEvent: (id: string, updates: Partial<Event>) => Promise<void>
   deleteEvent: (id: string) => Promise<void>
-  
-  addEdition: (edition: Omit<Edition, "id">) => Promise<void>
+
+  addEdition: (edition: Omit<Edition, "id" | "slug" | "year"> & { year?: number }) => Promise<void>
   updateEdition: (id: string, updates: Partial<Edition>) => Promise<void>
   deleteEdition: (id: string) => Promise<void>
-  
+
   addSpeaker: (speaker: Omit<Speaker, "id">) => Promise<void>
   updateSpeaker: (id: string, updates: Partial<Speaker>) => Promise<void>
   deleteSpeaker: (id: string) => Promise<void>
-  
+
   addAgendaItem: (item: Omit<AgendaItem, "id">) => Promise<void>
   updateAgendaItem: (id: string, updates: Partial<AgendaItem>) => Promise<void>
   deleteAgendaItem: (id: string) => Promise<void>
-  
+
   addAttendee: (attendee: Omit<Attendee, "id">) => Promise<void>
   toggleAttendeeCheckIn: (id: string) => Promise<void>
   deleteAttendee: (id: string) => Promise<void>
 }
 
-export const useEventStore = create<EventState>((set) => ({
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)+/g, "")
+    .substring(0, 80)
+}
+
+function mapMainEvent(row: any): Event {
+  return {
+    id: row.id,
+    organizationId: row.organization_id,
+    ownerId: row.owner_id,
+    slug: row.slug,
+    name: row.name,
+    shortDescription: row.short_description || "",
+    about: row.about || null,
+    logoUrl: row.logo_url || "",
+    coverUrl: row.cover_url || "",
+    brandColors: row.brand_colors || { primary: "#000000", secondary: "#ffffff" },
+    status: row.status || "draft",
+    isActive: row.is_active !== false,
+    websiteUrl: row.website_url || "",
+    contactEmail: row.contact_email || "",
+    socialLinks: row.social_links || { twitter: "", facebook: "", linkedin: "", instagram: "" },
+    settings: row.settings || {},
+    createdAt: row.created_at || "",
+    updatedAt: row.updated_at || "",
+  }
+}
+
+function mapEdition(row: any): Edition {
+  return {
+    id: row.id,
+    mainEventId: row.main_event_id,
+    slug: row.slug,
+    year: row.year || new Date().getFullYear(),
+    name: typeof row.name === "string" ? row.name : (row.name?.es || row.name?.en || "Edición"),
+    description: typeof row.description === "string" ? row.description : (row.description?.es || row.description?.en || ""),
+    coverUrl: row.cover_url || "",
+    startDate: row.start_date || "",
+    endDate: row.end_date || "",
+    isCurrent: !!row.is_current,
+  }
+}
+
+export const useEventStore = create<EventState>((set, get) => ({
   events: [],
   editions: [],
   speakers: [],
@@ -101,96 +157,55 @@ export const useEventStore = create<EventState>((set) => ({
   attendees: [],
   isLoading: false,
 
-  loadData: async (organizationId: string) => {
+  loadData: async (organizationId, filters) => {
     set({ isLoading: true })
     try {
-      // 1. Fetch Events
-      const { data: eventsData, error: eventsError } = await supabase
-        .from("events")
+      let query = supabase
+        .from("main_events")
         .select("*")
         .eq("organization_id", organizationId)
+        .order("created_at", { ascending: false })
 
-      if (eventsError) throw eventsError
-
-      // Fetch all banners for these events
-      const eventIds = (eventsData || []).map((e) => e.id)
-      const imagesMap: Record<string, string> = {}
-      
-      if (eventIds.length > 0) {
-        const { data: imagesData } = await supabase
-          .from("event_images")
-          .select("event_id, image_url")
-          .in("event_id", eventIds)
-          .eq("is_main", true)
-          
-        if (imagesData) {
-          imagesData.forEach((img) => {
-            imagesMap[img.event_id] = img.image_url
-          })
-        }
+      if (filters?.search) {
+        query = query.or(`name.ilike.%${filters.search}%,short_description.ilike.%${filters.search}%`)
+      }
+      if (filters?.status && filters.status !== "all") {
+        query = query.eq("status", filters.status)
       }
 
-      const formattedEvents: Event[] = (eventsData || []).map((e) => ({
-        id: e.id,
-        organizationId: e.organization_id || organizationId,
-        title: e.event_name,
-        description: e.description || "",
-        date: e.start_date ? e.start_date.split("T")[0] : "",
-        endDate: e.end_date ? e.end_date.split("T")[0] : "",
-        location: e.custom_location || "",
-        format: ((e.event_mode || "physical").toLowerCase() as any),
-        status: e.status === "PUBLIC" ? "published" : ((e.status || "draft").toLowerCase() as any),
-        banner: imagesMap[e.id] || "https://images.unsplash.com/photo-1511578314322-379afb476865?w=800&auto=format&fit=crop&q=60",
-        fullDescription: e.full_description || "",
-        meetingUrl: e.meeting_url || "",
-        isRecurring: !!e.is_recurring,
-        recurrencePattern: e.recurrence_pattern || undefined,
-        recurrenceInterval: e.recurrence_interval || undefined,
-        recurrenceEndDate: e.recurrence_end_date ? e.recurrence_end_date.split("T")[0] : undefined
-      }))
+      const { data: eventsData, error: eventsError } = await query
+      if (eventsError) throw eventsError
 
-      // 2. Fetch Editions
-      const { data: mainEventsData } = await supabase
-        .from("main_events")
-        .select("id")
-        .eq("organization_id", organizationId)
-        
-      const mainEventIds = (mainEventsData || []).map((m) => m.id)
+      const formattedEvents: Event[] = (eventsData || []).map(mapMainEvent)
+      const mainEventIds = formattedEvents.map((e) => e.id)
+
+      // Fetch editions
       let formattedEditions: Edition[] = []
-      
       if (mainEventIds.length > 0) {
         const { data: editionsData } = await supabase
           .from("editions")
           .select("*")
           .in("main_event_id", mainEventIds)
-          
+          .order("year", { ascending: false })
+
         if (editionsData) {
-          formattedEditions = editionsData.map((ed) => ({
-            id: ed.id,
-            eventId: ed.main_event_id,
-            name: typeof ed.name === "string" ? ed.name : (ed.name?.es || ed.name?.en || "Edición"),
-            startDate: ed.start_date || "",
-            endDate: ed.end_date || "",
-            status: ed.is_current ? "active" : "planned",
-            description: typeof ed.description === "string" ? ed.description : (ed.description?.es || ed.description?.en || ""),
-            coverUrl: ed.cover_url || ""
-          }))
+          formattedEditions = editionsData.map(mapEdition)
         }
       }
 
-      // 3. Fetch Agenda items from event_activities
+      // Fetch agenda from event_activities
       let formattedAgenda: AgendaItem[] = []
-      if (eventIds.length > 0) {
+      if (mainEventIds.length > 0) {
         const { data: activitiesData } = await supabase
           .from("event_activities")
           .select("*")
-          .in("event_id", eventIds)
-          
+          .in("event_id", mainEventIds)
+
         if (activitiesData) {
-          formattedAgenda = activitiesData.map((act) => ({
+          formattedAgenda = activitiesData.map((act: any) => ({
             id: act.id,
             eventId: act.event_id,
-            timeSlot: act.description || `${act.start_time ? act.start_time.split("T")[1].substring(0, 5) : "09:00"} - ${act.end_time ? act.end_time.split("T")[1].substring(0, 5) : "10:00"}`,
+            timeSlot: act.description || `${act.start_time ? act.start_time.split("T")[1]?.substring(0, 5) : "09:00"} - ${act.end_time ? act.end_time.split("T")[1]?.substring(0, 5) : "10:00"}`,
             title: act.activity_name,
             stage: act.custom_location || "Escenario Principal",
             speakerId: act.parent_activity_id || ""
@@ -198,11 +213,11 @@ export const useEventStore = create<EventState>((set) => ({
         }
       }
 
-      // 4. Fetch Attendees and Speakers from event_participants
+      // Fetch speakers and attendees from event_participants
       const editionIds = formattedEditions.map((ed) => ed.id)
       const formattedAttendees: Attendee[] = []
       const formattedSpeakers: Speaker[] = []
-      
+
       if (editionIds.length > 0) {
         const { data: participantsData } = await supabase
           .from("event_participants")
@@ -214,12 +229,7 @@ export const useEventStore = create<EventState>((set) => ({
             ticket_reference,
             created_at,
             profile:profile_id (
-              id,
-              first_name,
-              last_name,
-              email,
-              avatar_url,
-              bio
+              id, first_name, last_name, email, avatar_url, bio
             ),
             role:role_id (
               slug
@@ -232,7 +242,7 @@ export const useEventStore = create<EventState>((set) => ({
             const profile = part.profile || {}
             const roleSlug = part.role?.slug || "attendee"
             const fullName = `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || "Participante"
-            
+
             if (roleSlug === "speaker") {
               formattedSpeakers.push({
                 id: part.id,
@@ -266,7 +276,7 @@ export const useEventStore = create<EventState>((set) => ({
         attendees: formattedAttendees
       })
     } catch (e) {
-      console.error("Error loading events database:", e)
+      console.error("Error loading events:", e)
     } finally {
       set({ isLoading: false })
     }
@@ -274,153 +284,148 @@ export const useEventStore = create<EventState>((set) => ({
 
   addEvent: async (eventData) => {
     const user = useAuthStore.getState().user
-    if (!user) return
+    const org = useAuthStore.getState().selectedOrganization
+    if (!user || !org) throw new Error("No user or organization")
 
     const id = crypto.randomUUID()
-    try {
-      // 1. Insert main event first to satisfy foreign key for editions
-      await supabase.from("main_events").insert([{
-        id,
-        organization_id: eventData.organizationId,
-        owner_id: user.id,
-        slug: id,
-        name: eventData.title,
-        status: "draft"
-      }])
+    const baseSlug = slugify(eventData.name)
+    const slug = `${baseSlug}-${id.substring(0, 8)}`
 
-      // 2. Insert into events
-      const dbStatus = eventData.status === "published" ? "PUBLIC" : eventData.status.toUpperCase()
-      const { error } = await supabase.from("events").insert([{
+    try {
+      const { error } = await supabase.from("main_events").insert([{
         id,
-        organization_id: eventData.organizationId,
-        event_name: eventData.title,
-        description: eventData.description,
-        start_date: eventData.date ? `${eventData.date}T09:00:00Z` : new Date().toISOString(),
-        end_date: eventData.endDate ? `${eventData.endDate}T18:00:00Z` : (eventData.date ? `${eventData.date}T18:00:00Z` : new Date().toISOString()),
-        custom_location: eventData.location,
-        event_mode: eventData.format.toUpperCase(),
-        status: dbStatus,
-        full_description: eventData.fullDescription || null,
-        meeting_url: eventData.meetingUrl || null,
-        is_recurring: !!eventData.isRecurring,
-        recurrence_pattern: eventData.recurrencePattern || null,
-        recurrence_interval: eventData.recurrenceInterval || null,
-        recurrence_end_date: eventData.recurrenceEndDate ? `${eventData.recurrenceEndDate}T18:00:00Z` : null
+        organization_id: org.id,
+        owner_id: user.id,
+        slug,
+        name: eventData.name,
+        short_description: eventData.shortDescription || null,
+        about: eventData.about || null,
+        logo_url: eventData.logoUrl || null,
+        cover_url: eventData.coverUrl || null,
+        brand_colors: eventData.brandColors || { primary: "#000000", secondary: "#ffffff" },
+        status: eventData.status || "draft",
+        is_active: eventData.isActive !== false,
+        website_url: eventData.websiteUrl || null,
+        contact_email: eventData.contactEmail || null,
+        social_links: eventData.socialLinks || { twitter: "", facebook: "", linkedin: "", instagram: "" },
+        settings: eventData.settings || {},
       }])
 
       if (error) throw error
 
-      // 3. Insert banner in event_images
-      if (eventData.banner) {
-        await supabase.from("event_images").insert([{
-          event_id: id,
-          image_url: eventData.banner,
-          is_main: true
-        }])
+      const newEvent: Event = {
+        ...eventData,
+        id,
+        organizationId: org.id,
+        ownerId: user.id,
+        slug,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       }
 
-      const newEvent: Event = {
-        id,
-        ...eventData
-      }
       set((state) => ({
-        events: [...state.events, newEvent]
+        events: [newEvent, ...state.events]
       }))
+
+      return id
     } catch (e) {
       console.error("Error adding event:", e)
+      throw e
     }
   },
 
   updateEvent: async (id, updates) => {
     try {
       const mappedUpdates: any = {}
-      if (updates.title !== undefined) mappedUpdates.event_name = updates.title
-      if (updates.description !== undefined) mappedUpdates.description = updates.description
-      if (updates.location !== undefined) mappedUpdates.custom_location = updates.location
-      if (updates.format !== undefined) mappedUpdates.event_mode = updates.format.toUpperCase()
-      if (updates.status !== undefined) {
-        mappedUpdates.status = updates.status === "published" ? "PUBLIC" : updates.status.toUpperCase()
-      }
-      if (updates.date !== undefined) {
-        mappedUpdates.start_date = updates.date ? `${updates.date}T09:00:00Z` : null
-      }
-      if (updates.endDate !== undefined) {
-        mappedUpdates.end_date = updates.endDate ? `${updates.endDate}T18:00:00Z` : null
-      }
-      if (updates.fullDescription !== undefined) mappedUpdates.full_description = updates.fullDescription
-      if (updates.meetingUrl !== undefined) mappedUpdates.meeting_url = updates.meetingUrl
-      if (updates.isRecurring !== undefined) mappedUpdates.is_recurring = updates.isRecurring
-      if (updates.recurrencePattern !== undefined) mappedUpdates.recurrence_pattern = updates.recurrencePattern
-      if (updates.recurrenceInterval !== undefined) mappedUpdates.recurrence_interval = updates.recurrenceInterval
-      if (updates.recurrenceEndDate !== undefined) {
-        mappedUpdates.recurrence_end_date = updates.recurrenceEndDate ? `${updates.recurrenceEndDate}T18:00:00Z` : null
-      }
+      if (updates.name !== undefined) mappedUpdates.name = updates.name
+      if (updates.shortDescription !== undefined) mappedUpdates.short_description = updates.shortDescription
+      if (updates.about !== undefined) mappedUpdates.about = updates.about
+      if (updates.logoUrl !== undefined) mappedUpdates.logo_url = updates.logoUrl
+      if (updates.coverUrl !== undefined) mappedUpdates.cover_url = updates.coverUrl
+      if (updates.brandColors !== undefined) mappedUpdates.brand_colors = updates.brandColors
+      if (updates.status !== undefined) mappedUpdates.status = updates.status
+      if (updates.isActive !== undefined) mappedUpdates.is_active = updates.isActive
+      if (updates.websiteUrl !== undefined) mappedUpdates.website_url = updates.websiteUrl
+      if (updates.contactEmail !== undefined) mappedUpdates.contact_email = updates.contactEmail
+      if (updates.socialLinks !== undefined) mappedUpdates.social_links = updates.socialLinks
+      if (updates.settings !== undefined) mappedUpdates.settings = updates.settings
+      mappedUpdates.updated_at = new Date().toISOString()
 
-      if (Object.keys(mappedUpdates).length > 0) {
-        await supabase.from("events").update(mappedUpdates).eq("id", id)
-      }
-
-      if (updates.banner !== undefined) {
-        await supabase.from("event_images").delete().eq("event_id", id).eq("is_main", true)
-        if (updates.banner) {
-          await supabase.from("event_images").insert([{
-            event_id: id,
-            image_url: updates.banner,
-            is_main: true
-          }])
-        }
+      if (Object.keys(mappedUpdates).length > 1) {
+        const { error } = await supabase.from("main_events").update(mappedUpdates).eq("id", id)
+        if (error) throw error
       }
 
       set((state) => ({
-        events: state.events.map((e) => e.id === id ? { ...e, ...updates } : e)
+        events: state.events.map((e) => e.id === id ? { ...e, ...updates, updatedAt: new Date().toISOString() } : e)
       }))
     } catch (e) {
       console.error("Error updating event:", e)
+      throw e
     }
   },
 
   deleteEvent: async (id) => {
     try {
-      await supabase.from("event_images").delete().eq("event_id", id)
+      const state = get()
+      const editionIds = state.editions.filter((ed) => ed.mainEventId === id).map((ed) => ed.id)
+
+      if (editionIds.length > 0) {
+        await supabase.from("event_participants").delete().in("edition_id", editionIds)
+      }
       await supabase.from("event_activities").delete().eq("event_id", id)
       await supabase.from("editions").delete().eq("main_event_id", id)
-      await supabase.from("events").delete().eq("id", id)
       await supabase.from("main_events").delete().eq("id", id)
 
       set((state) => ({
         events: state.events.filter((e) => e.id !== id),
-        editions: state.editions.filter((ed) => ed.eventId !== id),
+        editions: state.editions.filter((ed) => ed.mainEventId !== id),
         speakers: state.speakers.filter((s) => s.eventId !== id),
         agendaItems: state.agendaItems.filter((a) => a.eventId !== id),
         attendees: state.attendees.filter((at) => at.eventId !== id)
       }))
     } catch (e) {
       console.error("Error deleting event:", e)
+      throw e
     }
   },
 
   addEdition: async (editionData) => {
     const id = crypto.randomUUID()
+    const baseSlug = slugify(typeof editionData.name === "string" ? editionData.name : "edicion")
+    const slug = `${baseSlug}-${id.substring(0, 8)}`
+
     try {
-      const yearVal = editionData.startDate ? parseInt(editionData.startDate.substring(0, 4)) : new Date().getFullYear()
+      const yearVal = editionData.startDate
+        ? parseInt(editionData.startDate.substring(0, 4))
+        : new Date().getFullYear()
+
       const { error } = await supabase.from("editions").insert([{
         id,
-        main_event_id: editionData.eventId,
-        slug: id,
+        main_event_id: editionData.mainEventId,
+        slug,
         year: yearVal,
-        name: { es: editionData.name },
+        name: typeof editionData.name === "string" ? { es: editionData.name } : editionData.name,
         description: editionData.description ? { es: editionData.description } : null,
         cover_url: editionData.coverUrl || null,
         start_date: editionData.startDate || null,
         end_date: editionData.endDate || null,
-        is_current: editionData.status === "active"
+        is_current: editionData.isCurrent,
       }])
 
       if (error) throw error
 
       const newEdition: Edition = {
         id,
-        ...editionData
+        mainEventId: editionData.mainEventId,
+        slug,
+        year: yearVal,
+        name: typeof editionData.name === "string" ? editionData.name : (editionData.name?.es || ""),
+        description: editionData.description || "",
+        coverUrl: editionData.coverUrl || "",
+        startDate: editionData.startDate || "",
+        endDate: editionData.endDate || "",
+        isCurrent: editionData.isCurrent,
       }
 
       set((state) => ({
@@ -428,6 +433,7 @@ export const useEventStore = create<EventState>((set) => ({
       }))
     } catch (e) {
       console.error("Error adding edition:", e)
+      throw e
     }
   },
 
@@ -439,15 +445,18 @@ export const useEventStore = create<EventState>((set) => ({
       if (updates.coverUrl !== undefined) mappedUpdates.cover_url = updates.coverUrl || null
       if (updates.startDate !== undefined) mappedUpdates.start_date = updates.startDate
       if (updates.endDate !== undefined) mappedUpdates.end_date = updates.endDate
-      if (updates.status !== undefined) mappedUpdates.is_current = updates.status === "active"
+      if (updates.isCurrent !== undefined) mappedUpdates.is_current = updates.isCurrent
+      mappedUpdates.updated_at = new Date().toISOString()
 
-      await supabase.from("editions").update(mappedUpdates).eq("id", id)
+      const { error } = await supabase.from("editions").update(mappedUpdates).eq("id", id)
+      if (error) throw error
 
       set((state) => ({
         editions: state.editions.map((ed) => ed.id === id ? { ...ed, ...updates } : ed)
       }))
     } catch (e) {
       console.error("Error updating edition:", e)
+      throw e
     }
   },
 
@@ -461,20 +470,21 @@ export const useEventStore = create<EventState>((set) => ({
       }))
     } catch (e) {
       console.error("Error deleting edition:", e)
+      throw e
     }
   },
 
   addSpeaker: async (speakerData) => {
     try {
-      const state = useEventStore.getState()
-      let edition = state.editions.find((ed) => ed.eventId === speakerData.eventId)
-      
+      const state = get()
+      let edition = state.editions.find((ed) => ed.mainEventId === speakerData.eventId)
+
       if (!edition) {
         const editionId = crypto.randomUUID()
         const defaultEdition = {
           id: editionId,
           main_event_id: speakerData.eventId,
-          slug: editionId,
+          slug: `default-${editionId.substring(0, 8)}`,
           year: new Date().getFullYear(),
           name: { es: "Edición Principal" },
           start_date: new Date().toISOString().split("T")[0],
@@ -482,16 +492,20 @@ export const useEventStore = create<EventState>((set) => ({
           is_current: true
         }
         await supabase.from("editions").insert([defaultEdition])
-        
+
         const newEd: Edition = {
           id: editionId,
-          eventId: speakerData.eventId,
+          mainEventId: speakerData.eventId,
+          slug: defaultEdition.slug,
+          year: defaultEdition.year,
           name: "Edición Principal",
           startDate: defaultEdition.start_date,
           endDate: defaultEdition.end_date,
-          status: "active"
+          isCurrent: true,
+          description: "",
+          coverUrl: "",
         }
-        
+
         set((state) => ({
           editions: [...state.editions, newEd]
         }))
@@ -504,7 +518,6 @@ export const useEventStore = create<EventState>((set) => ({
       const firstName = nameParts[0] || "Ponente"
       const lastName = nameParts.slice(1).join(" ") || ""
 
-      // 1. Create Profile
       await supabase.from("profiles").insert([{
         id: profileId,
         first_name: firstName,
@@ -513,13 +526,12 @@ export const useEventStore = create<EventState>((set) => ({
         bio: speakerData.bio
       }])
 
-      // 2. Fetch/Insert Speaker Role
       const { data: roleData } = await supabase
         .from("participant_roles")
         .select("id")
         .eq("slug", "speaker")
         .maybeSingle()
-        
+
       let roleId = roleData?.id
       if (!roleId) {
         roleId = crypto.randomUUID()
@@ -530,7 +542,6 @@ export const useEventStore = create<EventState>((set) => ({
         }])
       }
 
-      // 3. Insert Participant
       await supabase.from("event_participants").insert([{
         id: participantId,
         main_event_id: speakerData.eventId,
@@ -540,13 +551,8 @@ export const useEventStore = create<EventState>((set) => ({
         ticket_reference: speakerData.talkTitle
       }])
 
-      const newSpeaker: Speaker = {
-        id: participantId,
-        ...speakerData
-      }
-
       set((state) => ({
-        speakers: [...state.speakers, newSpeaker]
+        speakers: [...state.speakers, { id: participantId, ...speakerData }]
       }))
     } catch (e) {
       console.error("Error adding speaker:", e)
@@ -628,13 +634,8 @@ export const useEventStore = create<EventState>((set) => ({
 
       if (error) throw error
 
-      const newItem: AgendaItem = {
-        id,
-        ...itemData
-      }
-
       set((state) => ({
-        agendaItems: [...state.agendaItems, newItem]
+        agendaItems: [...state.agendaItems, { id, ...itemData }]
       }))
     } catch (e) {
       console.error("Error adding agenda activity:", e)
@@ -662,7 +663,6 @@ export const useEventStore = create<EventState>((set) => ({
   deleteAgendaItem: async (id) => {
     try {
       await supabase.from("event_activities").delete().eq("id", id)
-
       set((state) => ({
         agendaItems: state.agendaItems.filter((a) => a.id !== id)
       }))
@@ -673,15 +673,15 @@ export const useEventStore = create<EventState>((set) => ({
 
   addAttendee: async (attendeeData) => {
     try {
-      const state = useEventStore.getState()
-      let edition = state.editions.find((ed) => ed.eventId === attendeeData.eventId)
-      
+      const state = get()
+      let edition = state.editions.find((ed) => ed.mainEventId === attendeeData.eventId)
+
       if (!edition) {
         const editionId = crypto.randomUUID()
         const defaultEdition = {
           id: editionId,
           main_event_id: attendeeData.eventId,
-          slug: editionId,
+          slug: `default-${editionId.substring(0, 8)}`,
           year: new Date().getFullYear(),
           name: { es: "Edición Principal" },
           start_date: new Date().toISOString().split("T")[0],
@@ -689,16 +689,20 @@ export const useEventStore = create<EventState>((set) => ({
           is_current: true
         }
         await supabase.from("editions").insert([defaultEdition])
-        
+
         const newEd: Edition = {
           id: editionId,
-          eventId: attendeeData.eventId,
+          mainEventId: attendeeData.eventId,
+          slug: defaultEdition.slug,
+          year: defaultEdition.year,
           name: "Edición Principal",
           startDate: defaultEdition.start_date,
           endDate: defaultEdition.end_date,
-          status: "active"
+          isCurrent: true,
+          description: "",
+          coverUrl: "",
         }
-        
+
         set((state) => ({
           editions: [...state.editions, newEd]
         }))
@@ -711,7 +715,6 @@ export const useEventStore = create<EventState>((set) => ({
       const firstName = nameParts[0] || "Asistente"
       const lastName = nameParts.slice(1).join(" ") || ""
 
-      // 1. Create Profile
       await supabase.from("profiles").insert([{
         id: profileId,
         first_name: firstName,
@@ -719,14 +722,13 @@ export const useEventStore = create<EventState>((set) => ({
         email: attendeeData.email
       }])
 
-      // 2. Fetch/Insert Ticket Role
       const ticketRole = attendeeData.ticketType.toLowerCase()
       const { data: roleData } = await supabase
         .from("participant_roles")
         .select("id")
         .eq("slug", ticketRole)
         .maybeSingle()
-        
+
       let roleId = roleData?.id
       if (!roleId) {
         roleId = crypto.randomUUID()
@@ -737,7 +739,6 @@ export const useEventStore = create<EventState>((set) => ({
         }])
       }
 
-      // 3. Insert Participant
       await supabase.from("event_participants").insert([{
         id: participantId,
         main_event_id: attendeeData.eventId,
@@ -747,13 +748,8 @@ export const useEventStore = create<EventState>((set) => ({
         check_in_status: attendeeData.checkedIn
       }])
 
-      const newAttendee: Attendee = {
-        id: participantId,
-        ...attendeeData
-      }
-
       set((state) => ({
-        attendees: [...state.attendees, newAttendee]
+        attendees: [...state.attendees, { id: participantId, ...attendeeData }]
       }))
     } catch (e) {
       console.error("Error adding attendee:", e)
@@ -762,7 +758,7 @@ export const useEventStore = create<EventState>((set) => ({
 
   toggleAttendeeCheckIn: async (id) => {
     try {
-      const attendee = useEventStore.getState().attendees.find((a) => a.id === id)
+      const attendee = get().attendees.find((a) => a.id === id)
       if (!attendee) return
 
       await supabase.from("event_participants").update({
