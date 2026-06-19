@@ -300,7 +300,7 @@ export function CreateOrganizationPage() {
               <Button
                 type="submit"
                 disabled={isSubmitting}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-5 rounded-lg border-0 shadow-none transition-colors"
+                className="font-medium px-5 transition-colors"
               >
                 {isSubmitting ? "Creando..." : "Crear Organización"}
               </Button>

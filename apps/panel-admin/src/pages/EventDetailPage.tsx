@@ -3,12 +3,13 @@ import { useParams, useNavigate } from "react-router-dom"
 import { useEventStore } from "@/store/event.store"
 import type { Speaker, Edition, AgendaItem } from "@/store/event.store"
 import {
-  ArrowLeft, Calendar, MapPin, Users, Settings, UserCheck, Layers, BookOpen, Clock,
+  Calendar, MapPin, Users, Settings, UserCheck, Layers, BookOpen, Clock,
   Plus, Edit2, Trash2, CheckCircle2, AlertCircle, X, Check
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
+import { PageHeader } from "@/components/page-header"
 
 export function EventDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -279,13 +280,12 @@ export function EventDetailPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      {/* Header back button */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" onClick={() => navigate("/dashboard/events")} className="size-8 p-0 rounded-full">
-          <ArrowLeft className="size-4" />
-        </Button>
-        <span className="text-xs text-muted-foreground">Volver al catálogo de eventos</span>
-      </div>
+      <PageHeader
+        title={title}
+        description="Detalle y gestión del evento, ediciones, ponentes, agenda y asistentes."
+        showBackButton
+        onBackClick={() => navigate("/dashboard/events")}
+      />
 
       {/* Main Banner Board */}
       <div className="bg-card border border-border rounded-xl overflow-hidden flex flex-col md:flex-row relative">
@@ -317,7 +317,7 @@ export function EventDetailPage() {
       <div className="flex items-center gap-1 border-b border-border overflow-x-auto select-none no-scrollbar">
         <button
           onClick={() => setActiveTab("overview")}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors shrink-0 ${activeTab === "overview" ? "border-emerald-500 text-emerald-600 dark:text-emerald-400 font-bold" : "border-transparent text-muted-foreground hover:text-foreground"
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors shrink-0 ${activeTab === "overview" ? "border-primary text-primary font-bold" : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
         >
           <Settings className="size-4" />
@@ -325,7 +325,7 @@ export function EventDetailPage() {
         </button>
         <button
           onClick={() => setActiveTab("editions")}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors shrink-0 ${activeTab === "editions" ? "border-emerald-500 text-emerald-600 dark:text-emerald-400 font-bold" : "border-transparent text-muted-foreground hover:text-foreground"
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors shrink-0 ${activeTab === "editions" ? "border-primary text-primary font-bold" : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
         >
           <Layers className="size-4" />
@@ -333,7 +333,7 @@ export function EventDetailPage() {
         </button>
         <button
           onClick={() => setActiveTab("speakers")}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors shrink-0 ${activeTab === "speakers" ? "border-emerald-500 text-emerald-600 dark:text-emerald-400 font-bold" : "border-transparent text-muted-foreground hover:text-foreground"
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors shrink-0 ${activeTab === "speakers" ? "border-primary text-primary font-bold" : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
         >
           <BookOpen className="size-4" />
@@ -341,7 +341,7 @@ export function EventDetailPage() {
         </button>
         <button
           onClick={() => setActiveTab("agenda")}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors shrink-0 ${activeTab === "agenda" ? "border-emerald-500 text-emerald-600 dark:text-emerald-400 font-bold" : "border-transparent text-muted-foreground hover:text-foreground"
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors shrink-0 ${activeTab === "agenda" ? "border-primary text-primary font-bold" : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
         >
           <Clock className="size-4" />
@@ -349,7 +349,7 @@ export function EventDetailPage() {
         </button>
         <button
           onClick={() => setActiveTab("attendees")}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors shrink-0 ${activeTab === "attendees" ? "border-emerald-500 text-emerald-600 dark:text-emerald-400 font-bold" : "border-transparent text-muted-foreground hover:text-foreground"
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors shrink-0 ${activeTab === "attendees" ? "border-primary text-primary font-bold" : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
         >
           <Users className="size-4" />
@@ -432,11 +432,11 @@ export function EventDetailPage() {
                 </Field>
 
                 <div className="flex justify-between items-center pt-4 border-t border-border">
-                  <Button type="button" onClick={handleDeleteEvent} variant="destructive" className="bg-red-600 hover:bg-red-700 text-white font-semibold">
+                  <Button type="button" onClick={handleDeleteEvent} variant="destructive" className="font-semibold">
                     <Trash2 className="size-4 mr-2" />
                     Eliminar Evento
                   </Button>
-                  <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">
+                  <Button type="submit" className="font-semibold">
                     Guardar Cambios
                   </Button>
                 </div>
@@ -450,7 +450,7 @@ export function EventDetailPage() {
           <div className="space-y-6 animate-in fade-in duration-200">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <h3 className="text-lg font-bold">Ediciones / Ciclos de Evento</h3>
-              <Button onClick={() => setIsEditionModalOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-1.5 h-8">
+              <Button onClick={() => setIsEditionModalOpen(true)} className="text-xs px-3 py-1.5 h-8">
                 <Plus className="size-4 mr-1.5" />
                 Agregar Edición
               </Button>
@@ -492,7 +492,7 @@ export function EventDetailPage() {
           <div className="space-y-6 animate-in fade-in duration-200">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <h3 className="text-lg font-bold">Ponentes del Evento</h3>
-              <Button onClick={() => setIsSpeakerModalOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-1.5 h-8">
+              <Button onClick={() => setIsSpeakerModalOpen(true)} className="text-xs px-3 py-1.5 h-8">
                 <Plus className="size-4 mr-1.5" />
                 Agregar Ponente
               </Button>
@@ -539,7 +539,7 @@ export function EventDetailPage() {
           <div className="space-y-6 animate-in fade-in duration-200">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <h3 className="text-lg font-bold">Cronograma de Sesiones</h3>
-              <Button onClick={() => setIsAgendaModalOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-1.5 h-8">
+              <Button onClick={() => setIsAgendaModalOpen(true)} className="text-xs px-3 py-1.5 h-8">
                 <Plus className="size-4 mr-1.5" />
                 Programar Sesión
               </Button>
@@ -592,7 +592,7 @@ export function EventDetailPage() {
           <div className="space-y-6 animate-in fade-in duration-200">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <h3 className="text-lg font-bold">Participantes Registrados</h3>
-              <Button onClick={() => setIsAttendeeModalOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-1.5 h-8">
+              <Button onClick={() => setIsAttendeeModalOpen(true)} className="text-xs px-3 py-1.5 h-8">
                 <Plus className="size-4 mr-1.5" />
                 Registrar Participante
               </Button>
@@ -708,7 +708,7 @@ export function EventDetailPage() {
                 </Field>
                 <div className="flex justify-end gap-3 pt-2">
                   <Button type="button" variant="outline" onClick={closeEditionModal}>Cancelar</Button>
-                  <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">Guardar Edición</Button>
+                  <Button type="submit" className="font-semibold">Guardar Edición</Button>
                 </div>
               </FieldGroup>
             </form>
@@ -757,7 +757,7 @@ export function EventDetailPage() {
                 </Field>
                 <div className="flex justify-end gap-3 pt-2">
                   <Button type="button" variant="outline" onClick={closeSpeakerModal}>Cancelar</Button>
-                  <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">Guardar Ponente</Button>
+                  <Button type="submit" className="font-semibold">Guardar Ponente</Button>
                 </div>
               </FieldGroup>
             </form>
@@ -805,7 +805,7 @@ export function EventDetailPage() {
                 </Field>
                 <div className="flex justify-end gap-3 pt-2">
                   <Button type="button" variant="outline" onClick={closeAgendaModal}>Cancelar</Button>
-                  <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">Guardar Sesión</Button>
+                  <Button type="submit" className="font-semibold">Guardar Sesión</Button>
                 </div>
               </FieldGroup>
             </form>
@@ -848,7 +848,7 @@ export function EventDetailPage() {
                 </Field>
                 <div className="flex justify-end gap-3 pt-2">
                   <Button type="button" variant="outline" onClick={closeAttendeeModal}>Cancelar</Button>
-                  <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">Registrar Participante</Button>
+                  <Button type="submit" className="font-semibold">Registrar Participante</Button>
                 </div>
               </FieldGroup>
             </form>

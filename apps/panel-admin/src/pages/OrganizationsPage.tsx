@@ -7,6 +7,7 @@ import { Search, Plus, Layers, ChevronsUpDown, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ThemeSwitch } from "@/components/ui/theme-switch"
+import { PageHeader } from "@/components/page-header"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -154,11 +155,10 @@ export function OrganizationsPage() {
 
       {/* Main Content Workspace */}
       <main className="flex-1 max-w-6xl w-full mx-auto p-8 md:p-16 space-y-12 animate-in fade-in duration-300">
-        {/* Welcome Section */}
-        <div className="border-b border-border pb-6">
-          <h1 className="text-3xl font-bold tracking-tight">Hola, estas son tus organizaciones</h1>
-          <p className="text-muted-foreground text-sm mt-1">Selecciona o crea una organización para administrar tus eventos.</p>
-        </div>
+        <PageHeader
+          title="Hola, estas son tus organizaciones"
+          description="Selecciona o crea una organización para administrar tus eventos."
+        />
 
         {/* Control Bar */}
         <div className="space-y-6">
@@ -174,7 +174,7 @@ export function OrganizationsPage() {
             </div>
             <Button
               onClick={() => navigate("/dashboard/organizations/new")}
-              className="w-full md:w-auto bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-2"
+              className="w-full md:w-auto flex items-center gap-2"
             >
               <Plus className="size-4" />
               Nueva organización
