@@ -323,7 +323,6 @@ export interface DatabaseOrganization {
   status: string | null
   validation_status: string | null
   slug: string | null
-  followers_count: number | null
   created_at: string | null
   updated_at: string | null
 }

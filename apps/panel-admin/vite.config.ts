@@ -14,6 +14,8 @@ export default defineConfig(({ mode }) => {
       'process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY': JSON.stringify(env.CLOUDFLARE_R2_SECRET_ACCESS_KEY),
       'process.env.CLOUDFLARE_R2_BUCKET_NAME': JSON.stringify(env.CLOUDFLARE_R2_BUCKET_NAME),
       'process.env.NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL': JSON.stringify(env.NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL),
+      'process.env.VITE_SUPABASE_URL': JSON.stringify(env.VITE_SUPABASE_URL),
+      'process.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(env.VITE_SUPABASE_ANON_KEY),
     },
     plugins: [
       tailwindcss(),
