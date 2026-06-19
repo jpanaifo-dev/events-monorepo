@@ -74,16 +74,6 @@ export function AppRouter() {
           {/* Events Catalog */}
           <Route path="events" element={<EventsPage />} />
 
-          {/* Event detail workspace with nested sections */}
-          <Route path="events/:id" element={<EventDetailPage />}>
-            <Route index element={<Navigate to="info" replace />} />
-            <Route path="info" element={<EventInfoSection />} />
-            <Route path="editions" element={<EventEditionsSection />} />
-            <Route path="speakers" element={<EventSpeakersSection />} />
-            <Route path="agenda" element={<EventAgendaSection />} />
-            <Route path="attendees" element={<EventAttendeesSection />} />
-          </Route>
-
           {/* Settings Page */}
           <Route path="settings/business" element={<OrganizationSettingsPage />} />
 
@@ -129,6 +119,23 @@ export function AppRouter() {
             </AuthGuard>
           }
         />
+
+        {/* Event Detail - Standalone (no admin layout) */}
+        <Route
+          path="/dashboard/events/:id"
+          element={
+            <AuthGuard requireSelectedOrganization={true}>
+              <EventDetailPage />
+            </AuthGuard>
+          }
+        >
+          <Route index element={<Navigate to="info" replace />} />
+          <Route path="info" element={<EventInfoSection />} />
+          <Route path="editions" element={<EventEditionsSection />} />
+          <Route path="speakers" element={<EventSpeakersSection />} />
+          <Route path="agenda" element={<EventAgendaSection />} />
+          <Route path="attendees" element={<EventAttendeesSection />} />
+        </Route>
 
         {/* Fallback redirect */}
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

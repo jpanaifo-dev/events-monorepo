@@ -79,6 +79,7 @@ export function EventEditionsSection() {
         mainEventId: id!,
         name,
         description,
+        coverUrl: "",
         startDate,
         endDate,
         isCurrent,

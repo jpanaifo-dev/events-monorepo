@@ -234,24 +234,6 @@ export function EditEventPage() {
                 </select>
               </div>
             </div>
-
-            <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4">
-              <div className="md:w-1/3 space-y-1">
-                <label className="text-sm font-medium text-foreground">Activo</label>
-                <p className="text-xs text-muted-foreground">Si esta desactivado, no sera visible.</p>
-              </div>
-              <div className="md:w-2/3 max-w-md w-full">
-                <label className="flex items-center gap-2 cursor-pointer py-1">
-                  <input
-                    type="checkbox"
-                    checked={isActive}
-                    onChange={(e) => setIsActive(e.target.checked)}
-                    className="accent-primary size-4"
-                  />
-                  <span className="text-sm text-foreground">Evento activo</span>
-                </label>
-              </div>
-            </div>
           </div>
 
           {/* Contact & Links */}
