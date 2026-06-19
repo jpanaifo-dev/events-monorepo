@@ -33,13 +33,6 @@ export function PrivateLayout() {
             <div className="flex items-center gap-4">
               <SidebarTrigger />
               <div className="h-4 w-[1px] bg-border" />
-              {selectedOrganization?.logoUrl && (
-                <img
-                  src={selectedOrganization.logoUrl}
-                  alt={selectedOrganization.name}
-                  className="h-8 w-8 rounded-md object-cover border border-border animate-in fade-in duration-200"
-                />
-              )}
               <DynamicBreadcrumbs />
             </div>
             <div className="flex items-center gap-6 text-sm">
