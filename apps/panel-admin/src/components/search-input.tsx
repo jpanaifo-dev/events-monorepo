@@ -1,14 +1,13 @@
-"use client"
-
+import { useSearchParams, useNavigate, useLocation } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 export function SearchInput({ placeholder = "Buscar..." }: { placeholder?: string }) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const pathname = usePathname();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const pathname = location.pathname;
   const [search, setSearch] = useState(searchParams.get("search") || "");
 
   useEffect(() => {
@@ -23,11 +22,11 @@ export function SearchInput({ placeholder = "Buscar..." }: { placeholder?: strin
         params.delete("search");
       }
       params.set("page", "1"); // reset to page 1
-      router.push(`${pathname}?${params.toString()}`);
+      navigate(`${pathname}?${params.toString()}`);
     }, 500);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [search, searchParams, pathname, router]);
+  }, [search, searchParams, pathname, navigate]);
 
   return (
     <div className="relative w-full max-w-sm">

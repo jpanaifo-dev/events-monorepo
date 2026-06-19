@@ -8,10 +8,17 @@ export interface Event {
   title: string
   description: string
   date: string
+  endDate?: string
   location: string
   format: "online" | "hybrid" | "physical"
   status: "draft" | "published" | "finished"
   banner: string
+  fullDescription?: string
+  meetingUrl?: string
+  isRecurring?: boolean
+  recurrencePattern?: "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY"
+  recurrenceInterval?: number
+  recurrenceEndDate?: string
 }
 
 export interface Edition {
@@ -21,6 +28,8 @@ export interface Edition {
   startDate: string
   endDate: string
   status: "active" | "completed" | "planned"
+  description?: string
+  coverUrl?: string
 }
 
 export interface Speaker {
@@ -127,10 +136,17 @@ export const useEventStore = create<EventState>((set) => ({
         title: e.event_name,
         description: e.description || "",
         date: e.start_date ? e.start_date.split("T")[0] : "",
+        endDate: e.end_date ? e.end_date.split("T")[0] : "",
         location: e.custom_location || "",
         format: ((e.event_mode || "physical").toLowerCase() as any),
         status: e.status === "PUBLIC" ? "published" : ((e.status || "draft").toLowerCase() as any),
-        banner: imagesMap[e.id] || "https://images.unsplash.com/photo-1511578314322-379afb476865?w=800&auto=format&fit=crop&q=60"
+        banner: imagesMap[e.id] || "https://images.unsplash.com/photo-1511578314322-379afb476865?w=800&auto=format&fit=crop&q=60",
+        fullDescription: e.full_description || "",
+        meetingUrl: e.meeting_url || "",
+        isRecurring: !!e.is_recurring,
+        recurrencePattern: e.recurrence_pattern || undefined,
+        recurrenceInterval: e.recurrence_interval || undefined,
+        recurrenceEndDate: e.recurrence_end_date ? e.recurrence_end_date.split("T")[0] : undefined
       }))
 
       // 2. Fetch Editions
@@ -155,7 +171,9 @@ export const useEventStore = create<EventState>((set) => ({
             name: typeof ed.name === "string" ? ed.name : (ed.name?.es || ed.name?.en || "Edición"),
             startDate: ed.start_date || "",
             endDate: ed.end_date || "",
-            status: ed.is_current ? "active" : "planned"
+            status: ed.is_current ? "active" : "planned",
+            description: typeof ed.description === "string" ? ed.description : (ed.description?.es || ed.description?.en || ""),
+            coverUrl: ed.cover_url || ""
           }))
         }
       }
@@ -278,10 +296,16 @@ export const useEventStore = create<EventState>((set) => ({
         event_name: eventData.title,
         description: eventData.description,
         start_date: eventData.date ? `${eventData.date}T09:00:00Z` : new Date().toISOString(),
-        end_date: eventData.date ? `${eventData.date}T18:00:00Z` : new Date().toISOString(),
+        end_date: eventData.endDate ? `${eventData.endDate}T18:00:00Z` : (eventData.date ? `${eventData.date}T18:00:00Z` : new Date().toISOString()),
         custom_location: eventData.location,
         event_mode: eventData.format.toUpperCase(),
-        status: dbStatus
+        status: dbStatus,
+        full_description: eventData.fullDescription || null,
+        meeting_url: eventData.meetingUrl || null,
+        is_recurring: !!eventData.isRecurring,
+        recurrence_pattern: eventData.recurrencePattern || null,
+        recurrence_interval: eventData.recurrenceInterval || null,
+        recurrence_end_date: eventData.recurrenceEndDate ? `${eventData.recurrenceEndDate}T18:00:00Z` : null
       }])
 
       if (error) throw error
@@ -318,8 +342,18 @@ export const useEventStore = create<EventState>((set) => ({
         mappedUpdates.status = updates.status === "published" ? "PUBLIC" : updates.status.toUpperCase()
       }
       if (updates.date !== undefined) {
-        mappedUpdates.start_date = `${updates.date}T09:00:00Z`
-        mappedUpdates.end_date = `${updates.date}T18:00:00Z`
+        mappedUpdates.start_date = updates.date ? `${updates.date}T09:00:00Z` : null
+      }
+      if (updates.endDate !== undefined) {
+        mappedUpdates.end_date = updates.endDate ? `${updates.endDate}T18:00:00Z` : null
+      }
+      if (updates.fullDescription !== undefined) mappedUpdates.full_description = updates.fullDescription
+      if (updates.meetingUrl !== undefined) mappedUpdates.meeting_url = updates.meetingUrl
+      if (updates.isRecurring !== undefined) mappedUpdates.is_recurring = updates.isRecurring
+      if (updates.recurrencePattern !== undefined) mappedUpdates.recurrence_pattern = updates.recurrencePattern
+      if (updates.recurrenceInterval !== undefined) mappedUpdates.recurrence_interval = updates.recurrenceInterval
+      if (updates.recurrenceEndDate !== undefined) {
+        mappedUpdates.recurrence_end_date = updates.recurrenceEndDate ? `${updates.recurrenceEndDate}T18:00:00Z` : null
       }
 
       if (Object.keys(mappedUpdates).length > 0) {
@@ -375,6 +409,8 @@ export const useEventStore = create<EventState>((set) => ({
         slug: id,
         year: yearVal,
         name: { es: editionData.name },
+        description: editionData.description ? { es: editionData.description } : null,
+        cover_url: editionData.coverUrl || null,
         start_date: editionData.startDate || null,
         end_date: editionData.endDate || null,
         is_current: editionData.status === "active"
@@ -399,6 +435,8 @@ export const useEventStore = create<EventState>((set) => ({
     try {
       const mappedUpdates: any = {}
       if (updates.name !== undefined) mappedUpdates.name = { es: updates.name }
+      if (updates.description !== undefined) mappedUpdates.description = updates.description ? { es: updates.description } : null
+      if (updates.coverUrl !== undefined) mappedUpdates.cover_url = updates.coverUrl || null
       if (updates.startDate !== undefined) mappedUpdates.start_date = updates.startDate
       if (updates.endDate !== undefined) mappedUpdates.end_date = updates.endDate
       if (updates.status !== undefined) mappedUpdates.is_current = updates.status === "active"

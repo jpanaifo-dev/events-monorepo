@@ -12,6 +12,10 @@ import { PrivateLayout } from "@/layouts/PrivateLayout"
 import { BranchesPage } from "@/pages/BranchesPage"
 import { BranchFormPage } from "@/pages/BranchFormPage"
 import { MembersPage } from "@/pages/MembersPage"
+import { CreateEventPage } from "@/pages/CreateEventPage"
+import { EditEventPage } from "@/pages/EditEventPage"
+import { CreateEditionPage } from "@/pages/CreateEditionPage"
+import { EditEditionPage } from "@/pages/EditEditionPage"
 
 export function AppRouter() {
   return (
@@ -77,6 +81,40 @@ export function AppRouter() {
           {/* Members Pages */}
           <Route path="settings/members" element={<MembersPage />} />
         </Route>
+
+        {/* Standalone Pages (WITHOUT Sidebar/Navbar Layout) */}
+        <Route
+          path="/dashboard/events/new"
+          element={
+            <AuthGuard requireSelectedOrganization={true}>
+              <CreateEventPage />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/dashboard/events/:id/edit"
+          element={
+            <AuthGuard requireSelectedOrganization={true}>
+              <EditEventPage />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/dashboard/events/:eventId/editions/new"
+          element={
+            <AuthGuard requireSelectedOrganization={true}>
+              <CreateEditionPage />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/dashboard/events/:eventId/editions/:editionId/edit"
+          element={
+            <AuthGuard requireSelectedOrganization={true}>
+              <EditEditionPage />
+            </AuthGuard>
+          }
+        />
 
         {/* Fallback redirect */}
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

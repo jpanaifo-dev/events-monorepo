@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { useEventStore } from "@/store/event.store"
-import type { Speaker, Edition, AgendaItem } from "@/store/event.store"
+import type { Speaker, AgendaItem } from "@/store/event.store"
 import {
   Calendar, MapPin, Users, Settings, UserCheck, Layers, BookOpen, Clock,
-  Plus, Edit2, Trash2, CheckCircle2, AlertCircle, X, Check
+  Plus, Edit2, Trash2, AlertCircle, X, Check
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -16,8 +16,8 @@ export function EventDetailPage() {
   const navigate = useNavigate()
   const {
     events, editions, speakers, agendaItems, attendees,
-    updateEvent, deleteEvent,
-    addEdition, updateEdition, deleteEdition,
+    deleteEvent,
+    deleteEdition,
     addSpeaker, updateSpeaker, deleteSpeaker,
     addAgendaItem, updateAgendaItem, deleteAgendaItem,
     addAttendee, toggleAttendeeCheckIn, deleteAttendee
@@ -28,30 +28,13 @@ export function EventDetailPage() {
   // Sub-navigation state
   const [activeTab, setActiveTab] = useState<"overview" | "editions" | "speakers" | "agenda" | "attendees">("overview")
 
-  // Overview edit states
-  const [title, setTitle] = useState("")
-  const [description, setDescription] = useState("")
-  const [date, setDate] = useState("")
-  const [location, setLocation] = useState("")
-  const [format, setFormat] = useState<"online" | "hybrid" | "physical">("physical")
-  const [status, setStatus] = useState<"draft" | "published" | "finished">("draft")
-  const [banner, setBanner] = useState("")
-  const [isSavedAlertOpen, setIsSavedAlertOpen] = useState(false)
-
   // Modals visibility states
-  const [isEditionModalOpen, setIsEditionModalOpen] = useState(false)
   const [isSpeakerModalOpen, setIsSpeakerModalOpen] = useState(false)
   const [isAgendaModalOpen, setIsAgendaModalOpen] = useState(false)
   const [isAttendeeModalOpen, setIsAttendeeModalOpen] = useState(false)
 
   // Creation/Edit States for child items
   const [editingItemId, setEditingItemId] = useState<string | null>(null)
-
-  // -- Edition creation states
-  const [edName, setEdName] = useState("")
-  const [edStart, setEdStart] = useState("")
-  const [edEnd, setEdEnd] = useState("")
-  const [edStatus, setEdStatus] = useState<"active" | "completed" | "planned">("planned")
 
   // -- Speaker creation states
   const [spName, setSpName] = useState("")
@@ -70,19 +53,6 @@ export function EventDetailPage() {
   const [atName, setAtName] = useState("")
   const [atEmail, setAtEmail] = useState("")
   const [atTicket, setAtTicket] = useState<"General" | "VIP" | "Speaker">("General")
-
-  // Synchronize state when event changes
-  useEffect(() => {
-    if (event) {
-      setTitle(event.title)
-      setDescription(event.description)
-      setDate(event.date)
-      setLocation(event.location)
-      setFormat(event.format)
-      setStatus(event.status)
-      setBanner(event.banner)
-    }
-  }, [event])
 
   if (!event) {
     return (
@@ -109,66 +79,11 @@ export function EventDetailPage() {
   const attendanceRate = eventAttendees.length > 0 ? Math.round((checkedInCount / eventAttendees.length) * 100) : 0
 
   // Event handlers
-  const handleUpdateOverview = (e: React.FormEvent) => {
-    e.preventDefault()
-    updateEvent(event.id, {
-      title,
-      description,
-      date,
-      location,
-      format,
-      status,
-      banner
-    })
-    setIsSavedAlertOpen(true)
-    setTimeout(() => setIsSavedAlertOpen(false), 3000)
-  }
-
   const handleDeleteEvent = () => {
     if (confirm(`¿Estás seguro de que deseas eliminar permanentemente el evento "${event.title}"? Esta acción no se puede deshacer.`)) {
       deleteEvent(event.id)
       navigate("/dashboard/events")
     }
-  }
-
-  // Editions Crud Action
-  const handleSaveEdition = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (editingItemId) {
-      updateEdition(editingItemId, {
-        name: edName,
-        startDate: edStart,
-        endDate: edEnd,
-        status: edStatus
-      })
-    } else {
-      addEdition({
-        eventId: event.id,
-        name: edName,
-        startDate: edStart,
-        endDate: edEnd,
-        status: edStatus
-      })
-    }
-    closeEditionModal()
-  }
-
-  const handleEditEdition = (ed: Edition) => {
-    setEditingItemId(ed.id)
-    setEdName(ed.name)
-    setEdStart(ed.startDate)
-    setEdEnd(ed.endDate)
-    setEdStatus(ed.status)
-    setIsEditionModalOpen(true)
-  }
-
-  const closeEditionModal = () => {
-    setIsEditionModalOpen(false)
-    setEditingItemId(null)
-    setEdName("")
-    setEdStart("")
-    setEdEnd("")
-    setEdStatus("planned")
   }
 
   // Speakers Crud Action
@@ -281,34 +196,43 @@ export function EventDetailPage() {
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       <PageHeader
-        title={title}
+        title={event.title}
         description="Detalle y gestión del evento, ediciones, ponentes, agenda y asistentes."
         showBackButton
         onBackClick={() => navigate("/dashboard/events")}
+        actionButton={
+          <Button
+            onClick={() => navigate(`/dashboard/events/${event.id}/edit`)}
+            className="flex items-center gap-2"
+          >
+            <Edit2 className="size-4" />
+            Editar Evento
+          </Button>
+        }
       />
 
       {/* Main Banner Board */}
       <div className="bg-card border border-border rounded-xl overflow-hidden flex flex-col md:flex-row relative">
         <div className="h-44 md:h-auto md:w-80 shrink-0 bg-muted relative">
-          <img src={banner} alt={title} className="w-full h-full object-cover" />
+          <img src={event.banner} alt={event.title} className="w-full h-full object-cover" />
         </div>
         <div className="p-6 md:p-8 flex-1 flex flex-col justify-between gap-4">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <span className="bg-primary/10 text-primary text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">
-                {status === "published" ? "Publicado" : status === "finished" ? "Finalizado" : "Borrador"}
+                {event.status === "published" ? "Publicado" : event.status === "finished" ? "Finalizado" : "Borrador"}
               </span>
               <span className="bg-muted text-muted-foreground text-xs px-2 py-0.5 rounded-md font-semibold capitalize">
-                {format === "physical" ? "Presencial" : format === "online" ? "Online" : "Híbrido"}
+                {event.format === "physical" ? "Presencial" : event.format === "online" ? "Online" : "Híbrido"}
               </span>
             </div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{title}</h1>
-            <p className="text-sm text-muted-foreground line-clamp-2">{description || "Sin descripción."}</p>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{event.title}</h1>
+            <p className="text-sm text-muted-foreground line-clamp-2">{event.description || "Sin descripción."}</p>
           </div>
 
           <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1.5"><Calendar className="size-4 text-primary" /> {date || "Definir"}</span>
-            <span className="flex items-center gap-1.5"><MapPin className="size-4 text-primary" /> {location || "Definir"}</span>
+            <span className="flex items-center gap-1.5"><Calendar className="size-4 text-primary" /> {event.date || "Definir"}</span>
+            <span className="flex items-center gap-1.5"><MapPin className="size-4 text-primary" /> {event.location || "Definir"}</span>
           </div>
         </div>
       </div>
@@ -363,85 +287,65 @@ export function EventDetailPage() {
         {/* -- TAB: OVERVIEW -- */}
         {activeTab === "overview" && (
           <div className="space-y-6 animate-in fade-in duration-200">
-            <h3 className="text-lg font-bold border-b border-border pb-2">Información del Evento</h3>
+            <div className="flex items-center justify-between border-b border-border pb-2">
+              <h3 className="text-lg font-bold">Información General</h3>
+              <Button onClick={() => navigate(`/dashboard/events/${event.id}/edit`)} className="text-xs px-3 py-1.5 h-8">
+                <Edit2 className="size-3.5 mr-1.5" />
+                Editar Detalles
+              </Button>
+            </div>
 
-            {isSavedAlertOpen && (
-              <div className="p-3 text-xs font-semibold text-primary bg-primary/10 border border-primary/20 rounded-lg flex items-center gap-2">
-                <CheckCircle2 className="size-4 shrink-0" />
-                Los cambios se guardaron con éxito en base de datos.
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="space-y-4">
+                <div>
+                  <span className="text-xs text-muted-foreground block font-medium">Título del Evento</span>
+                  <span className="text-sm font-semibold">{event.title}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground block font-medium">Descripción</span>
+                  <p className="text-sm text-card-foreground whitespace-pre-wrap leading-relaxed">
+                    {event.description || "Sin descripción proporcionada."}
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-xs text-muted-foreground block font-medium">Fecha</span>
+                    <span className="text-sm font-semibold flex items-center gap-1.5 mt-1">
+                      <Calendar className="size-4 text-muted-foreground" />
+                      {event.date || "Sin definir"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground block font-medium">Formato</span>
+                    <span className="text-sm font-semibold mt-1 block">
+                      {event.format === "physical" ? "Presencial" : event.format === "online" ? "Online" : "Híbrido"}
+                    </span>
+                  </div>
+                </div>
               </div>
-            )}
 
-            <form onSubmit={handleUpdateOverview} className="space-y-4 max-w-2xl">
-              <FieldGroup>
-                <Field>
-                  <FieldLabel htmlFor="title">Título del Evento</FieldLabel>
-                  <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} required />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="description">Descripción</FieldLabel>
-                  <textarea
-                    id="description"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    rows={4}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  />
-                </Field>
-                <div className="grid grid-cols-2 gap-4">
-                  <Field>
-                    <FieldLabel htmlFor="date">Fecha</FieldLabel>
-                    <Input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="format">Formato</FieldLabel>
-                    <select
-                      id="format"
-                      value={format}
-                      onChange={(e: any) => setFormat(e.target.value)}
-                      className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                    >
-                      <option value="physical">Presencial</option>
-                      <option value="online">Online</option>
-                      <option value="hybrid">Híbrido</option>
-                    </select>
-                  </Field>
+              <div className="space-y-4">
+                <div>
+                  <span className="text-xs text-muted-foreground block font-medium">Ubicación / Plataforma</span>
+                  <span className="text-sm font-semibold flex items-center gap-1.5 mt-1">
+                    <MapPin className="size-4 text-muted-foreground" />
+                    {event.location || "Sin definir"}
+                  </span>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <Field>
-                    <FieldLabel htmlFor="location">Ubicación / Plataforma</FieldLabel>
-                    <Input id="location" value={location} onChange={(e) => setLocation(e.target.value)} required />
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="status">Estado de Publicación</FieldLabel>
-                    <select
-                      id="status"
-                      value={status}
-                      onChange={(e: any) => setStatus(e.target.value)}
-                      className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                    >
-                      <option value="draft">Borrador</option>
-                      <option value="published">Publicado</option>
-                      <option value="finished">Finalizado</option>
-                    </select>
-                  </Field>
+                <div>
+                  <span className="text-xs text-muted-foreground block font-medium">Estado del Evento</span>
+                  <span className="text-sm font-semibold mt-1 block capitalize">
+                    {event.status === "published" ? "Publicado" : event.status === "finished" ? "Finalizado" : "Borrador"}
+                  </span>
                 </div>
-                <Field>
-                  <FieldLabel htmlFor="banner">URL del Banner del Evento</FieldLabel>
-                  <Input id="banner" value={banner} onChange={(e) => setBanner(e.target.value)} required />
-                </Field>
-
-                <div className="flex justify-between items-center pt-4 border-t border-border">
-                  <Button type="button" onClick={handleDeleteEvent} variant="destructive" className="font-semibold">
+                <div className="pt-4 border-t border-border flex justify-end">
+                  <Button type="button" onClick={handleDeleteEvent} variant="destructive" className="font-semibold text-xs h-9">
                     <Trash2 className="size-4 mr-2" />
                     Eliminar Evento
                   </Button>
-                  <Button type="submit" className="font-semibold">
-                    Guardar Cambios
-                  </Button>
                 </div>
-              </FieldGroup>
-            </form>
+              </div>
+            </div>
           </div>
         )}
 
@@ -450,7 +354,7 @@ export function EventDetailPage() {
           <div className="space-y-6 animate-in fade-in duration-200">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <h3 className="text-lg font-bold">Ediciones / Ciclos de Evento</h3>
-              <Button onClick={() => setIsEditionModalOpen(true)} className="text-xs px-3 py-1.5 h-8">
+              <Button onClick={() => navigate(`/dashboard/events/${event.id}/editions/new`)} className="text-xs px-3 py-1.5 h-8">
                 <Plus className="size-4 mr-1.5" />
                 Agregar Edición
               </Button>
@@ -477,7 +381,7 @@ export function EventDetailPage() {
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button onClick={() => handleEditEdition(ed)} variant="ghost" className="size-7 p-0"><Edit2 className="size-3.5" /></Button>
+                      <Button onClick={() => navigate(`/dashboard/events/${event.id}/editions/${ed.id}/edit`)} variant="ghost" className="size-7 p-0"><Edit2 className="size-3.5" /></Button>
                       <Button onClick={() => deleteEdition(ed.id)} variant="ghost" className="size-7 p-0 text-destructive hover:bg-destructive/10"><Trash2 className="size-3.5" /></Button>
                     </div>
                   </div>
@@ -667,54 +571,7 @@ export function EventDetailPage() {
         )}
       </div>
 
-      {/* --- ADD EDITION MODAL --- */}
-      {isEditionModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-card border border-border p-6 rounded-xl w-full max-w-md relative shadow-xl space-y-6 animate-in zoom-in-95 duration-200">
-            <button onClick={closeEditionModal} className="absolute top-4 right-4 text-muted-foreground hover:text-foreground outline-none"><X className="size-4" /></button>
-            <div className="space-y-1">
-              <h3 className="text-lg font-bold">{editingItemId ? "Editar Edición" : "Agregar Edición"}</h3>
-              <p className="text-xs text-muted-foreground">Ingresa el título del ciclo, y los rangos de fecha de realización.</p>
-            </div>
 
-            <form onSubmit={handleSaveEdition} className="space-y-4">
-              <FieldGroup>
-                <Field>
-                  <FieldLabel htmlFor="edName">Nombre de la Edición</FieldLabel>
-                  <Input id="edName" value={edName} onChange={(e) => setEdName(e.target.value)} placeholder="Ej. Edición Anual 2026, Summer Edition" required />
-                </Field>
-                <div className="grid grid-cols-2 gap-4">
-                  <Field>
-                    <FieldLabel htmlFor="edStart">Fecha Inicio</FieldLabel>
-                    <Input id="edStart" type="date" value={edStart} onChange={(e) => setEdStart(e.target.value)} required />
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="edEnd">Fecha Cierre</FieldLabel>
-                    <Input id="edEnd" type="date" value={edEnd} onChange={(e) => setEdEnd(e.target.value)} required />
-                  </Field>
-                </div>
-                <Field>
-                  <FieldLabel htmlFor="edStatus">Estado de la Edición</FieldLabel>
-                  <select
-                    id="edStatus"
-                    value={edStatus}
-                    onChange={(e: any) => setEdStatus(e.target.value)}
-                    className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm outline-none"
-                  >
-                    <option value="planned">Planificada</option>
-                    <option value="active">Activa (En curso)</option>
-                    <option value="completed">Completada</option>
-                  </select>
-                </Field>
-                <div className="flex justify-end gap-3 pt-2">
-                  <Button type="button" variant="outline" onClick={closeEditionModal}>Cancelar</Button>
-                  <Button type="submit" className="font-semibold">Guardar Edición</Button>
-                </div>
-              </FieldGroup>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* --- ADD SPEAKER MODAL --- */}
       {isSpeakerModalOpen && (

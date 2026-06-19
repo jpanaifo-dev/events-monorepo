@@ -53,7 +53,7 @@ export function TeamSwitcher() {
                 {selectedOrganization.logoUrl ? (
                   <img src={selectedOrganization.logoUrl} alt={selectedOrganization.name} className="size-full object-cover" />
                 ) : (
-                  <div className="flex size-full items-center justify-center bg-primary text-white font-bold text-sm">
+                  <div className="flex size-full items-center justify-center bg-primary text-white text-sm">
                     {selectedOrganization.name.charAt(0).toUpperCase()}
                   </div>
                 )}
@@ -90,7 +90,7 @@ export function TeamSwitcher() {
                 onClick={() => selectOrganization(org)}
                 className="gap-2 p-2 focus:bg-accent cursor-pointer animate-in fade-in duration-200"
               >
-                <div className="flex size-6 shrink-0 items-center justify-center rounded-md border border-border overflow-hidden bg-muted/10 text-xs font-bold">
+                <div className="flex size-6 shrink-0 items-center justify-center rounded-md border border-border overflow-hidden bg-muted/10 text-xs">
                   {org.logoUrl ? (
                     <img src={org.logoUrl} alt={org.name} className="size-full object-cover" />
                   ) : (
@@ -102,7 +102,7 @@ export function TeamSwitcher() {
               </DropdownMenuItem>
             ))}
             <DropdownMenuSeparator />
-            <DropdownMenuItem 
+            <DropdownMenuItem
               className="gap-2 p-2 cursor-pointer focus:bg-accent text-muted-foreground hover:text-foreground"
               onClick={() => navigate("/dashboard/organizations")}
             >

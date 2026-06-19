@@ -33,7 +33,7 @@ import {
     CommandItem,
     CommandList
 } from '@/components/ui/command'
-import { cn } from '@/libs/utils'
+import { cn } from '@/lib/utils'
 import {
     X,
     ChevronDown,
@@ -218,7 +218,7 @@ export const DynamicFilters = ({
                 return (
                     <Select
                         value={(value as string) || 'ALL'}
-                        onValueChange={(v) => updateFilter(filter.key, v)}
+                        onValueChange={(v: string) => updateFilter(filter.key, v)}
                     >
                         <SelectTrigger className={commonClasses}>
                             <SelectValue placeholder={filter.placeholder || 'Todos'} />

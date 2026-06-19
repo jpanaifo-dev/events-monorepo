@@ -2,62 +2,24 @@ import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuthStore } from "@/store/auth.store"
 import { useEventStore } from "@/store/event.store"
-import { Search, Plus, Calendar, MapPin, X, Globe, Video } from "lucide-react"
+import { Search, Plus, Calendar, MapPin, Globe, Video } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { PageHeader } from "@/components/page-header"
 
 export function EventsPage() {
   const { selectedOrganization } = useAuthStore()
-  const { events, addEvent } = useEventStore()
+  const { events } = useEventStore()
   const navigate = useNavigate()
 
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  
-  // Creation States
-  const [title, setTitle] = useState("")
-  const [description, setDescription] = useState("")
-  const [date, setDate] = useState("")
-  const [location, setLocation] = useState("")
-  const [format, setFormat] = useState<"online" | "hybrid" | "physical">("physical")
-  const [status, setStatus] = useState<"draft" | "published" | "finished">("draft")
-  const [banner, setBanner] = useState("")
 
   const filteredEvents = events.filter((e) => {
     const matchesSearch = e.title.toLowerCase().includes(search.toLowerCase())
     const matchesStatus = statusFilter === "all" || e.status === statusFilter
     return matchesSearch && matchesStatus
   })
-
-  const handleCreate = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!title.trim() || !selectedOrganization) return
-
-    const defaultBanner = banner.trim() || "https://images.unsplash.com/photo-1511578314322-379afb476865?w=800&auto=format&fit=crop&q=60"
-
-    addEvent({
-      organizationId: selectedOrganization.id,
-      title,
-      description,
-      date,
-      location,
-      format,
-      status,
-      banner: defaultBanner
-    })
-
-    setIsModalOpen(false)
-    setTitle("")
-    setDescription("")
-    setDate("")
-    setLocation("")
-    setFormat("physical")
-    setStatus("draft")
-    setBanner("")
-  }
 
   const getFormatBadge = (fmt: string) => {
     switch (fmt) {
@@ -88,7 +50,7 @@ export function EventsPage() {
         description={`Administra el catálogo de conferencias y congresos para ${selectedOrganization?.name}.`}
         actionButton={
           <Button 
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => navigate("/dashboard/events/new")}
             className="flex items-center gap-2"
           >
             <Plus className="size-4" />
@@ -146,7 +108,7 @@ export function EventsPage() {
           <p className="text-sm text-muted-foreground max-w-sm mx-auto">
             Comienza registrando un nuevo evento para publicar agendas, ponentes e inscripciones.
           </p>
-          <Button onClick={() => setIsModalOpen(true)} variant="outline">
+          <Button onClick={() => navigate("/dashboard/events/new")} variant="outline">
             Crear Evento
           </Button>
         </div>
@@ -200,105 +162,6 @@ export function EventsPage() {
               </div>
             </div>
           ))}
-        </div>
-      )}
-
-      {/* Event creation modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-card border border-border p-6 rounded-xl w-full max-w-lg relative shadow-xl space-y-6 animate-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh]">
-            <button 
-              onClick={() => setIsModalOpen(false)}
-              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground outline-none"
-            >
-              <X className="size-4" />
-            </button>
-            <div className="space-y-1">
-              <h3 className="text-lg font-bold">Crear Nuevo Evento</h3>
-              <p className="text-xs text-muted-foreground">Registra los detalles iniciales para tu nuevo evento.</p>
-            </div>
-            
-            <form onSubmit={handleCreate} className="space-y-4">
-              <FieldGroup>
-                <Field>
-                  <FieldLabel htmlFor="eventTitle">Título del Evento</FieldLabel>
-                  <Input
-                    id="eventTitle"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="Ej. Congreso Latinoamericano de IA 2026"
-                    required
-                    className="bg-background"
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="eventDesc">Descripción</FieldLabel>
-                  <Input
-                    id="eventDesc"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Escribe un breve resumen de los objetivos del evento..."
-                    className="bg-background"
-                  />
-                </Field>
-                <div className="grid grid-cols-2 gap-4">
-                  <Field>
-                    <FieldLabel htmlFor="eventDate">Fecha del Evento</FieldLabel>
-                    <Input
-                      id="eventDate"
-                      type="date"
-                      value={date}
-                      onChange={(e) => setDate(e.target.value)}
-                      required
-                      className="bg-background"
-                    />
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="eventFormat">Formato</FieldLabel>
-                    <select
-                      id="eventFormat"
-                      value={format}
-                      onChange={(e: any) => setFormat(e.target.value)}
-                      className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                    >
-                      <option value="physical">Presencial</option>
-                      <option value="online">Online</option>
-                      <option value="hybrid">Híbrido</option>
-                    </select>
-                  </Field>
-                </div>
-                <Field>
-                  <FieldLabel htmlFor="eventLocation">Ubicación / Plataforma de Streaming</FieldLabel>
-                  <Input
-                    id="eventLocation"
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    placeholder="Ej. Hotel Sheraton / Zoom Webinar"
-                    required
-                    className="bg-background"
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="eventBanner">Enlace de Imagen de Banner (Opcional)</FieldLabel>
-                  <Input
-                    id="eventBanner"
-                    value={banner}
-                    onChange={(e) => setBanner(e.target.value)}
-                    placeholder="https://ejemplo.com/banner.png"
-                    className="bg-background"
-                  />
-                </Field>
-                <div className="flex justify-end gap-3 pt-2">
-                  <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
-                    Cancelar
-                  </Button>
-                  <Button type="submit">
-                    Crear Evento
-                  </Button>
-                </div>
-              </FieldGroup>
-            </form>
-          </div>
         </div>
       )}
     </div>
