@@ -65,8 +65,25 @@ export function OrganizationSettingsPage() {
   const removeEmail = (index: number) => {
     setEmails(emails.filter((_, i) => i !== index))
   }
-  const [contactPhone, setContactPhone] = useState("")
-  const [address, setAddress] = useState("")
+
+  const addPhone = (e: React.MouseEvent) => {
+    e.preventDefault()
+    const parts = newPhone.split(/[\s,;]+/).map(p => p.trim()).filter(Boolean)
+    if (parts.length === 0) return
+
+    const uniqueNew = parts.filter(p => !contactPhones.includes(p))
+    if (uniqueNew.length > 0) {
+      setContactPhones([...contactPhones, ...uniqueNew])
+    }
+    setNewPhone("")
+  }
+
+  const removePhone = (index: number) => {
+    setContactPhones(contactPhones.filter((_, i) => i !== index))
+  }
+
+  const [contactPhones, setContactPhones] = useState<string[]>([])
+  const [newPhone, setNewPhone] = useState("")
   const [documentNumber, setDocumentNumber] = useState("")
   const [brand, setBrand] = useState("")
   const [logoUrl, setLogoUrl] = useState("")
@@ -108,8 +125,13 @@ export function OrganizationSettingsPage() {
           setEmails(loadedEmails)
           setSlug(data.slug || "")
           setDescription(data.description || "")
-          setContactPhone(data.contact_phone || "")
-          setAddress(data.address || "")
+          let loadedPhones: string[] = []
+          if (Array.isArray(data.contact_phone)) {
+            loadedPhones = data.contact_phone.filter(Boolean)
+          } else if (typeof data.contact_phone === "string") {
+            loadedPhones = data.contact_phone.split(",").map((p: string) => p.trim()).filter(Boolean)
+          }
+          setContactPhones(loadedPhones)
           setDocumentNumber(data.document_number || "")
           setBrand(data.brand || "")
           setLogoUrl(data.logo_url || "")
@@ -198,14 +220,25 @@ export function OrganizationSettingsPage() {
       setNewEmail("")
     }
 
+    let currentPhones = [...contactPhones]
+    if (newPhone.trim()) {
+      const parts = newPhone.split(/[\s,;]+/).map(p => p.trim()).filter(Boolean)
+      parts.forEach(p => {
+        if (!currentPhones.includes(p)) {
+          currentPhones.push(p)
+        }
+      })
+      setContactPhones(currentPhones)
+      setNewPhone("")
+    }
+
     const validation = organizationSchema.safeParse({
       name,
       type,
       email: currentEmails.join(", "),
       slug,
       description,
-      contactPhone,
-      address,
+      contactPhone: currentPhones.join(", "),
       documentNumber,
       brand,
       logoUrl,
@@ -242,8 +275,7 @@ export function OrganizationSettingsPage() {
           organization_email: currentEmails,
           slug,
           description: description || null,
-          contact_phone: contactPhone || null,
-          address: address || null,
+          contact_phone: currentPhones,
           document_number: documentNumber || null,
           brand: brand || null,
           logo_url: logoUrl || null,
@@ -592,18 +624,43 @@ export function OrganizationSettingsPage() {
           {/* Phone Row */}
           <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
             <div className="md:w-1/3 space-y-1">
-              <label htmlFor="org-phone" className="text-sm font-medium text-foreground">Teléfono de Contacto</label>
-              <p className="text-xs text-muted-foreground">Número de teléfono oficial de la organización. (Ej. +51 987654321)</p>
+              <label className="text-sm font-medium text-foreground">Teléfonos de Contacto</label>
+              <p className="text-xs text-muted-foreground">Números de teléfono oficiales de la organización.</p>
             </div>
-            <div className="md:w-2/3 max-w-md w-full">
-              <Input
-                id="org-phone"
-                type="tel"
-                placeholder="Ej. +51 987654321"
-                value={contactPhone}
-                onChange={(e) => setContactPhone(e.target.value)}
-                disabled={isSubmitting}
-              />
+            <div className="md:w-2/3 max-w-md w-full space-y-2">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Ej. +51 987654321"
+                  value={newPhone}
+                  onChange={(e) => setNewPhone(e.target.value.replace(/[^0-9+\s-]/g, ""))}
+                  disabled={isSubmitting}
+                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addPhone(e as any))}
+                />
+                <Button type="button" variant="outline" onClick={addPhone} disabled={isSubmitting} className="cursor-pointer">
+                  Agregar
+                </Button>
+              </div>
+              {/* Render phone chips */}
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {contactPhones.map((phone, index) => (
+                  <span
+                    key={index}
+                    className="bg-muted border border-border text-foreground text-xs px-2.5 py-1 rounded-lg flex items-center gap-1.5 font-medium animate-in zoom-in-95 duration-100"
+                  >
+                    {phone}
+                    <button
+                      type="button"
+                      onClick={() => removePhone(index)}
+                      className="text-muted-foreground hover:text-destructive cursor-pointer outline-none"
+                    >
+                      <X className="size-3" />
+                    </button>
+                  </span>
+                ))}
+                {contactPhones.length === 0 && (
+                  <span className="text-xs text-muted-foreground italic">No hay teléfonos registrados.</span>
+                )}
+              </div>
             </div>
           </div>
           {/* Document Number Row */}
