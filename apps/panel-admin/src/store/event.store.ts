@@ -68,6 +68,7 @@ export interface Attendee {
 export interface EventFilters {
   search?: string
   status?: string
+  hasEditions?: string
 }
 
 interface EventState {
@@ -176,7 +177,7 @@ export const useEventStore = create<EventState>((set, get) => ({
       const { data: eventsData, error: eventsError } = await query
       if (eventsError) throw eventsError
 
-      const formattedEvents: Event[] = (eventsData || []).map(mapMainEvent)
+      let formattedEvents: Event[] = (eventsData || []).map(mapMainEvent)
       const mainEventIds = formattedEvents.map((e) => e.id)
 
       // Fetch editions
@@ -191,6 +192,12 @@ export const useEventStore = create<EventState>((set, get) => ({
         if (editionsData) {
           formattedEditions = editionsData.map(mapEdition)
         }
+      }
+
+      // Filter by hasEditions (post-fetch)
+      if (filters?.hasEditions === "true") {
+        const idsWithEditions = new Set(formattedEditions.map((e) => e.mainEventId))
+        formattedEvents = formattedEvents.filter((e) => idsWithEditions.has(e.id))
       }
 
       // Fetch agenda from event_activities
@@ -420,7 +427,7 @@ export const useEventStore = create<EventState>((set, get) => ({
         mainEventId: editionData.mainEventId,
         slug,
         year: yearVal,
-        name: typeof editionData.name === "string" ? editionData.name : (editionData.name?.es || ""),
+        name: String(editionData.name),
         description: editionData.description || "",
         coverUrl: editionData.coverUrl || "",
         startDate: editionData.startDate || "",

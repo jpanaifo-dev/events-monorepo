@@ -2,41 +2,92 @@ import { useState, useEffect, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuthStore } from "@/store/auth.store"
 import { useEventStore, type EventFilters } from "@/store/event.store"
-import { Search, Plus, Calendar, Globe, Loader2 } from "lucide-react"
+import { DynamicFilters, type FilterConfig, type FilterValues } from "@/components/ui/dynamic-filters"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Calendar, Globe, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { PageHeader } from "@/components/page-header"
+
+const FILTER_CONFIGS: FilterConfig[] = [
+  {
+    key: "search",
+    label: "Buscar",
+    type: "text",
+    placeholder: "Buscar eventos...",
+    isBasic: true,
+  },
+  {
+    key: "status",
+    label: "Estado",
+    type: "select",
+    placeholder: "Todos",
+    options: [
+      { value: "published", label: "Publicados" },
+      { value: "draft", label: "Borradores" },
+      { value: "archived", label: "Archivados" },
+    ],
+    isBasic: true,
+  },
+  {
+    key: "hasEditions",
+    label: "Con Ediciones",
+    type: "select",
+    placeholder: "Todos",
+    options: [
+      { value: "true", label: "Sí" },
+      { value: "false", label: "No" },
+    ],
+    isBasic: false,
+  },
+]
+
+const defaultBanner = "https://images.unsplash.com/photo-1511578314322-379afb476865?w=800&auto=format&fit=crop&q=60"
+
+function EventCardSkeleton() {
+  return (
+    <div className="bg-card border border-border rounded-xl overflow-hidden flex flex-col h-full">
+      <Skeleton className="h-44 w-full rounded-none" />
+      <div className="p-5 flex flex-col flex-1 justify-between space-y-4">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-3 w-20" />
+          </div>
+          <Skeleton className="h-5 w-3/4" />
+          <Skeleton className="h-3 w-full" />
+          <Skeleton className="h-3 w-2/3" />
+        </div>
+        <div className="border-t border-border pt-4 flex items-center justify-between">
+          <Skeleton className="h-3 w-16" />
+          <Skeleton className="h-5 w-16 rounded-full" />
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export function EventsPage() {
   const { selectedOrganization } = useAuthStore()
   const { events, isLoading, loadData } = useEventStore()
   const navigate = useNavigate()
 
-  const [search, setSearch] = useState("")
-  const [statusFilter, setStatusFilter] = useState("all")
-  const [debouncedSearch, setDebouncedSearch] = useState("")
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(search)
-    }, 400)
-    return () => clearTimeout(timer)
-  }, [search])
+  const [filterValues, setFilterValues] = useState<FilterValues>({})
 
   const fetchEvents = useCallback(() => {
     if (!selectedOrganization?.id) return
     const filters: EventFilters = {}
-    if (debouncedSearch) filters.search = debouncedSearch
-    if (statusFilter !== "all") filters.status = statusFilter
+    if (filterValues.search) filters.search = filterValues.search as string
+    if (filterValues.status) filters.status = filterValues.status as string
+    if (filterValues.hasEditions) filters.hasEditions = filterValues.hasEditions as string
     loadData(selectedOrganization.id, filters)
-  }, [selectedOrganization?.id, debouncedSearch, statusFilter, loadData])
+  }, [selectedOrganization?.id, filterValues, loadData])
 
   useEffect(() => {
     fetchEvents()
   }, [fetchEvents])
 
-  const handleStatusChange = (status: string) => {
-    setStatusFilter(status)
+  const handleFiltersChange = (values: FilterValues) => {
+    setFilterValues(values)
   }
 
   const getStatusBadge = (st: string) => {
@@ -49,8 +100,6 @@ export function EventsPage() {
         return <span className="bg-amber-500 text-white text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full">Borrador</span>
     }
   }
-
-  const defaultBanner = "https://images.unsplash.com/photo-1511578314322-379afb476865?w=800&auto=format&fit=crop&q=60"
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
@@ -68,51 +117,31 @@ export function EventsPage() {
         }
       />
 
-      {/* Filter Row */}
-      <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-card p-4 rounded-xl border border-border">
-        <div className="relative w-full md:max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por nombre..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 bg-background"
-          />
-        </div>
-        <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto">
-          {[
-            { value: "all", label: "Todos" },
-            { value: "published", label: "Publicados" },
-            { value: "draft", label: "Borradores" },
-            { value: "archived", label: "Archivados" },
-          ].map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => handleStatusChange(opt.value)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold select-none transition-colors shrink-0 ${statusFilter === opt.value ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* Filters */}
+      <DynamicFilters
+        filters={FILTER_CONFIGS}
+        values={filterValues}
+        onChange={handleFiltersChange}
+        modalTitle="Filtros de Eventos"
+      />
 
       {/* Events Grid */}
       {isLoading ? (
-        <div className="p-16 text-center border border-dashed border-border rounded-xl bg-card space-y-4">
-          <Loader2 className="size-8 mx-auto text-muted-foreground animate-spin" />
-          <p className="text-sm text-muted-foreground">Cargando eventos...</p>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <EventCardSkeleton key={i} />
+          ))}
         </div>
       ) : events.length === 0 ? (
         <div className="p-16 text-center border border-dashed border-border rounded-xl bg-card space-y-4">
           <Calendar className="size-12 mx-auto text-muted-foreground" />
           <h3 className="font-bold text-lg">No hay eventos en este momento</h3>
           <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-            {search || statusFilter !== "all"
+            {filterValues.search || filterValues.status
               ? "No se encontraron eventos con los filtros aplicados."
               : "Comienza registrando un nuevo evento para publicar agendas, ponentes e inscripciones."}
           </p>
-          {!search && statusFilter === "all" && (
+          {!filterValues.search && !filterValues.status && (
             <Button onClick={() => navigate("/dashboard/events/new")} variant="outline">
               Crear Evento
             </Button>

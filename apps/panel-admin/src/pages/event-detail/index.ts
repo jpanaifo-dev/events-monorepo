@@ -1,0 +1,5 @@
+export { EventInfoSection } from "./EventInfoSection"
+export { EventEditionsSection } from "./EventEditionsSection"
+export { EventSpeakersSection } from "./EventSpeakersSection"
+export { EventAgendaSection } from "./EventAgendaSection"
+export { EventAttendeesSection } from "./EventAttendeesSection"

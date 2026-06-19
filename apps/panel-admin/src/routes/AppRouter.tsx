@@ -16,6 +16,13 @@ import { CreateEventPage } from "@/pages/CreateEventPage"
 import { EditEventPage } from "@/pages/EditEventPage"
 import { CreateEditionPage } from "@/pages/CreateEditionPage"
 import { EditEditionPage } from "@/pages/EditEditionPage"
+import {
+  EventInfoSection,
+  EventEditionsSection,
+  EventSpeakersSection,
+  EventAgendaSection,
+  EventAttendeesSection,
+} from "@/pages/event-detail"
 
 export function AppRouter() {
   return (
@@ -67,8 +74,15 @@ export function AppRouter() {
           {/* Events Catalog */}
           <Route path="events" element={<EventsPage />} />
 
-          {/* Event manager workspace */}
-          <Route path="events/:id" element={<EventDetailPage />} />
+          {/* Event detail workspace with nested sections */}
+          <Route path="events/:id" element={<EventDetailPage />}>
+            <Route index element={<Navigate to="info" replace />} />
+            <Route path="info" element={<EventInfoSection />} />
+            <Route path="editions" element={<EventEditionsSection />} />
+            <Route path="speakers" element={<EventSpeakersSection />} />
+            <Route path="agenda" element={<EventAgendaSection />} />
+            <Route path="attendees" element={<EventAttendeesSection />} />
+          </Route>
 
           {/* Settings Page */}
           <Route path="settings/business" element={<OrganizationSettingsPage />} />
