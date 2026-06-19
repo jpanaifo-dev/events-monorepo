@@ -36,19 +36,40 @@ export function MembersPage() {
     try {
       if (isDemoMode) {
         const stored = localStorage.getItem(`mock_members_${selectedOrganization.id}`)
+        let list: any[] = []
         if (stored) {
-          const list = JSON.parse(stored)
-          if (searchVal.trim()) {
-            const query = searchVal.toLowerCase()
-            setMembers(list.filter((m: any) =>
-              (m.profile?.first_name?.toLowerCase().includes(query)) ||
-              (m.profile?.last_name?.toLowerCase().includes(query)) ||
-              (m.profile?.email?.toLowerCase().includes(query)) ||
-              (m.role?.toLowerCase().includes(query))
-            ))
-          } else {
-            setMembers(list)
-          }
+          list = JSON.parse(stored)
+        }
+        if (user && !list.some((m: any) => m.profile_id === user.id)) {
+          list = [
+            {
+              id: "fallback-member-id",
+              role: "Owner",
+              is_active: true,
+              profile_id: user.id,
+              profile: {
+                id: user.id,
+                first_name: user.full_name?.split(" ")[0] || "",
+                last_name: user.full_name?.split(" ").slice(1).join(" ") || "",
+                email: user.email,
+                avatar_url: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.full_name || user.email || "U")}`
+              }
+            },
+            ...list
+          ]
+          localStorage.setItem(`mock_members_${selectedOrganization.id}`, JSON.stringify(list))
+        }
+
+        if (searchVal.trim()) {
+          const query = searchVal.toLowerCase()
+          setMembers(list.filter((m: any) =>
+            (m.profile?.first_name?.toLowerCase().includes(query)) ||
+            (m.profile?.last_name?.toLowerCase().includes(query)) ||
+            (m.profile?.email?.toLowerCase().includes(query)) ||
+            (m.role?.toLowerCase().includes(query))
+          ))
+        } else {
+          setMembers(list)
         }
         setIsLoadingList(false)
         return
@@ -79,10 +100,30 @@ export function MembersPage() {
           setIsDemoMode(true)
           // Run again in Demo Mode
           const stored = localStorage.getItem(`mock_members_${selectedOrganization.id}`)
+          let list: any[] = []
           if (stored) {
-            const list = JSON.parse(stored)
-            setMembers(list)
+            list = JSON.parse(stored)
           }
+          if (user && !list.some((m: any) => m.profile_id === user.id)) {
+            list = [
+              {
+                id: "fallback-member-id",
+                role: "Owner",
+                is_active: true,
+                profile_id: user.id,
+                profile: {
+                  id: user.id,
+                  first_name: user.full_name?.split(" ")[0] || "",
+                  last_name: user.full_name?.split(" ").slice(1).join(" ") || "",
+                  email: user.email,
+                  avatar_url: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.full_name || user.email || "U")}`
+                }
+              },
+              ...list
+            ]
+            localStorage.setItem(`mock_members_${selectedOrganization.id}`, JSON.stringify(list))
+          }
+          setMembers(list)
           setIsLoadingList(false)
           return
         }
@@ -90,7 +131,28 @@ export function MembersPage() {
       }
 
       // Filter locally or from profiles
-      let list = data || []
+      let list: any[] = data || []
+      
+      // Ensure the current user is added as Owner if not present in the list
+      if (user && !list.some((m: any) => m.profile_id === user.id)) {
+        list = [
+          {
+            id: `owner-fallback-${user.id}`,
+            role: "Owner",
+            is_active: true,
+            profile_id: user.id,
+            profile: {
+              id: user.id,
+              first_name: user.full_name?.split(" ")[0] || "",
+              last_name: user.full_name?.split(" ").slice(1).join(" ") || "",
+              email: user.email,
+              avatar_url: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.full_name || user.email || "U")}`
+            }
+          },
+          ...list
+        ]
+      }
+
       if (searchVal.trim()) {
         const query = searchVal.toLowerCase()
         list = list.filter((m: any) =>

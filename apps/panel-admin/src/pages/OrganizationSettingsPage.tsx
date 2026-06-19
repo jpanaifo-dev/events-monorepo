@@ -189,7 +189,26 @@ export function OrganizationSettingsPage() {
             throw membersError
           }
 
-          setMembers(membersData || [])
+          let list: any[] = membersData || []
+          if (user && !list.some((m: any) => m.profile_id === user.id)) {
+            list = [
+              {
+                id: `owner-fallback-${user.id}`,
+                role: "Owner",
+                is_active: true,
+                profile_id: user.id,
+                profile: {
+                  id: user.id,
+                  first_name: user.full_name?.split(" ")[0] || "",
+                  last_name: user.full_name?.split(" ").slice(1).join(" ") || "",
+                  email: user.email,
+                  avatar_url: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.full_name || user.email || "U")}`
+                }
+              },
+              ...list
+            ]
+          }
+          setMembers(list)
           setIsMembersDbError(false)
         } catch (mErr) {
           console.warn("Failed to fetch members, using fallback. Error details:", mErr)
@@ -198,7 +217,27 @@ export function OrganizationSettingsPage() {
             const storedKey = `mock_members_${selectedOrganization.id}`
             const stored = localStorage.getItem(storedKey)
             if (stored) {
-              setMembers(JSON.parse(stored))
+              let list = JSON.parse(stored)
+              if (!list.some((m: any) => m.profile_id === user.id)) {
+                list = [
+                  {
+                    id: "fallback-member-id",
+                    role: "Owner",
+                    is_active: true,
+                    profile_id: user.id,
+                    profile: {
+                      id: user.id,
+                      first_name: user.full_name?.split(" ")[0] || "",
+                      last_name: user.full_name?.split(" ").slice(1).join(" ") || "",
+                      email: user.email,
+                      avatar_url: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.full_name || user.email || "U")}`
+                    }
+                  },
+                  ...list
+                ]
+                localStorage.setItem(storedKey, JSON.stringify(list))
+              }
+              setMembers(list)
             } else {
               const defaultMember = [
                 {
