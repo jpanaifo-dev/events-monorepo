@@ -39,7 +39,9 @@ export function NavAdmin({
                     const isDashboard = item.url === '/dashboard'
                     const isActive = isDashboard
                         ? pathname === item.url
-                        : (pathname === item.url || pathname.startsWith(item.url + "/"))
+                        : (item.url.startsWith('/dashboard/settings')
+                            ? pathname.startsWith('/dashboard/settings')
+                            : (pathname === item.url || pathname.startsWith(item.url + "/")))
                     
                     if (item.items && item.items.length > 0) {
                         const isSubActive = item.items.some(sub => pathname === sub.url)

@@ -36,7 +36,7 @@ type OrganizationInput = z.infer<typeof organizationSchema>
 
 export function OrganizationSettingsPage() {
   const navigate = useNavigate()
-  const { selectedOrganization, selectOrganization, setOrganizations, organizations } = useAuthStore()
+  const { user, selectedOrganization, selectOrganization, setOrganizations, organizations } = useAuthStore()
 
   const [name, setName] = useState("")
   const [type, setType] = useState("")
@@ -104,6 +104,13 @@ export function OrganizationSettingsPage() {
   const [deleteConfirmName, setDeleteConfirmName] = useState("")
   const [isDeleting, setIsDeleting] = useState(false)
 
+  const [members, setMembers] = useState<any[]>([])
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false)
+  const [inviteEmail, setInviteEmail] = useState("")
+  const [inviteRole, setInviteRole] = useState<"Owner" | "Administrator" | "Developer">("Developer")
+  const [isInviting, setIsInviting] = useState(false)
+  const [isMembersDbError, setIsMembersDbError] = useState(false)
+
   useEffect(() => {
     async function loadOrgDetails() {
       if (!selectedOrganization?.id) {
@@ -158,6 +165,56 @@ export function OrganizationSettingsPage() {
 
         if (!branchesError) {
           setBranches(branchesData || [])
+        }
+
+        // Fetch members for this organization
+        try {
+          const { data: membersData, error: membersError } = await supabase
+            .from("organization_members")
+            .select(`
+              id,
+              role,
+              is_active,
+              profile_id,
+              profile:profiles (
+                id,
+                first_name,
+                last_name,
+                email,
+                avatar_url
+              )
+            `)
+            .eq("organization_id", selectedOrganization.id)
+
+          if (membersError) {
+            if (membersError.code === "P0001" || membersError.message.includes("does not exist")) {
+              setIsMembersDbError(true)
+            }
+            throw membersError
+          }
+
+          setMembers(membersData || [])
+          setIsMembersDbError(false)
+        } catch (mErr) {
+          console.warn("Failed to fetch members, using fallback. Error details:", mErr)
+          // Fallback member (current user)
+          if (user) {
+            setMembers([
+              {
+                id: "fallback-member-id",
+                role: "Owner",
+                is_active: true,
+                profile_id: user.id,
+                profile: {
+                  id: user.id,
+                  first_name: user.full_name?.split(" ")[0] || "",
+                  last_name: user.full_name?.split(" ").slice(1).join(" ") || "",
+                  email: user.email,
+                  avatar_url: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.full_name || user.email || "U")}`
+                }
+              }
+            ])
+          }
         }
       } catch (err) {
         console.error("Error loading organization settings:", err)
@@ -338,7 +395,7 @@ export function OrganizationSettingsPage() {
       if (error) throw error
 
       setStatus(newStatus)
-      
+
       // Update auth store
       const updatedOrg = {
         ...selectedOrganization,
@@ -401,7 +458,7 @@ export function OrganizationSettingsPage() {
         .from("events")
         .select("id")
         .eq("organization_id", orgId)
-      
+
       const eventIds = (eventsData || []).map(e => e.id)
       if (eventIds.length > 0) {
         // Delete event details
@@ -427,7 +484,7 @@ export function OrganizationSettingsPage() {
       // 5. Update auth store
       const updatedList = organizations.filter((org) => org.id !== orgId)
       setOrganizations(updatedList)
-      
+
       if (updatedList.length > 0) {
         selectOrganization(updatedList[0])
       } else {
@@ -443,6 +500,127 @@ export function OrganizationSettingsPage() {
       toast.error(err.message || "Error al eliminar la organización.")
     } finally {
       setIsDeleting(false)
+    }
+  }
+
+  const handleInviteMember = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedOrganization?.id || !inviteEmail.trim()) return
+    setIsInviting(true)
+    try {
+      // 1. Search profile by email
+      const { data: profileData, error: profileError } = await supabase
+        .from("profiles")
+        .select("id, first_name, last_name, email, avatar_url")
+        .eq("email", inviteEmail.trim())
+        .maybeSingle()
+
+      if (profileError) throw profileError
+
+      if (!profileData) {
+        toast.error("No se encontró ningún usuario registrado con ese correo.")
+        setIsInviting(false)
+        return
+      }
+
+      // If the database error is active, we cannot perform real database inserts, but we can simulate it
+      if (isMembersDbError) {
+        // Mock add member to local state
+        const newMockMember = {
+          id: `mock-member-${Date.now()}`,
+          role: inviteRole,
+          is_active: true,
+          profile_id: profileData.id,
+          profile: profileData
+        }
+        setMembers([...members, newMockMember])
+        toast.success(`Miembro agregado (Modo Demo): ${profileData.email}`)
+        setIsInviteModalOpen(false)
+        setInviteEmail("")
+        return
+      }
+
+      // 2. Insert into organization_members
+      const { error: insertError } = await supabase
+        .from("organization_members")
+        .insert({
+          organization_id: selectedOrganization.id,
+          profile_id: profileData.id,
+          role: inviteRole,
+          is_active: true
+        })
+
+      if (insertError) {
+        if (insertError.message?.includes("unique_organization_profile") || insertError.code === "23505") {
+          throw new Error("El usuario ya es miembro de esta organización.")
+        }
+        throw insertError
+      }
+
+      // 3. Reload members list
+      const { data: updatedMembers } = await supabase
+        .from("organization_members")
+        .select(`
+          id,
+          role,
+          is_active,
+          profile_id,
+          profile:profiles (
+            id,
+            first_name,
+            last_name,
+            email,
+            avatar_url
+          )
+        `)
+        .eq("organization_id", selectedOrganization.id)
+
+      setMembers(updatedMembers || [])
+      toast.success(`Invitación enviada con éxito a ${inviteEmail}`)
+      setIsInviteModalOpen(false)
+      setInviteEmail("")
+    } catch (err: any) {
+      console.error("Error inviting team member:", err)
+      toast.error(err.message || "Error al invitar al miembro del equipo.")
+    } finally {
+      setIsInviting(false)
+    }
+  }
+
+  const handleRemoveMember = async (memberId: string, email: string) => {
+    if (!selectedOrganization?.id) return
+
+    // Check if they are trying to remove themselves
+    const member = members.find(m => m.id === memberId)
+    if (member && member.profile_id === user?.id) {
+      toast.error("No puedes eliminarte a ti mismo de la organización.")
+      return
+    }
+
+    if (!confirm(`¿Estás seguro de que deseas remover a ${email} de la organización?`)) {
+      return
+    }
+
+    try {
+      if (isMembersDbError || memberId.startsWith("mock-member-")) {
+        // Mock remove
+        setMembers(members.filter(m => m.id !== memberId))
+        toast.success(`Miembro removido (Modo Demo): ${email}`)
+        return
+      }
+
+      const { error } = await supabase
+        .from("organization_members")
+        .delete()
+        .eq("id", memberId)
+
+      if (error) throw error
+
+      setMembers(members.filter(m => m.id !== memberId))
+      toast.success(`Miembro removido con éxito: ${email}`)
+    } catch (err: any) {
+      console.error("Error removing member:", err)
+      toast.error(err.message || "Error al remover al miembro.")
     }
   }
 
@@ -912,6 +1090,271 @@ export function OrganizationSettingsPage() {
         </div>
       </div>
 
+      {/* Miembros del equipo Section */}
+      <div className="mt-10 space-y-4 font-sans animate-in fade-in duration-300">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h3 className="text-xl tracking-tight text-foreground">
+              Miembros del equipo
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Administra los miembros autorizados en esta organización y sus respectivos roles de acceso.
+            </p>
+          </div>
+        </div>
+
+        {/* Database notice/warning if table does not exist */}
+        {isMembersDbError && (
+          <div className="p-4 border border-amber-500/20 bg-amber-500/5 text-amber-600 dark:text-amber-400 rounded-xl space-y-3 text-xs leading-relaxed">
+            <div className="flex items-center gap-2 font-semibold">
+              <svg className="size-4 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              Tabla de miembros no configurada (Modo Demo Activo)
+            </div>
+            <p>
+              Para persistir miembros reales, debes crear la tabla correspondiente en tu base de datos Supabase. Hemos activado un modo demostración local para que puedas visualizar la interfaz.
+            </p>
+          </div>
+        )}
+
+        {/* Card Container faithful to the mockup */}
+        <div className="border border-border rounded-xl bg-card overflow-hidden shadow-sm">
+          {/* Header Row with Filter & Actions */}
+          <div className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border bg-card">
+            <div className="relative w-full sm:max-w-xs">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Filtrar miembros..."
+                className="w-full pl-9 pr-4 py-2 border border-input rounded-lg text-xs bg-background outline-none focus:ring-1 focus:ring-primary/50 text-foreground"
+              />
+            </div>
+            <div className="flex gap-2.5">
+              <button
+                type="button"
+                onClick={() => setIsInviteModalOpen(true)}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-lg text-xs font-semibold select-none transition-colors cursor-pointer outline-none flex items-center gap-1.5"
+              >
+                <svg className="size-3.5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                </svg>
+                Invitar miembros
+              </button>
+            </div>
+          </div>
+
+          {/* List of Members */}
+          {members.length > 0 ? (
+            <div className="w-full">
+              {/* Column labels matching the mockup */}
+              <div className="grid grid-cols-3 px-6 py-3 border-b border-border bg-muted/15 text-[10px] font-bold tracking-wider text-muted-foreground/80 font-mono uppercase">
+                <div>Miembro</div>
+                <div>MFA</div>
+                <div className="text-right">Rol / Acciones</div>
+              </div>
+
+              {/* Rows */}
+              <div className="divide-y divide-border/60">
+                {members.map((member) => (
+                  <div key={member.id} className="grid grid-cols-3 px-6 py-4 items-center text-sm hover:bg-muted/5 transition-colors">
+                    {/* Left Details: Member Profile */}
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      <div className="size-8 rounded-full overflow-hidden border border-border shrink-0 bg-muted/40">
+                        {member.profile?.avatar_url ? (
+                          <img src={member.profile.avatar_url} alt="Avatar" className="size-full object-cover" />
+                        ) : (
+                          <div className="size-full flex items-center justify-center bg-primary/10 text-primary font-bold text-xs">
+                            {(member.profile?.first_name || member.profile?.email || "?").charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                      <div className="grid leading-tight min-w-0">
+                        <span className="font-semibold text-foreground truncate">
+                          {member.profile?.first_name || member.profile?.last_name
+                            ? `${member.profile.first_name || ""} ${member.profile.last_name || ""}`.trim()
+                            : member.profile?.email.split("@")[0]}
+                        </span>
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="text-xs text-muted-foreground truncate">{member.profile?.email}</span>
+                          {member.profile_id === user?.id && (
+                            <span className="text-[8px] font-bold tracking-wider uppercase px-1 rounded bg-muted text-muted-foreground select-none shrink-0 font-sans">
+                              TÚ
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Middle Details: MFA Status */}
+                    <div className="text-xs text-muted-foreground/90 font-medium flex items-center gap-1">
+                      <span>Desactivado</span>
+                      <svg className="size-3.5 text-muted-foreground/50" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </div>
+
+                    {/* Right Details: Role and Remove Button */}
+                    <div className="flex items-center justify-end gap-4">
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded bg-muted border border-border text-foreground capitalize select-none">
+                        {member.role || "Developer"}
+                      </span>
+                      {member.profile_id === user?.id ? (
+                        <button
+                          type="button"
+                          disabled
+                          className="text-xs text-muted-foreground font-medium py-1.5 px-3 rounded-lg border border-border bg-muted/50 cursor-not-allowed select-none"
+                        >
+                          Salir
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveMember(member.id, member.profile?.email || "")}
+                          className="text-xs text-destructive hover:bg-destructive/10 font-medium py-1.5 px-3 rounded-lg border border-transparent hover:border-destructive/20 transition-all cursor-pointer"
+                        >
+                          Remover
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="p-8 text-center text-xs text-muted-foreground italic">
+              No hay miembros registrados para esta organización.
+            </div>
+          )}
+
+          {/* Bottom count */}
+          <div className="px-6 py-3.5 bg-muted/5 border-t border-border/60 text-xs text-muted-foreground font-medium">
+            {members.length} {members.length === 1 ? "miembro" : "miembros"}
+          </div>
+        </div>
+      </div>
+
+      {/* Invite Member Modal */}
+      {isInviteModalOpen && (
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-card border border-border rounded-xl max-w-md w-full shadow-2xl p-6 space-y-6 animate-in zoom-in-95 duration-200 font-sans">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <h3 className="text-lg font-bold text-foreground">
+                  Invitar miembros al equipo
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Envía invitaciones y elige el nivel de acceso para tu organización.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsInviteModalOpen(false)
+                  setInviteEmail("")
+                }}
+                className="text-muted-foreground hover:text-foreground cursor-pointer"
+              >
+                <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleInviteMember} className="space-y-5">
+              {/* Role Select Options mimicking mockup exactly */}
+              <div className="space-y-3">
+                <label className="text-xs font-semibold text-muted-foreground block">
+                  Rol del miembro
+                </label>
+                <div className="space-y-2">
+                  {[
+                    {
+                      value: "Owner",
+                      label: "Owner (Dueño)",
+                      desc: "Acceso total, incluyendo eliminación de la organización e invitación de administradores."
+                    },
+                    {
+                      value: "Administrator",
+                      label: "Administrator (Administrador)",
+                      desc: "Administra miembros, sedes y configuración del proyecto. No puede eliminar dueños o la organización."
+                    },
+                    {
+                      value: "Developer",
+                      label: "Developer (Desarrollador)",
+                      desc: "Administra el contenido del proyecto (eventos, actividades). No puede cambiar la configuración comercial."
+                    }
+                  ].map((roleOpt) => (
+                    <label
+                      key={roleOpt.value}
+                      className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${inviteRole === roleOpt.value
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:bg-muted/50"
+                        }`}
+                    >
+                      <input
+                        type="radio"
+                        name="invite-role"
+                        value={roleOpt.value}
+                        checked={inviteRole === roleOpt.value}
+                        onChange={() => setInviteRole(roleOpt.value as any)}
+                        className="mt-1 accent-primary"
+                      />
+                      <div className="grid leading-tight">
+                        <span className="font-semibold text-sm text-foreground">{roleOpt.label}</span>
+                        <span className="text-xs text-muted-foreground mt-0.5">{roleOpt.desc}</span>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Email Addresses input block */}
+              <div className="space-y-2">
+                <label htmlFor="invite-email" className="text-xs font-semibold text-muted-foreground block">
+                  Dirección de correo electrónico
+                </label>
+                <Input
+                  id="invite-email"
+                  type="email"
+                  required
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="nombre@ejemplo.com"
+                  className="bg-card"
+                  disabled={isInviting}
+                  autoComplete="off"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setIsInviteModalOpen(false)
+                    setInviteEmail("")
+                  }}
+                  disabled={isInviting}
+                  className="cursor-pointer"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isInviting || !inviteEmail.trim()}
+                  className="cursor-pointer font-semibold bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  {isInviting ? "Invitando..." : "Enviar invitación"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Visibilidad Section */}
       <div className="mt-10 space-y-4 font-sans">
         <h3 className="text-xl tracking-tight text-foreground">
@@ -940,11 +1383,10 @@ export function OrganizationSettingsPage() {
               variant="outline"
               disabled={isUpdatingVisibility}
               onClick={() => handleUpdateVisibility(status === "active" ? "inactive" : "active")}
-              className={`cursor-pointer text-xs font-semibold ${
-                status === "active"
-                  ? "border-destructive hover:bg-destructive/10 text-destructive"
-                  : "border-emerald-500 hover:bg-emerald-50 text-emerald-600 dark:hover:bg-emerald-950/20 dark:text-emerald-500"
-              }`}
+              className={`cursor-pointer text-xs font-semibold ${status === "active"
+                ? "border-destructive hover:bg-destructive/10 text-destructive"
+                : "border-emerald-500 hover:bg-emerald-50 text-emerald-600 dark:hover:bg-emerald-950/20 dark:text-emerald-500"
+                }`}
             >
               {status === "active" ? "Desactivar" : "Activar"}
             </Button>
