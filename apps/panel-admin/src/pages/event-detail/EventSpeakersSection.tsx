@@ -73,7 +73,7 @@ export function EventSpeakersSection() {
               <tr className="bg-muted/40 text-xs font-bold text-muted-foreground border-b border-border uppercase">
                 <th className="p-3">Ponente</th>
                 <th className="p-3">Tipo de Ponente</th>
-                <th className="p-3">Charla / Bio</th>
+                <th className="p-3">Biografía</th>
                 <th className="p-3">Ámbito (Edición)</th>
                 <th className="p-3 text-right">Acciones</th>
               </tr>
@@ -119,17 +119,10 @@ export function EventSpeakersSection() {
                         {roleName}
                       </div>
                     </td>
-                    <td className="p-3 max-w-[280px]">
-                      <div className="space-y-0.5">
-                        <p className="text-xs font-bold text-foreground leading-snug truncate" title={sp.talkTitle}>
-                          {sp.talkTitle}
-                        </p>
-                        {sp.talkDescription && (
-                          <p className="text-[11px] text-muted-foreground truncate" title={sp.talkDescription}>
-                            {sp.talkDescription}
-                          </p>
-                        )}
-                      </div>
+                    <td className="p-3 max-w-[320px]">
+                      <p className="text-xs text-muted-foreground leading-normal line-clamp-2" title={sp.bio}>
+                        {sp.bio || "Sin biografía registrada."}
+                      </p>
                     </td>
                     <td className="p-3 text-xs">
                       {isGlobal ? (
