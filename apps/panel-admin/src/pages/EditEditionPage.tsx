@@ -7,6 +7,8 @@ import { toast } from "sonner"
 import { PageHeader } from "@/components/page-header"
 import { Trash2 } from "lucide-react"
 
+import { useSEO } from "@/hooks/use-seo"
+
 export function EditEditionPage() {
   const { eventId, editionId } = useParams<{ eventId: string; editionId: string }>()
   const navigate = useNavigate()
@@ -14,6 +16,13 @@ export function EditEditionPage() {
 
   const event = events.find((e) => e.id === eventId)
   const edition = editions.find((ed) => ed.id === editionId)
+
+  useSEO({
+    title: edition ? `Editar Edición: ${edition.name}` : "Editar Edición",
+    description: event 
+      ? `Modifica los detalles, fechas, lema e imagen de portada para la edición ${edition?.name || ""} de ${event.name} en EventHive.`
+      : "Edición de evento."
+  })
 
   // Form states
   const [name, setName] = useState("")

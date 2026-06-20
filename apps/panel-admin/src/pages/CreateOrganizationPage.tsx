@@ -39,9 +39,16 @@ const organizationSchema = z.object({
 
 type OrganizationInput = z.infer<typeof organizationSchema>
 
+import { useSEO } from "@/hooks/use-seo"
+
 export function CreateOrganizationPage() {
   const navigate = useNavigate()
   const { user, logout, selectOrganization } = useAuthStore()
+
+  useSEO({
+    title: "Nueva Organización",
+    description: "Registra una nueva organización en EventHive para gestionar tus eventos y equipos de manera profesional."
+  })
 
   const [name, setName] = useState("")
   const [type, setType] = useState("")

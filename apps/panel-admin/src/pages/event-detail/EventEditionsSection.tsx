@@ -26,11 +26,19 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog"
 
+import { useSEO } from "@/hooks/use-seo"
+
 export function EventEditionsSection() {
   const { id } = useParams<{ id: string }>()
-  const { editions, addEdition, updateEdition, deleteEdition } = useEventStore()
+  const { events, editions, addEdition, updateEdition, deleteEdition } = useEventStore()
 
+  const event = events.find((e) => e.id === id)
   const eventEditions = editions.filter((ed) => ed.mainEventId === id)
+
+  useSEO({
+    title: event ? `${event.name} - Ediciones` : "Ediciones de Evento",
+    description: `Historial y programación de las diferentes ediciones periódicas para el evento ${event?.name || ""}.`
+  })
 
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)

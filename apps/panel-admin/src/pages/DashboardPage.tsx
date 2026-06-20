@@ -4,10 +4,19 @@ import { Users, Calendar, Settings, Plus, BookOpen, Clock } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { PageHeader } from "@/components/page-header"
 
+import { useSEO } from "@/hooks/use-seo"
+
 export function DashboardPage() {
   const { selectedOrganization } = useAuthStore()
   const { events, speakers, attendees } = useEventStore()
   const navigate = useNavigate()
+
+  useSEO({
+    title: "Inicio",
+    description: selectedOrganization 
+      ? `Panel de administración y métricas generales para la organización ${selectedOrganization.name}.` 
+      : "Panel de control principal en EventHive."
+  })
 
   // Calculate statistics for the active organization
   const totalEvents = events.length

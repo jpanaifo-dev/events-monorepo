@@ -66,10 +66,19 @@ function EventCardSkeleton() {
   )
 }
 
+import { useSEO } from "@/hooks/use-seo"
+
 export function EventsPage() {
   const { selectedOrganization } = useAuthStore()
   const { events, isLoading, loadData } = useEventStore()
   const navigate = useNavigate()
+
+  useSEO({
+    title: "Eventos",
+    description: selectedOrganization 
+      ? `Lista de eventos, borradores y conferencias publicadas para la organización ${selectedOrganization.name}.`
+      : "Listado de eventos de la organización."
+  })
 
   const [searchParams, setSearchParams] = useSearchParams()
 

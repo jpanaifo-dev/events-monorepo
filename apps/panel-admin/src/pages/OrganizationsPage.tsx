@@ -30,11 +30,18 @@ const OrganizationCardSkeleton = () => (
   </div>
 )
 
+import { useSEO } from "@/hooks/use-seo"
+
 export function OrganizationsPage() {
   const { user, organizations, selectOrganization, setOrganizations, logout } = useAuthStore()
   console.log(user)
   const { loadData } = useEventStore()
   const navigate = useNavigate()
+
+  useSEO({
+    title: "Mis Organizaciones",
+    description: "Administra y selecciona tus organizaciones registradas en EventHive."
+  })
 
   const [search, setSearch] = useState("")
   const [isLoadingList, setIsLoadingList] = useState(true)

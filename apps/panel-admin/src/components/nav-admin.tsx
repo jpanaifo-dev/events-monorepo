@@ -56,10 +56,10 @@ export function NavAdmin({
                                     <CollapsibleTrigger asChild>
                                         <SidebarMenuButton 
                                             tooltip={item.title} 
-                                            isActive={isActive || isSubActive}
+                                            isActive={false}
                                             className={cn(
-                                                "w-full justify-between hover:bg-muted/50 active:bg-muted rounded-md transition-colors",
-                                                (isActive || isSubActive) && "bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
+                                                "w-full justify-between hover:bg-muted/50 rounded-md transition-colors",
+                                                (isActive || isSubActive) ? "text-primary font-semibold" : "text-sidebar-foreground"
                                             )}
                                         >
                                             <div className="flex items-center gap-3">
@@ -67,13 +67,16 @@ export function NavAdmin({
                                                     <item.icon 
                                                         className={cn(
                                                             "size-4 transition-colors", 
-                                                            (isActive || isSubActive) ? "text-primary" : "text-muted-foreground"
+                                                            (isActive || isSubActive) ? "text-primary" : "text-muted-foreground group-hover/menu-button:text-sidebar-foreground"
                                                         )} 
                                                     />
                                                 )}
                                                 <span className="text-sm font-medium">{item.title}</span>
                                             </div>
-                                            <ChevronRight className="size-4 ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90 text-muted-foreground" />
+                                            <ChevronRight className={cn(
+                                                "size-4 ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90",
+                                                (isActive || isSubActive) ? "text-primary" : "text-muted-foreground"
+                                            )} />
                                         </SidebarMenuButton>
                                     </CollapsibleTrigger>
                                     <CollapsibleContent>
@@ -83,11 +86,11 @@ export function NavAdmin({
                                                 return (
                                                     <SidebarMenuSubItem key={subItem.title}>
                                                         <SidebarMenuSubButton 
-                                                            isActive={isChildActive} 
+                                                            isActive={false} 
                                                             asChild
                                                             className={cn(
                                                                 "w-full text-left hover:bg-muted/50 rounded-md transition-colors px-3 py-1.5",
-                                                                isChildActive && "bg-sidebar-accent text-sidebar-accent-foreground font-semibold text-primary"
+                                                                isChildActive ? "text-primary font-semibold" : "text-sidebar-foreground"
                                                             )}
                                                         >
                                                             <Link to={subItem.url} className="w-full block">
@@ -107,11 +110,11 @@ export function NavAdmin({
                         <SidebarMenuItem key={item.title}>
                             <SidebarMenuButton 
                                 tooltip={item.title} 
-                                isActive={isActive} 
+                                isActive={false} 
                                 asChild
                                 className={cn(
-                                    "hover:bg-muted/50 active:bg-muted rounded-md transition-colors",
-                                    isActive && "bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
+                                    "hover:bg-muted/50 rounded-md transition-colors",
+                                    isActive ? "text-primary font-semibold" : "text-sidebar-foreground"
                                 )}
                             >
                                 <Link to={item.url} className="flex items-center gap-3 w-full">
@@ -119,7 +122,7 @@ export function NavAdmin({
                                         <item.icon 
                                             className={cn(
                                                 "size-4 transition-colors", 
-                                                isActive ? "text-primary" : "text-muted-foreground"
+                                                isActive ? "text-primary" : "text-muted-foreground group-hover/menu-button:text-sidebar-foreground"
                                             )} 
                                         />
                                     )}

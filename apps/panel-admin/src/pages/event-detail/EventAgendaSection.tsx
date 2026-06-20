@@ -26,12 +26,20 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog"
 
+import { useSEO } from "@/hooks/use-seo"
+
 export function EventAgendaSection() {
   const { id } = useParams<{ id: string }>()
-  const { agendaItems, speakers, addAgendaItem, updateAgendaItem, deleteAgendaItem } = useEventStore()
+  const { events, agendaItems, speakers, addAgendaItem, updateAgendaItem, deleteAgendaItem } = useEventStore()
 
+  const event = events.find((e) => e.id === id)
   const eventAgenda = agendaItems.filter((ag) => ag.eventId === id)
   const eventSpeakers = speakers.filter((sp) => sp.eventId === id)
+
+  useSEO({
+    title: event ? `${event.name} - Agenda` : "Agenda de Evento",
+    description: `Cronograma detallado de ponencias, horarios, escenarios y temas a tratar para el evento ${event?.name || ""}.`
+  })
 
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)

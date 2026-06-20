@@ -7,12 +7,19 @@ import { toast } from "sonner"
 import { PageHeader } from "@/components/page-header"
 import { Trash2 } from "lucide-react"
 
+import { useSEO } from "@/hooks/use-seo"
+
 export function EditEventPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { events, updateEvent, deleteEvent } = useEventStore()
 
   const event = events.find((e) => e.id === id)
+
+  useSEO({
+    title: event ? `Editar: ${event.name}` : "Editar Evento",
+    description: "Modifica los datos generales, descripción, imagen de portada, redes sociales y colores corporativos de tu evento en EventHive."
+  })
 
   const [name, setName] = useState("")
   const [shortDescription, setShortDescription] = useState("")

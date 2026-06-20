@@ -18,11 +18,18 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog"
 
+import { useSEO } from "@/hooks/use-seo"
+
 export function EventInfoSection() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { events, updateEvent, deleteEvent } = useEventStore()
   const event = events.find((e) => e.id === id)
+
+  useSEO({
+    title: event ? `${event.name} - General` : "Detalle de Evento",
+    description: event?.shortDescription || "Gestiona la información principal, colores de marca y estado del evento en EventHive."
+  })
 
   const [name, setName] = useState("")
   const [shortDescription, setShortDescription] = useState("")

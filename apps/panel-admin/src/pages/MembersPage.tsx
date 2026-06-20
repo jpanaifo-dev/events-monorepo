@@ -9,9 +9,18 @@ import { PageHeader } from "@/components/page-header"
 import { Search, X, UserPlus } from "lucide-react"
 import { OrganizationMemberRole } from "@/types/auth.types"
 
+import { useSEO } from "@/hooks/use-seo"
+
 export function MembersPage() {
   const navigate = useNavigate()
   const { user, selectedOrganization } = useAuthStore()
+
+  useSEO({
+    title: "Miembros de la Organización",
+    description: selectedOrganization 
+      ? `Administra los niveles de acceso, permisos y colaboradores en tu espacio de trabajo para ${selectedOrganization.name}.`
+      : "Administración de colaboradores de la organización en EventHive."
+  })
 
   const [members, setMembers] = useState<any[]>([])
   const [isLoadingList, setIsLoadingList] = useState(true)

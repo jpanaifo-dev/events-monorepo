@@ -13,10 +13,17 @@ declare global {
   }
 }
 
+import { useSEO } from "@/hooks/use-seo"
+
 export function BranchFormPage() {
   const navigate = useNavigate()
   const { branchId } = useParams()
   const { selectedOrganization } = useAuthStore()
+
+  useSEO({
+    title: branchId ? "Editar Sede" : "Agregar Nueva Sede",
+    description: "Configura los detalles de ubicación, mapa, dirección física y datos de contacto de la sede en EventHive."
+  })
 
   // Loading States
   const [isLoading, setIsLoading] = useState(false)

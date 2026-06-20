@@ -25,11 +25,19 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog"
 
+import { useSEO } from "@/hooks/use-seo"
+
 export function EventAttendeesSection() {
   const { id } = useParams<{ id: string }>()
-  const { attendees, addAttendee, toggleAttendeeCheckIn, deleteAttendee } = useEventStore()
+  const { events, attendees, addAttendee, toggleAttendeeCheckIn, deleteAttendee } = useEventStore()
 
+  const event = events.find((e) => e.id === id)
   const eventAttendees = attendees.filter((at) => at.eventId === id)
+
+  useSEO({
+    title: event ? `${event.name} - Participantes` : "Participantes de Evento",
+    description: `Administración de la lista de asistentes inscritos, entradas de cortesía, VIP, generales y control de asistencia (check-in) para el evento ${event?.name || ""}.`
+  })
   const checkedInCount = eventAttendees.filter((a) => a.checkedIn).length
   const vipCount = eventAttendees.filter((a) => a.ticketType === "VIP").length
   const attendanceRate = eventAttendees.length > 0 ? Math.round((checkedInCount / eventAttendees.length) * 100) : 0

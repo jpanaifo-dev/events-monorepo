@@ -87,13 +87,21 @@ function slugify(text: string): string {
     .substring(0, 80)
 }
 
+import { useSEO } from "@/hooks/use-seo"
+
 export function EventRolesSection() {
   const { id } = useParams<{ id: string }>()
-  const { roles, editions, loadRoles, addRole, updateRole, deleteRole } = useEventStore()
+  const { events, roles, editions, loadRoles, addRole, updateRole, deleteRole } = useEventStore()
 
+  const event = events.find((e) => e.id === id)
   const eventRoles = roles.filter((r) => r.mainEventId === id)
   const eventEditions = editions.filter((ed) => ed.mainEventId === id)
   const currentEdition = eventEditions.find((ed) => ed.isCurrent)
+
+  useSEO({
+    title: event ? `${event.name} - Roles` : "Roles de Participantes",
+    description: `Configura los roles personalizados de participación, credenciales, colores identificativos y privilegios para el evento ${event?.name || ""}.`
+  })
 
   const availableSuggestions = SUGGESTIONS.filter(
     (sug) => !eventRoles.some((r) => r.slug.trim().toLowerCase() === sug.slug.trim().toLowerCase())

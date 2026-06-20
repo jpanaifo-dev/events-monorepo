@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react"
+import React, { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuthStore } from "@/store/auth.store"
 import { useEventStore } from "@/store/event.store"
@@ -8,10 +8,17 @@ import { toast } from "sonner"
 import { PageHeader } from "@/components/page-header"
 import { CalendarDays } from "lucide-react"
 
+import { useSEO } from "@/hooks/use-seo"
+
 export function CreateEventPage() {
   const navigate = useNavigate()
   const { selectedOrganization } = useAuthStore()
   const { addEvent, addEdition } = useEventStore()
+
+  useSEO({
+    title: "Crear Evento",
+    description: "Registra y configura un nuevo evento con su información básica, redes sociales y detalles generales en EventHive."
+  })
 
   const [name, setName] = useState("")
   const [shortDescription, setShortDescription] = useState("")

@@ -17,9 +17,16 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ChevronsUpDown, LogOut, ArrowLeft } from "lucide-react"
 import { toast } from "sonner"
 
+import { useSEO } from "@/hooks/use-seo"
+
 export function ProfilePage() {
   const navigate = useNavigate()
   const { user, logout, setUser, selectedOrganization } = useAuthStore()
+
+  useSEO({
+    title: "Mi Perfil",
+    description: "Actualiza tu información de perfil personal, teléfono, biografía e institución en EventHive."
+  })
 
   const [firstName, setFirstName] = useState("")
   const [lastName, setLastName] = useState("")

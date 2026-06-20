@@ -16,10 +16,16 @@ import {
 } from "@/components/ui/select"
 import { Check, Loader2 } from "lucide-react"
 import { ImageUploadWithPreview } from "@/components/ImageUploadWithPreview"
+import { useSEO } from "@/hooks/use-seo"
 
 export function CreateSpeakerPage() {
   const { eventId } = useParams<{ eventId: string }>()
   const navigate = useNavigate()
+
+  useSEO({
+    title: "Agregar Ponente",
+    description: "Vincula un perfil de usuario existente o crea uno nuevo y asígnale su rol de ponente para este evento en EventHive."
+  })
 
   const { roles, editions, loadRoles, addSpeaker } = useEventStore()
 

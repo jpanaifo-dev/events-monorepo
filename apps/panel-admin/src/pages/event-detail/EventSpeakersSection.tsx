@@ -15,12 +15,20 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog"
 
+import { useSEO } from "@/hooks/use-seo"
+
 export function EventSpeakersSection() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { speakers, roles, editions, deleteSpeaker } = useEventStore()
+  const { events, speakers, roles, editions, deleteSpeaker } = useEventStore()
 
+  const event = events.find((e) => e.id === id)
   const eventSpeakers = speakers.filter((sp) => sp.eventId === id)
+
+  useSEO({
+    title: event ? `${event.name} - Ponentes` : "Ponentes de Evento",
+    description: `Listado de ponentes, expertos e invitados confirmados para el evento ${event?.name || ""}.`
+  })
 
   const handleAddClick = () => {
     navigate(`/dashboard/events/${id}/speakers/new`)

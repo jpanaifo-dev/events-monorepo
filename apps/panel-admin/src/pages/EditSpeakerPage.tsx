@@ -15,6 +15,8 @@ import {
 import { AlertTriangle } from "lucide-react"
 import { ImageUploadWithPreview } from "@/components/ImageUploadWithPreview"
 
+import { useSEO } from "@/hooks/use-seo"
+
 export function EditSpeakerPage() {
   const { eventId, speakerId } = useParams<{ eventId: string; speakerId: string }>()
   const navigate = useNavigate()
@@ -25,6 +27,11 @@ export function EditSpeakerPage() {
   const currentEdition = eventEditions.find((ed) => ed.isCurrent)
 
   const speaker = speakers.find((s) => s.id === speakerId)
+
+  useSEO({
+    title: speaker ? `Editar Ponente: ${speaker.firstName} ${speaker.lastName}` : "Editar Ponente",
+    description: "Modifica los datos personales del ponente, su biografía, fotografía y los detalles de su ponencia."
+  })
 
   // Form states
   const [email, setEmail] = useState("")

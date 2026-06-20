@@ -6,12 +6,21 @@ import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import { PageHeader } from "@/components/page-header"
 
+import { useSEO } from "@/hooks/use-seo"
+
 export function CreateEditionPage() {
   const { eventId } = useParams<{ eventId: string }>()
   const navigate = useNavigate()
   const { events, addEdition } = useEventStore()
 
   const event = events.find((e) => e.id === eventId)
+
+  useSEO({
+    title: "Nueva Edición",
+    description: event 
+      ? `Añade una nueva edición anual o periódica para el evento ${event.name} en EventHive.`
+      : "Crea una nueva edición de evento."
+  })
 
   // Form states
   const [name, setName] = useState("")
