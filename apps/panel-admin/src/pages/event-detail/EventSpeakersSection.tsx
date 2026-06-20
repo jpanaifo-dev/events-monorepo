@@ -32,7 +32,7 @@ export function EventSpeakersSection() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      
+
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border pb-3">
         <div>
@@ -65,7 +65,7 @@ export function EventSpeakersSection() {
               <tr className="bg-muted/40 text-xs font-bold text-muted-foreground border-b border-border uppercase">
                 <th className="p-3">Ponente</th>
                 <th className="p-3">Tipo de Ponente</th>
-                <th className="p-3">Charla / Taller</th>
+                <th className="p-3">Charla / Bio</th>
                 <th className="p-3">Ámbito (Edición)</th>
                 <th className="p-3 text-right">Acciones</th>
               </tr>

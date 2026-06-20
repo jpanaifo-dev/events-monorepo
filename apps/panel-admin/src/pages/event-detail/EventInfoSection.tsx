@@ -115,12 +115,9 @@ export function EventInfoSection() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      <h2 className="text-lg">Informacion del Evento</h2>
       {/* Informacion Basica */}
       <div className="border border-border rounded-xl bg-card overflow-hidden shadow-sm">
-        <div className="p-6 border-b border-border">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-primary">Informacion Basica</h2>
-        </div>
-
         <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
           <div className="md:w-1/3 space-y-1">
             <label htmlFor="evt-name" className="text-sm font-medium text-foreground">
@@ -206,12 +203,9 @@ export function EventInfoSection() {
         </div>
       </div>
 
+      <h2 className="text-lg">Contacto y Enlaces</h2>
       {/* Contacto y Enlaces */}
       <div className="border border-border rounded-xl bg-card overflow-hidden shadow-sm">
-        <div className="p-6 border-b border-border">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-primary">Contacto y Enlaces</h2>
-        </div>
-
         <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
           <div className="md:w-1/3 space-y-1">
             <label htmlFor="evt-email" className="text-sm font-medium text-foreground">Email de Contacto</label>
@@ -243,11 +237,9 @@ export function EventInfoSection() {
         </div>
       </div>
 
+      <h2 className="text-lg">Colores del Evento</h2>
       {/* Colores de Marca */}
       <div className="border border-border rounded-xl bg-card overflow-hidden shadow-sm">
-        <div className="p-6 border-b border-border">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-primary">Colores de Marca</h2>
-        </div>
         <div className="p-6 flex flex-col md:flex-row gap-6">
           <div className="space-y-2">
             <label className="text-xs font-bold uppercase text-muted-foreground">Primario</label>
@@ -305,7 +297,7 @@ export function EventInfoSection() {
 
       {/* Footer fijo */}
       <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-border bg-background/80 px-8 py-4 backdrop-blur-md">
-        <div className="max-w-4xl mx-auto flex justify-end gap-3 w-full">
+        <div className="max-w-7xl mx-auto flex justify-end gap-3 w-full">
           <Button type="button" variant="outline" onClick={() => navigate("/dashboard/events")} disabled={isSubmitting} className="cursor-pointer">
             Cancelar
           </Button>

@@ -39,7 +39,7 @@ export interface Edition {
 export interface Speaker {
   id: string
   eventId: string
-  editionId: string | null
+  editionId: string
   profileId: string
   roleId: string
   roleSlug: string
@@ -85,7 +85,7 @@ export interface ParticipantRole {
 
 export interface AddSpeakerInput {
   eventId: string
-  editionId: string | null
+  editionId: string
   profileId: string | null
   roleId: string
   firstName: string

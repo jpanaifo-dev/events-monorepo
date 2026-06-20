@@ -4,7 +4,6 @@ import { useEventStore } from "@/store/event.store"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Switch } from "@/components/ui/switch"
 import { FormFooter } from "@/components/form-footer"
 import {
   Select,
@@ -34,9 +33,7 @@ export function EditSpeakerPage() {
   const [bio, setBio] = useState("")
   const [avatar, setAvatar] = useState("")
   const [talkTitle, setTalkTitle] = useState("")
-  const [talkDescription, setTalkDescription] = useState("")
   const [selectedRoleId, setSelectedRoleId] = useState("")
-  const [isEditionSpecific, setIsEditionSpecific] = useState(false)
   const [selectedEditionId, setSelectedEditionId] = useState("")
 
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -58,9 +55,7 @@ export function EditSpeakerPage() {
       setBio(speaker.bio || "")
       setAvatar(speaker.avatar || "")
       setTalkTitle(speaker.talkTitle || "")
-      setTalkDescription(speaker.talkDescription || "")
       setSelectedRoleId(speaker.roleId || "")
-      setIsEditionSpecific(!!speaker.editionId)
       setSelectedEditionId(speaker.editionId || currentEdition?.id || "")
     }
   }, [speaker, currentEdition])
@@ -88,21 +83,21 @@ export function EditSpeakerPage() {
       setFormError("Debes seleccionar un rol para el ponente.")
       return
     }
-    if (isEditionSpecific && !selectedEditionId) {
-      setFormError("Por favor, selecciona una edición específica.")
+    if (!selectedEditionId) {
+      setFormError("Por favor, selecciona una edición.")
       return
     }
 
     setIsSubmitting(true)
 
     const payload = {
-      editionId: isEditionSpecific ? selectedEditionId : null,
+      editionId: selectedEditionId,
       roleId: selectedRoleId,
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       avatar: avatar.trim() || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(firstName + " " + lastName)}`,
       talkTitle: talkTitle.trim() || "Charla Especial",
-      talkDescription: talkDescription.trim(),
+      talkDescription: "",
       bio: bio.trim(),
     }
 
@@ -149,12 +144,9 @@ export function EditSpeakerPage() {
             </div>
           )}
 
+          <h2 className="text-lg">Información de Perfil</h2>
           {/* Card: Perfil del Ponente */}
           <div className="border border-border rounded-xl bg-card overflow-hidden shadow-sm">
-            <div className="p-6 border-b border-border">
-              <h2 className="text-sm font-medium uppercase tracking-wider text-primary">Información de Perfil</h2>
-            </div>
-
             {/* Email Row */}
             <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
               <div className="md:w-1/3 space-y-1">
@@ -248,12 +240,9 @@ export function EditSpeakerPage() {
             </div>
           </div>
 
+          <h2 className="text-lg">Charla, Rol y Ámbito</h2>
           {/* Card: Detalles de Charla y Rol */}
           <div className="border border-border rounded-xl bg-card overflow-hidden shadow-sm">
-            <div className="p-6 border-b border-border">
-              <h2 className="text-sm font-medium uppercase tracking-wider text-primary">Charla, Rol y Ámbito</h2>
-            </div>
-
             {/* Talk Title Row */}
             <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
               <div className="md:w-1/3 space-y-1">
@@ -269,25 +258,6 @@ export function EditSpeakerPage() {
                   onChange={(e) => setTalkTitle(e.target.value)}
                   placeholder="Ej. Introducción al Desarrollo Frontend Premium con React"
                   required
-                  disabled={isSubmitting}
-                />
-              </div>
-            </div>
-
-            {/* Talk Description Row */}
-            <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
-              <div className="md:w-1/3 space-y-1">
-                <label htmlFor="talkDescriptionInput" className="text-sm font-medium text-foreground">Resumen de la Charla</label>
-                <p className="text-xs text-muted-foreground">Breve resumen de la presentación.</p>
-              </div>
-              <div className="md:w-2/3 max-w-md w-full">
-                <textarea
-                  id="talkDescriptionInput"
-                  value={talkDescription}
-                  onChange={(e) => setTalkDescription(e.target.value)}
-                  placeholder="Describe brevemente de qué tratará la presentación..."
-                  rows={3}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-1 focus-visible:ring-ring text-foreground"
                   disabled={isSubmitting}
                 />
               </div>
@@ -336,49 +306,27 @@ export function EditSpeakerPage() {
             {/* Scope Row */}
             <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4">
               <div className="md:w-1/3 space-y-1">
-                <label className="text-sm font-medium text-foreground">Ámbito de Asignación</label>
-                <p className="text-xs text-muted-foreground">¿Vincular a nivel global o a una edición específica?</p>
+                <label className="text-sm font-medium text-foreground">Edición *</label>
+                <p className="text-xs text-muted-foreground">Selecciona la edición del evento a la que pertenece el ponente.</p>
               </div>
-              <div className="md:w-2/3 max-w-md w-full space-y-4">
-                <div className="flex items-center justify-between bg-muted/10 border border-border/60 p-4 rounded-xl">
-                  <div className="space-y-0.5 pr-4">
-                    <label className="text-xs font-semibold cursor-pointer select-none" htmlFor="speakerEditionSwitch">
-                      ¿Asignar a una edición específica del evento?
-                    </label>
-                    <p className="text-[10px] text-muted-foreground leading-normal">
-                      Si se apaga será global. Si se enciende, estará asignado sólo a la edición elegida.
-                    </p>
-                  </div>
-                  <Switch
-                    id="speakerEditionSwitch"
-                    checked={isEditionSpecific}
-                    onCheckedChange={setIsEditionSpecific}
-                    disabled={isSubmitting}
-                  />
-                </div>
-
-                {isEditionSpecific && (
-                  <div className="animate-in fade-in slide-in-from-top-1 duration-200">
-                    <label htmlFor="speakerEditionSelect" className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Seleccionar Edición</label>
-                    {eventEditions.length === 0 ? (
-                      <p className="text-xs text-amber-500 font-medium">
-                        No hay ediciones creadas para este evento.
-                      </p>
-                    ) : (
-                      <Select value={selectedEditionId} onValueChange={setSelectedEditionId}>
-                        <SelectTrigger id="speakerEditionSelect">
-                          <SelectValue placeholder="Selecciona una edición" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {eventEditions.map((ed) => (
-                            <SelectItem key={ed.id} value={ed.id}>
-                              {`${ed.name} (${ed.year}) ${ed.isCurrent ? "— [Actual]" : ""}`}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  </div>
+              <div className="md:w-2/3 max-w-md w-full">
+                {eventEditions.length === 0 ? (
+                  <p className="text-xs text-amber-500 font-medium">
+                    No hay ediciones creadas para este evento.
+                  </p>
+                ) : (
+                  <Select value={selectedEditionId} onValueChange={setSelectedEditionId}>
+                    <SelectTrigger id="speakerEditionSelect">
+                      <SelectValue placeholder="Selecciona una edición" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {eventEditions.map((ed) => (
+                        <SelectItem key={ed.id} value={ed.id}>
+                          {`${ed.name} (${ed.year}) ${ed.isCurrent ? "— [Actual]" : ""}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 )}
               </div>
             </div>

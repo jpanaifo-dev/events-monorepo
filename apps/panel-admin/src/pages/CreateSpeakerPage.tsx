@@ -5,7 +5,6 @@ import { supabase } from "@/utils/supabase"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { FormFooter } from "@/components/form-footer"
 import {
@@ -35,7 +34,6 @@ export function CreateSpeakerPage() {
   const [avatar, setAvatar] = useState("")
   const [talkTitle, setTalkTitle] = useState("")
   const [selectedRoleId, setSelectedRoleId] = useState("")
-  const [isEditionSpecific, setIsEditionSpecific] = useState(false)
   const [selectedEditionId, setSelectedEditionId] = useState("")
 
   // Verification states
@@ -70,10 +68,11 @@ export function CreateSpeakerPage() {
 
   // Default-select current edition
   useEffect(() => {
-    if (isEditionSpecific && currentEdition && !selectedEditionId) {
-      setSelectedEditionId(currentEdition.id)
+    if (eventEditions.length > 0 && !selectedEditionId) {
+      const defaultEd = currentEdition || eventEditions[0]
+      setSelectedEditionId(defaultEd.id)
     }
-  }, [isEditionSpecific, currentEdition, selectedEditionId])
+  }, [eventEditions, currentEdition, selectedEditionId])
 
   // Check email on blur
   const handleEmailBlur = async () => {
@@ -133,8 +132,8 @@ export function CreateSpeakerPage() {
       setFormError("Debes seleccionar un rol para el ponente.")
       return
     }
-    if (isEditionSpecific && !selectedEditionId) {
-      setFormError("Por favor, selecciona una edición específica.")
+    if (!selectedEditionId) {
+      setFormError("Por favor, selecciona una edición.")
       return
     }
 
@@ -142,7 +141,7 @@ export function CreateSpeakerPage() {
 
     const payload = {
       eventId: eventId!,
-      editionId: isEditionSpecific ? selectedEditionId : null,
+      editionId: selectedEditionId,
       profileId: profileId || null,
       roleId: selectedRoleId,
       firstName: firstName.trim(),
@@ -303,6 +302,7 @@ export function CreateSpeakerPage() {
               </div>
             </div>
           </div>
+
           <h2 className="text-lg">Charla, Rol y Ámbito</h2>
           {/* Card: Detalles de Charla y Rol */}
           <div className="border border-border rounded-xl bg-card overflow-hidden shadow-sm">
@@ -369,49 +369,27 @@ export function CreateSpeakerPage() {
             {/* Scope Row */}
             <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4">
               <div className="md:w-1/3 space-y-1">
-                <label className="text-sm font-medium text-foreground">Ámbito de Asignación</label>
-                <p className="text-xs text-muted-foreground">¿Vincular a nivel global o a una edición específica?</p>
+                <label className="text-sm font-medium text-foreground">Edición *</label>
+                <p className="text-xs text-muted-foreground">Selecciona la edición del evento a la que pertenece el ponente.</p>
               </div>
-              <div className="md:w-2/3 max-w-md w-full space-y-4">
-                <div className="flex items-center justify-between bg-muted/10 border border-border/60 p-4 rounded-xl">
-                  <div className="space-y-0.5 pr-4">
-                    <label className="text-xs font-semibold cursor-pointer select-none" htmlFor="speakerEditionSwitch">
-                      ¿Asignar a una edición específica del evento?
-                    </label>
-                    <p className="text-[10px] text-muted-foreground leading-normal">
-                      Si se apaga será global. Si se enciende, estará asignado sólo a la edición elegida.
-                    </p>
-                  </div>
-                  <Switch
-                    id="speakerEditionSwitch"
-                    checked={isEditionSpecific}
-                    onCheckedChange={setIsEditionSpecific}
-                    disabled={isSubmitting}
-                  />
-                </div>
-
-                {isEditionSpecific && (
-                  <div className="animate-in fade-in slide-in-from-top-1 duration-200">
-                    <label htmlFor="speakerEditionSelect" className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Seleccionar Edición</label>
-                    {eventEditions.length === 0 ? (
-                      <p className="text-xs text-amber-500 font-medium">
-                        No hay ediciones creadas para este evento.
-                      </p>
-                    ) : (
-                      <Select value={selectedEditionId} onValueChange={setSelectedEditionId}>
-                        <SelectTrigger id="speakerEditionSelect">
-                          <SelectValue placeholder="Selecciona una edición" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {eventEditions.map((ed) => (
-                            <SelectItem key={ed.id} value={ed.id}>
-                              {`${ed.name} (${ed.year}) ${ed.isCurrent ? "— [Actual]" : ""}`}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  </div>
+              <div className="md:w-2/3 max-w-md w-full">
+                {eventEditions.length === 0 ? (
+                  <p className="text-xs text-amber-500 font-medium">
+                    No hay ediciones creadas para este evento.
+                  </p>
+                ) : (
+                  <Select value={selectedEditionId} onValueChange={setSelectedEditionId}>
+                    <SelectTrigger id="speakerEditionSelect">
+                      <SelectValue placeholder="Selecciona una edición" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {eventEditions.map((ed) => (
+                        <SelectItem key={ed.id} value={ed.id}>
+                          {`${ed.name} (${ed.year}) ${ed.isCurrent ? "— [Actual]" : ""}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 )}
               </div>
             </div>
