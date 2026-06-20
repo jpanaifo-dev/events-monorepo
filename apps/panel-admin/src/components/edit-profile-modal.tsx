@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react"
+import { z } from "zod"
 import { useAuthStore } from "@/store/auth.store"
 import { supabase } from "@/utils/supabase"
 import { Button } from "@/components/ui/button"
@@ -57,9 +58,27 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
 
   if (!isOpen) return null
 
+  const profileSchema = z.object({
+    firstName: z.string().trim().min(1, "El nombre es requerido."),
+    lastName: z.string().trim().min(1, "El apellido es requerido."),
+    avatarUrl: z.string().trim().url("El enlace del avatar no es válido.").or(z.literal("")).optional(),
+  })
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user?.id) return
+
+    const validation = profileSchema.safeParse({
+      firstName,
+      lastName,
+      avatarUrl,
+    })
+
+    if (!validation.success) {
+      toast.error(validation.error.issues[0].message)
+      return
+    }
+
     setIsSubmitting(true)
 
     try {

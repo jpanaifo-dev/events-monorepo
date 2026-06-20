@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
+import { z } from "zod"
 import { useAuthStore } from "@/store/auth.store"
 import { supabase } from "@/utils/supabase"
 import { ThemeSwitch } from "@/components/ui/theme-switch"
@@ -85,9 +86,27 @@ export function ProfilePage() {
     }
   }
 
+  const profileSchema = z.object({
+    firstName: z.string().trim().min(1, "El nombre es requerido."),
+    lastName: z.string().trim().min(1, "El apellido es requerido."),
+    avatarUrl: z.string().trim().url("El enlace del avatar no es válido.").or(z.literal("")).optional(),
+  })
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user?.id) return
+
+    const validation = profileSchema.safeParse({
+      firstName,
+      lastName,
+      avatarUrl,
+    })
+
+    if (!validation.success) {
+      toast.error(validation.error.issues[0].message)
+      return
+    }
+
     setIsSubmitting(true)
 
     try {

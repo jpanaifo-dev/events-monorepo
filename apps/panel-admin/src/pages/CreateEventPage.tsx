@@ -1,5 +1,6 @@
 import React, { useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { z } from "zod"
 import { useAuthStore } from "@/store/auth.store"
 import { useEventStore } from "@/store/event.store"
 import { Button } from "@/components/ui/button"
@@ -43,6 +44,17 @@ export function CreateEventPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  const createEventSchema = z.object({
+    name: z.string().trim().min(1, "El nombre del evento es obligatorio."),
+    shortDescription: z.string().trim().min(1, "La descripcion corta es obligatoria."),
+    contactEmail: z.string().trim().email("El correo de contacto no es valido.").or(z.literal("")).optional(),
+    websiteUrl: z.string().trim().url("El sitio web no es valido (debe empezar con http:// o https://).").or(z.literal("")).optional(),
+    socialTwitter: z.string().trim().url("El enlace de Twitter/X no es valido (debe empezar con http:// o https://).").or(z.literal("")).optional(),
+    socialFacebook: z.string().trim().url("El enlace de Facebook no es valido (debe empezar con http:// o https://).").or(z.literal("")).optional(),
+    socialLinkedin: z.string().trim().url("El enlace de LinkedIn no es valido (debe empezar con http:// o https://).").or(z.literal("")).optional(),
+    socialInstagram: z.string().trim().url("El enlace de Instagram no es valido (debe empezar con http:// o https://).").or(z.literal("")).optional(),
+  })
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedOrganization?.id) {
@@ -50,13 +62,24 @@ export function CreateEventPage() {
       return
     }
 
-    if (!name.trim()) {
-      toast.error("El nombre del evento es obligatorio.")
+    const validation = createEventSchema.safeParse({
+      name,
+      shortDescription,
+      contactEmail,
+      websiteUrl,
+      socialTwitter,
+      socialFacebook,
+      socialLinkedin,
+      socialInstagram,
+    })
+
+    if (!validation.success) {
+      toast.error(validation.error.issues[0].message)
       return
     }
 
-    if (!shortDescription.trim()) {
-      toast.error("La descripcion corta es obligatoria.")
+    if (createEdition && !editionName.trim()) {
+      toast.error("El nombre de la edicion es obligatorio.")
       return
     }
 

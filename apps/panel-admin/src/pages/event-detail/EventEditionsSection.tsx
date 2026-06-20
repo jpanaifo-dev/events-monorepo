@@ -1,6 +1,8 @@
 import { useState } from "react"
 import { useParams } from "react-router-dom"
+import { z } from "zod"
 import { useEventStore } from "@/store/event.store"
+import { toast } from "sonner"
 import type { Edition } from "@/store/event.store"
 import { Plus, Trash2, Edit } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -78,8 +80,25 @@ export function EventEditionsSection() {
     setIsCurrent(false)
   }
 
+  const editionSchema = z.object({
+    name: z.string().trim().min(1, "El nombre de la edición es obligatorio."),
+    startDate: z.string().min(1, "La fecha de inicio es requerida."),
+    endDate: z.string().min(1, "La fecha de fin es requerida."),
+  })
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    const validation = editionSchema.safeParse({
+      name,
+      startDate,
+      endDate,
+    })
+
+    if (!validation.success) {
+      toast.error(validation.error.issues[0].message)
+      return
+    }
     if (editingId) {
       await updateEdition(editingId, { name, description, startDate, endDate, isCurrent })
     } else {

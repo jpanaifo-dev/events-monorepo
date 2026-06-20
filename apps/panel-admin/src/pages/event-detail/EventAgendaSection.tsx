@@ -1,6 +1,8 @@
 import { useState } from "react"
 import { useParams } from "react-router-dom"
+import { z } from "zod"
 import { useEventStore } from "@/store/event.store"
+import { toast } from "sonner"
 import type { AgendaItem } from "@/store/event.store"
 import { Plus, Edit2, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -75,8 +77,25 @@ export function EventAgendaSection() {
     setSpeakerId("")
   }
 
+  const agendaItemSchema = z.object({
+    timeSlot: z.string().trim().min(1, "El horario es obligatorio."),
+    title: z.string().trim().min(1, "El título es obligatorio."),
+    stage: z.string().trim().min(1, "El escenario es obligatorio."),
+  })
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    const validation = agendaItemSchema.safeParse({
+      timeSlot,
+      title,
+      stage,
+    })
+
+    if (!validation.success) {
+      toast.error(validation.error.issues[0].message)
+      return
+    }
     if (editingId) {
       await updateAgendaItem(editingId, { timeSlot, title, stage, speakerId })
     } else {

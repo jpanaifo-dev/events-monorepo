@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
 import { useParams } from "react-router-dom"
+import { z } from "zod"
 import { useEventStore } from "@/store/event.store"
 import type { ParticipantRole } from "@/store/event.store"
 import { Plus, Trash2, Edit, Shield, Sparkles, Check } from "lucide-react"
@@ -195,17 +196,24 @@ export function EventRolesSection() {
     setAutoSlug(false)
   }
 
+  const roleFormSchema = z.object({
+    nameEs: z.string().trim().min(1, "El nombre en español es obligatorio."),
+    nameEn: z.string().trim().optional(),
+    slug: z.string().trim().min(1, "El slug es obligatorio.").regex(/^[a-z0-9-]+$/, "El slug solo debe contener letras minúsculas, números y guiones."),
+  })
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     setFormError("")
 
-    if (!nameEs.trim()) {
-      setFormError("El nombre en español es obligatorio.")
-      return
-    }
+    const validation = roleFormSchema.safeParse({
+      nameEs,
+      nameEn,
+      slug,
+    })
 
-    if (!slug.trim()) {
-      setFormError("El slug es obligatorio.")
+    if (!validation.success) {
+      setFormError(validation.error.issues[0].message)
       return
     }
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
+import { z } from "zod"
 import { useAuthStore } from "@/store/auth.store"
 import { supabase } from "@/utils/supabase"
 import { Button } from "@/components/ui/button"
@@ -223,9 +224,22 @@ export function MembersPage() {
     toast.success(`Usuario seleccionado: ${selectedProfile.email}`)
   }
 
+  const inviteMemberSchema = z.object({
+    email: z.string().trim().min(1, "El correo electrónico es requerido.").email("Por favor, introduce un correo electrónico válido."),
+  })
+
   const handleInviteMember = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedOrganization?.id || !inviteEmail.trim()) return
+    if (!selectedOrganization?.id) return
+
+    const validation = inviteMemberSchema.safeParse({
+      email: inviteEmail,
+    })
+
+    if (!validation.success) {
+      toast.error(validation.error.issues[0].message)
+      return
+    }
 
     setIsInviting(true)
     try {

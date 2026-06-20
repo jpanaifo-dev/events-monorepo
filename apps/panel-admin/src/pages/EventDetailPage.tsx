@@ -84,7 +84,7 @@ export function EventDetailPage() {
   const basePath = `/dashboard/events/${event.id}`
 
   const getLinkClass = ({ isActive }: { isActive: boolean }) =>
-    `flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors shrink-0 ${isActive
+    `flex items-center gap-2 px-4 py-2.5 text-sm border-b-2 transition-colors shrink-0 ${isActive
       ? "border-primary text-primary font-bold"
       : "border-transparent text-muted-foreground hover:text-foreground"
     }`

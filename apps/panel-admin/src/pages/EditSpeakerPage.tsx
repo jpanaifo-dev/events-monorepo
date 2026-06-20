@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
+import { z } from "zod"
 import { useEventStore } from "@/store/event.store"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
@@ -74,24 +75,28 @@ export function EditSpeakerPage() {
   const speakerRole = activeRoles.find((r) => r.slug === "speaker")
   const keynoteRole = activeRoles.find((r) => r.slug === "keynote-speaker")
 
+  const speakerEditFormSchema = z.object({
+    firstName: z.string().trim().min(1, "El nombre es obligatorio."),
+    lastName: z.string().trim().min(1, "El apellido es obligatorio."),
+    bio: z.string().trim().min(1, "La biografía del ponente es obligatoria."),
+    selectedRoleId: z.string().min(1, "Debes seleccionar un rol para el ponente."),
+    selectedEditionId: z.string().min(1, "Por favor, selecciona una edición."),
+  })
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     setFormError("")
 
-    if (!firstName.trim()) {
-      setFormError("El nombre es obligatorio.")
-      return
-    }
-    if (!lastName.trim()) {
-      setFormError("El apellido es obligatorio.")
-      return
-    }
-    if (!selectedRoleId) {
-      setFormError("Debes seleccionar un rol para el ponente.")
-      return
-    }
-    if (!selectedEditionId) {
-      setFormError("Por favor, selecciona una edición.")
+    const result = speakerEditFormSchema.safeParse({
+      firstName,
+      lastName,
+      bio,
+      selectedRoleId,
+      selectedEditionId,
+    })
+
+    if (!result.success) {
+      setFormError(result.error.issues[0].message)
       return
     }
 

@@ -1,6 +1,8 @@
 import { useState } from "react"
 import { useParams } from "react-router-dom"
+import { z } from "zod"
 import { useEventStore } from "@/store/event.store"
+import { toast } from "sonner"
 import { Plus, Trash2, UserCheck, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -54,8 +56,23 @@ export function EventAttendeesSection() {
     setTicket("General")
   }
 
+  const attendeeSchema = z.object({
+    fullName: z.string().trim().min(1, "El nombre completo es obligatorio."),
+    email: z.string().trim().min(1, "El correo es obligatorio.").email("Por favor, introduce un correo electrónico válido."),
+  })
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    const validation = attendeeSchema.safeParse({
+      fullName: name,
+      email,
+    })
+
+    if (!validation.success) {
+      toast.error(validation.error.issues[0].message)
+      return
+    }
     await addAttendee({
       eventId: id!,
       fullName: name,
