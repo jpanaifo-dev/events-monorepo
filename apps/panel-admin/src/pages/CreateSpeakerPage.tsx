@@ -37,12 +37,12 @@ export function CreateSpeakerPage() {
   const [selectedRoleId, setSelectedRoleId] = useState("")
   const [isEditionSpecific, setIsEditionSpecific] = useState(false)
   const [selectedEditionId, setSelectedEditionId] = useState("")
-  
+
   // Verification states
   const [profileId, setProfileId] = useState("")
   const [isCheckingEmail, setIsCheckingEmail] = useState(false)
   const [isProfileFound, setIsProfileFound] = useState<boolean | null>(null)
-  
+
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formError, setFormError] = useState("")
 
@@ -183,13 +183,9 @@ export function CreateSpeakerPage() {
               {formError}
             </div>
           )}
-
+          <h2 className="text-lg">Información de Perfil</h2>
           {/* Card: Perfil del Ponente */}
           <div className="border border-border rounded-xl bg-card overflow-hidden shadow-sm">
-            <div className="p-6 border-b border-border">
-              <h2 className="text-sm font-medium uppercase tracking-wider text-primary">Información de Perfil</h2>
-            </div>
-
             {/* Email Row */}
             <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
               <div className="md:w-1/3 space-y-1">

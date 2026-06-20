@@ -94,12 +94,11 @@ export function SelectContent({
   const context = React.useContext(SelectContext)
   if (!context) throw new Error("SelectContent must be used within a Select")
 
-  if (!context.open) return null
-
   return (
     <div
       className={cn(
         "absolute z-50 min-w-[8rem] overflow-hidden rounded-md border bg-card text-foreground shadow-md animate-in fade-in-80 slide-in-from-top-1 w-full max-h-60 overflow-y-auto mt-1 left-0 border-border",
+        !context.open && "hidden",
         className
       )}
       {...props}
