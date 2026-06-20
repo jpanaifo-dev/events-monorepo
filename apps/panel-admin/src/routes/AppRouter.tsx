@@ -25,6 +25,7 @@ import {
   EventAgendaSection,
   EventAttendeesSection,
   EventRolesSection,
+  EventThematicLinesSection,
 } from "@/pages/event-detail"
 
 export function AppRouter() {
@@ -155,6 +156,7 @@ export function AppRouter() {
           <Route path="agenda" element={<EventAgendaSection />} />
           <Route path="attendees" element={<EventAttendeesSection />} />
           <Route path="roles" element={<EventRolesSection />} />
+          <Route path="thematic-lines" element={<EventThematicLinesSection />} />
         </Route>
 
         {/* Fallback redirect */}

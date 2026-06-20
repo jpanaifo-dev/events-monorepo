@@ -83,6 +83,19 @@ export interface ParticipantRole {
   createdAt: string
 }
 
+export interface ThematicLine {
+  id: string
+  mainEventId: string
+  editionId: string | null
+  name: string
+  description: string | null
+  iconUrl: string | null
+  colorHex: string | null
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
 export interface AddSpeakerInput {
   eventId: string
   editionId: string
@@ -110,6 +123,7 @@ interface EventState {
   agendaItems: AgendaItem[]
   attendees: Attendee[]
   roles: ParticipantRole[]
+  thematicLines: ThematicLine[]
   isLoading: boolean
 
   loadData: (organizationId: string, filters?: EventFilters) => Promise<void>
@@ -118,6 +132,11 @@ interface EventState {
   addRole: (role: Omit<ParticipantRole, "id" | "createdAt">) => Promise<void>
   updateRole: (id: string, updates: Partial<Omit<ParticipantRole, "id" | "createdAt">>) => Promise<void>
   deleteRole: (id: string) => Promise<void>
+
+  loadThematicLines: (mainEventId: string) => Promise<void>
+  addThematicLine: (thematicLine: Omit<ThematicLine, "id" | "createdAt" | "updatedAt">) => Promise<void>
+  updateThematicLine: (id: string, updates: Partial<Omit<ThematicLine, "id" | "createdAt" | "updatedAt">>) => Promise<void>
+  deleteThematicLine: (id: string) => Promise<void>
 
   addEvent: (event: Omit<Event, "id" | "createdAt" | "updatedAt" | "ownerId" | "slug">) => Promise<string>
   updateEvent: (id: string, updates: Partial<Event>) => Promise<void>
@@ -201,6 +220,21 @@ function mapParticipantRole(row: any): ParticipantRole {
   }
 }
 
+function mapThematicLine(row: any): ThematicLine {
+  return {
+    id: row.id,
+    mainEventId: row.main_event_id,
+    editionId: row.edition_id,
+    name: row.name,
+    description: row.description || null,
+    iconUrl: row.icon_url || null,
+    colorHex: row.color_hex || "#000000",
+    isActive: row.is_active !== false,
+    createdAt: row.created_at || "",
+    updatedAt: row.updated_at || "",
+  }
+}
+
 export const useEventStore = create<EventState>((set, get) => ({
   events: [],
   editions: [],
@@ -208,6 +242,7 @@ export const useEventStore = create<EventState>((set, get) => ({
   agendaItems: [],
   attendees: [],
   roles: [],
+  thematicLines: [],
   isLoading: false,
 
   loadData: async (organizationId, filters) => {
@@ -345,13 +380,28 @@ export const useEventStore = create<EventState>((set, get) => ({
         }
       }
 
+      // Fetch thematic lines
+      let formattedThematicLines: ThematicLine[] = []
+      if (mainEventIds.length > 0) {
+        const { data: thematicLinesData } = await supabase
+          .from("thematic_lines")
+          .select("*")
+          .in("main_event_id", mainEventIds)
+          .order("created_at", { ascending: false })
+
+        if (thematicLinesData) {
+          formattedThematicLines = thematicLinesData.map(mapThematicLine)
+        }
+      }
+
       set({
         events: formattedEvents,
         editions: formattedEditions,
         speakers: formattedSpeakers,
         agendaItems: formattedAgenda,
         attendees: formattedAttendees,
-        roles: formattedRoles
+        roles: formattedRoles,
+        thematicLines: formattedThematicLines
       })
     } catch (e) {
       console.error("Error loading events:", e)
@@ -452,6 +502,7 @@ export const useEventStore = create<EventState>((set, get) => ({
         await supabase.from("event_participants").delete().in("edition_id", editionIds)
       }
       await supabase.from("event_activities").delete().eq("event_id", id)
+      await supabase.from("thematic_lines").delete().eq("main_event_id", id)
       await supabase.from("editions").delete().eq("main_event_id", id)
       await supabase.from("main_events").delete().eq("id", id)
 
@@ -460,7 +511,8 @@ export const useEventStore = create<EventState>((set, get) => ({
         editions: state.editions.filter((ed) => ed.mainEventId !== id),
         speakers: state.speakers.filter((s) => s.eventId !== id),
         agendaItems: state.agendaItems.filter((a) => a.eventId !== id),
-        attendees: state.attendees.filter((at) => at.eventId !== id)
+        attendees: state.attendees.filter((at) => at.eventId !== id),
+        thematicLines: state.thematicLines.filter((tl) => tl.mainEventId !== id)
       }))
     } catch (e) {
       console.error("Error deleting event:", e)
@@ -541,10 +593,12 @@ export const useEventStore = create<EventState>((set, get) => ({
   deleteEdition: async (id) => {
     try {
       await supabase.from("event_participants").delete().eq("edition_id", id)
+      await supabase.from("thematic_lines").delete().eq("edition_id", id)
       await supabase.from("editions").delete().eq("id", id)
 
       set((state) => ({
-        editions: state.editions.filter((ed) => ed.id !== id)
+        editions: state.editions.filter((ed) => ed.id !== id),
+        thematicLines: state.thematicLines.filter((tl) => tl.editionId !== id)
       }))
     } catch (e) {
       console.error("Error deleting edition:", e)
@@ -1099,6 +1153,116 @@ export const useEventStore = create<EventState>((set, get) => ({
       }))
     } catch (e) {
       console.error("Error deleting role:", e)
+      throw e
+    }
+  },
+
+  loadThematicLines: async (mainEventId) => {
+    try {
+      const { data, error } = await supabase
+        .from("thematic_lines")
+        .select("*")
+        .eq("main_event_id", mainEventId)
+        .order("created_at", { ascending: false })
+
+      if (error) throw error
+
+      const mapped = (data || []).map(mapThematicLine)
+      set((state) => {
+        const others = state.thematicLines.filter((tl) => tl.mainEventId !== mainEventId)
+        return { thematicLines: [...others, ...mapped] }
+      })
+    } catch (e) {
+      console.error("Error loading thematic lines:", e)
+    }
+  },
+
+  addThematicLine: async (thematicLineData) => {
+    try {
+      const id = crypto.randomUUID()
+      const newTl = {
+        id,
+        main_event_id: thematicLineData.mainEventId,
+        edition_id: thematicLineData.editionId,
+        name: thematicLineData.name,
+        description: thematicLineData.description,
+        icon_url: thematicLineData.iconUrl,
+        color_hex: thematicLineData.colorHex,
+        is_active: thematicLineData.isActive,
+      }
+
+      const { error } = await supabase
+        .from("thematic_lines")
+        .insert([newTl])
+
+      if (error) throw error
+
+      const mapped: ThematicLine = {
+        id,
+        mainEventId: thematicLineData.mainEventId,
+        editionId: thematicLineData.editionId,
+        name: thematicLineData.name,
+        description: thematicLineData.description,
+        iconUrl: thematicLineData.iconUrl,
+        colorHex: thematicLineData.colorHex,
+        isActive: thematicLineData.isActive,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }
+
+      set((state) => ({
+        thematicLines: [mapped, ...state.thematicLines]
+      }))
+    } catch (e) {
+      console.error("Error adding thematic line:", e)
+      throw e
+    }
+  },
+
+  updateThematicLine: async (id, updates) => {
+    try {
+      const dbUpdates: any = {}
+      if (updates.mainEventId !== undefined) dbUpdates.main_event_id = updates.mainEventId
+      if (updates.editionId !== undefined) dbUpdates.edition_id = updates.editionId
+      if (updates.name !== undefined) dbUpdates.name = updates.name
+      if (updates.description !== undefined) dbUpdates.description = updates.description
+      if (updates.iconUrl !== undefined) dbUpdates.icon_url = updates.iconUrl
+      if (updates.colorHex !== undefined) dbUpdates.color_hex = updates.colorHex
+      if (updates.isActive !== undefined) dbUpdates.is_active = updates.isActive
+      dbUpdates.updated_at = new Date().toISOString()
+
+      const { error } = await supabase
+        .from("thematic_lines")
+        .update(dbUpdates)
+        .eq("id", id)
+
+      if (error) throw error
+
+      set((state) => ({
+        thematicLines: state.thematicLines.map((tl) =>
+          tl.id === id ? { ...tl, ...updates, updatedAt: new Date().toISOString() } : tl
+        )
+      }))
+    } catch (e) {
+      console.error("Error updating thematic line:", e)
+      throw e
+    }
+  },
+
+  deleteThematicLine: async (id) => {
+    try {
+      const { error } = await supabase
+        .from("thematic_lines")
+        .delete()
+        .eq("id", id)
+
+      if (error) throw error
+
+      set((state) => ({
+        thematicLines: state.thematicLines.filter((tl) => tl.id !== id)
+      }))
+    } catch (e) {
+      console.error("Error deleting thematic line:", e)
       throw e
     }
   }

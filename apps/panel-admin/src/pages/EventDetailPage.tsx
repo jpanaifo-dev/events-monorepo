@@ -14,13 +14,14 @@ const NAV_ITEMS = [
   { to: "agenda", label: "Agenda" },
   { to: "attendees", label: "Participantes" },
   { to: "roles", label: "Roles" },
+  { to: "thematic-lines", label: "Líneas Temáticas" },
 ]
 
 export function EventDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { selectedOrganization } = useAuthStore()
-  const { events, editions, speakers, agendaItems, attendees, roles, isLoading, loadData, loadRoles } = useEventStore()
+  const { events, editions, speakers, agendaItems, attendees, roles, thematicLines, isLoading, loadData, loadRoles } = useEventStore()
 
   useEffect(() => {
     if (selectedOrganization?.id) {
@@ -41,6 +42,7 @@ export function EventDetailPage() {
   const eventAgenda = agendaItems.filter((ag) => ag.eventId === id)
   const eventAttendees = attendees.filter((at) => at.eventId === id)
   const eventRoles = roles.filter((r) => r.mainEventId === id)
+  const eventThematicLines = thematicLines.filter((tl) => tl.mainEventId === id)
 
   const counts: Record<string, number> = {
     editions: eventEditions.length,
@@ -48,6 +50,7 @@ export function EventDetailPage() {
     agenda: eventAgenda.length,
     attendees: eventAttendees.length,
     roles: eventRoles.length,
+    "thematic-lines": eventThematicLines.length,
   }
 
   if (isLoading && !event) {
