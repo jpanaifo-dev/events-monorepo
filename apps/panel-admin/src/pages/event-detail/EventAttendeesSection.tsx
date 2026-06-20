@@ -176,13 +176,13 @@ export function EventAttendeesSection() {
 
       {/* Sheet Create */}
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-        <SheetContent side="right" className="sm:max-w-md">
+        <SheetContent side="right" className="w-full sm:max-w-md">
           <SheetHeader>
             <SheetTitle>Inscribir Participante</SheetTitle>
             <SheetDescription>Datos del boleto del asistente.</SheetDescription>
           </SheetHeader>
 
-          <form onSubmit={handleSave} className="space-y-4 px-4">
+          <form onSubmit={handleSave} className="space-y-4 px-4 flex-1 overflow-y-auto pb-6">
             <FieldGroup>
               <Field>
                 <FieldLabel htmlFor="atName">Nombre Completo</FieldLabel>

@@ -172,13 +172,13 @@ export function EventAgendaSection() {
 
       {/* Sheet Create/Edit */}
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-        <SheetContent side="right" className="sm:max-w-md">
+        <SheetContent side="right" className="w-full sm:max-w-md">
           <SheetHeader>
             <SheetTitle>{editingId ? "Editar Sesión" : "Nueva Sesión"}</SheetTitle>
             <SheetDescription>Define el horario, título y expositor.</SheetDescription>
           </SheetHeader>
 
-          <form onSubmit={handleSave} className="space-y-4 px-4">
+          <form onSubmit={handleSave} className="space-y-4 px-4 flex-1 overflow-y-auto pb-6">
             <FieldGroup>
               <Field>
                 <FieldLabel htmlFor="agTime">Horario</FieldLabel>

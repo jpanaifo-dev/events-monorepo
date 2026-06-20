@@ -438,7 +438,7 @@ export function EventRolesSection() {
 
       {/* Creation/Editing Sheet Form */}
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-        <SheetContent side="right" className="sm:max-w-md">
+        <SheetContent side="right" className="w-full sm:max-w-md">
           <SheetHeader>
             <SheetTitle>{editingId ? "Editar Rol" : "Nuevo Rol de Participante"}</SheetTitle>
             <SheetDescription>
@@ -446,7 +446,7 @@ export function EventRolesSection() {
             </SheetDescription>
           </SheetHeader>
 
-          <form onSubmit={handleSave} className="space-y-5 px-4 mt-6">
+          <form onSubmit={handleSave} className="space-y-5 px-4 mt-6 flex-1 overflow-y-auto pb-6">
             
             {formError && (
               <div className="p-3 text-xs bg-destructive/15 text-destructive rounded-lg border border-destructive/20 font-medium">
