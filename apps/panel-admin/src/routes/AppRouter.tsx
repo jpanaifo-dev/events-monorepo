@@ -33,6 +33,15 @@ import {
   EventRolesSection,
   EventThematicLinesSection,
 } from "@/pages/event-detail"
+import {
+  ProfilesPage,
+  ProfileManageLayout,
+  ProfileManageInfoSection,
+  ProfileManageExperienceSection,
+  ProfileManageEducationSection,
+  ProfileManageCertificationsSection,
+  ProfileManageDangerSection,
+} from "@/pages/profiles"
 
 export function AppRouter() {
   return (
@@ -89,6 +98,9 @@ export function AppRouter() {
 
           {/* Events Catalog */}
           <Route path="events" element={<EventsPage />} />
+
+          {/* Registered Profiles Catalog */}
+          <Route path="profiles" element={<ProfilesPage />} />
 
           {/* Settings Page */}
           <Route path="settings/business" element={<OrganizationSettingsPage />} />
@@ -169,6 +181,23 @@ export function AppRouter() {
           <Route path="attendees" element={<EventAttendeesSection />} />
           <Route path="roles" element={<EventRolesSection />} />
           <Route path="thematic-lines" element={<EventThematicLinesSection />} />
+        </Route>
+
+        {/* Profiles Detail - Standalone (no admin layout) */}
+        <Route
+          path="/dashboard/profiles/:profileId"
+          element={
+            <AuthGuard requireSelectedOrganization={true}>
+              <ProfileManageLayout />
+            </AuthGuard>
+          }
+        >
+          <Route index element={<Navigate to="info" replace />} />
+          <Route path="info" element={<ProfileManageInfoSection />} />
+          <Route path="experience" element={<ProfileManageExperienceSection />} />
+          <Route path="education" element={<ProfileManageEducationSection />} />
+          <Route path="certifications" element={<ProfileManageCertificationsSection />} />
+          <Route path="danger" element={<ProfileManageDangerSection />} />
         </Route>
 
         {/* Fallback redirect */}

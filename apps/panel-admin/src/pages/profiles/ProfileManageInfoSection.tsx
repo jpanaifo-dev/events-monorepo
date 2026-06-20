@@ -1,0 +1,304 @@
+import React, { useState, useEffect } from "react"
+import { useParams } from "react-router-dom"
+import { z } from "zod"
+import { useAdminProfilesStore } from "@/store/admin-profiles.store"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { toast } from "sonner"
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select"
+import { useSEO } from "@/hooks/use-seo"
+
+export function ProfileManageInfoSection() {
+  const { profileId } = useParams<{ profileId: string }>()
+  const { profiles, updateProfile } = useAdminProfilesStore()
+  const targetProfile = profiles.find((p) => p.id === profileId)
+
+  useSEO({
+    title: targetProfile ? `Gestionar Perfil - ${targetProfile.firstName}` : "Gestionar Perfil",
+    description: "Configura la información y privilegios de acceso del perfil seleccionado."
+  })
+
+  const [firstName, setFirstName] = useState("")
+  const [lastName, setLastName] = useState("")
+  const [phone, setPhone] = useState("")
+  const [bio, setBio] = useState("")
+  const [institution, setInstitution] = useState("")
+  const [dedication, setDedication] = useState("")
+  const [avatarUrl, setAvatarUrl] = useState("")
+  const [globalRole, setGlobalRole] = useState("user")
+  const [accountType, setAccountType] = useState("basic")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (targetProfile) {
+      setFirstName(targetProfile.firstName || "")
+      setLastName(targetProfile.lastName || "")
+      setPhone(targetProfile.phone || "")
+      setBio(targetProfile.bio || "")
+      setInstitution(targetProfile.institution || "")
+      setDedication(targetProfile.dedication || "")
+      setAvatarUrl(targetProfile.avatarUrl || "")
+      setGlobalRole(targetProfile.globalRole || "user")
+      setAccountType(targetProfile.accountType || "basic")
+    }
+  }, [targetProfile])
+
+  const profileSchema = z.object({
+    firstName: z.string().trim().min(1, "El nombre es requerido."),
+    lastName: z.string().trim().min(1, "El apellido es requerido."),
+    avatarUrl: z.string().trim().url("El enlace del avatar no es válido.").or(z.literal("")).optional(),
+    globalRole: z.string(),
+    accountType: z.string(),
+  })
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!profileId) return
+
+    const validation = profileSchema.safeParse({
+      firstName,
+      lastName,
+      avatarUrl,
+      globalRole,
+      accountType,
+    })
+
+    if (!validation.success) {
+      toast.error(validation.error.issues[0].message)
+      return
+    }
+
+    setIsSubmitting(true)
+
+    try {
+      await updateProfile(profileId, {
+        firstName,
+        lastName,
+        phone: phone || null,
+        bio: bio || null,
+        institution: institution || null,
+        dedication: dedication || null,
+        avatarUrl: avatarUrl || null,
+        globalRole,
+        accountType,
+      })
+
+      toast.success("Perfil actualizado con éxito")
+    } catch (err: any) {
+      console.error(err)
+      toast.error(err.message || "Error al guardar los cambios.")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  if (!targetProfile) {
+    return (
+      <div className="p-8 text-center text-muted-foreground border border-dashed border-border rounded-xl">
+        Cargando información del perfil...
+      </div>
+    )
+  }
+
+  return (
+    <form onSubmit={handleSave} className="space-y-6 animate-in fade-in duration-200">
+      <div className="border border-border rounded-xl bg-card overflow-hidden">
+        {/* Email Row (Disabled) */}
+        <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+          <div className="md:w-1/3 space-y-1">
+            <label className="text-sm font-medium text-foreground">Correo Electrónico</label>
+            <p className="text-xs text-muted-foreground">La dirección de correo de este usuario.</p>
+          </div>
+          <div className="md:w-2/3 max-w-md w-full">
+            <div className="flex items-stretch rounded-md border border-input bg-muted/35 overflow-hidden text-sm px-3 py-2 select-none text-muted-foreground">
+              <span className="flex-1 truncate">{targetProfile.email}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Name Row */}
+        <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+          <div className="md:w-1/3 space-y-1">
+            <label htmlFor="first-name" className="text-sm font-medium text-foreground">
+              Nombre <span className="text-destructive">*</span>
+            </label>
+          </div>
+          <div className="md:w-2/3 max-w-md w-full">
+            <Input
+              id="first-name"
+              type="text"
+              placeholder="Ej. Juan"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              required
+              disabled={isSubmitting}
+            />
+          </div>
+        </div>
+
+        {/* Last Name Row */}
+        <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+          <div className="md:w-1/3 space-y-1">
+            <label htmlFor="last-name" className="text-sm font-medium text-foreground">
+              Apellido <span className="text-destructive">*</span>
+            </label>
+          </div>
+          <div className="md:w-2/3 max-w-md w-full">
+            <Input
+              id="last-name"
+              type="text"
+              placeholder="Ej. Pérez"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              required
+              disabled={isSubmitting}
+            />
+          </div>
+        </div>
+
+        {/* Phone Row */}
+        <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+          <div className="md:w-1/3 space-y-1">
+            <label htmlFor="phone" className="text-sm font-medium text-foreground">Teléfono</label>
+          </div>
+          <div className="md:w-2/3 max-w-md w-full">
+            <Input
+              id="phone"
+              type="tel"
+              placeholder="Ej. +51 987654321"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              disabled={isSubmitting}
+            />
+          </div>
+        </div>
+
+        {/* Avatar URL Row */}
+        <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+          <div className="md:w-1/3 space-y-1">
+            <label htmlFor="avatar-url" className="text-sm font-medium text-foreground">Enlace del Avatar (URL)</label>
+          </div>
+          <div className="md:w-2/3 max-w-md w-full">
+            <Input
+              id="avatar-url"
+              type="url"
+              placeholder="https://ejemplo.com/foto.png"
+              value={avatarUrl}
+              onChange={(e) => setAvatarUrl(e.target.value)}
+              disabled={isSubmitting}
+            />
+          </div>
+        </div>
+
+        {/* Institution Row */}
+        <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+          <div className="md:w-1/3 space-y-1">
+            <label htmlFor="institution" className="text-sm font-medium text-foreground">Institución</label>
+          </div>
+          <div className="md:w-2/3 max-w-md w-full">
+            <Input
+              id="institution"
+              type="text"
+              placeholder="Ej. Universidad o Empresa"
+              value={institution}
+              onChange={(e) => setInstitution(e.target.value)}
+              disabled={isSubmitting}
+            />
+          </div>
+        </div>
+
+        {/* Dedication Row */}
+        <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+          <div className="md:w-1/3 space-y-1">
+            <label htmlFor="dedication" className="text-sm font-medium text-foreground">Dedicación / Rol Profesional</label>
+          </div>
+          <div className="md:w-2/3 max-w-md w-full">
+            <Input
+              id="dedication"
+              type="text"
+              placeholder="Ej. Desarrollador, Diseñador, Investigador"
+              value={dedication}
+              onChange={(e) => setDedication(e.target.value)}
+              disabled={isSubmitting}
+            />
+          </div>
+        </div>
+
+        {/* Bio Row */}
+        <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+          <div className="md:w-1/3 space-y-1">
+            <label htmlFor="bio" className="text-sm font-medium text-foreground">Biografía</label>
+          </div>
+          <div className="md:w-2/3 max-w-md w-full">
+            <textarea
+              id="bio"
+              rows={4}
+              placeholder="Escribe algo sobre ti..."
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              className="w-full px-3 py-2 text-sm bg-background border border-input rounded-md outline-none focus:ring-2 focus:ring-ring/50 text-foreground"
+              disabled={isSubmitting}
+            />
+          </div>
+        </div>
+
+        {/* Global Role Row (Admin Specific) */}
+        <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border bg-rose-500/[0.02]">
+          <div className="md:w-1/3 space-y-1">
+            <label htmlFor="globalRole" className="text-sm font-medium text-rose-500">Rol Global del Sistema</label>
+            <p className="text-xs text-muted-foreground">Configura el acceso administrativo de este usuario.</p>
+          </div>
+          <div className="md:w-2/3 max-w-md w-full">
+            <Select value={globalRole} onValueChange={setGlobalRole}>
+              <SelectTrigger id="globalRole" disabled={isSubmitting}>
+                <SelectValue placeholder="Selecciona un rol" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="user">Usuario Regular</SelectItem>
+                <SelectItem value="admin">Administrador del Sistema</SelectItem>
+                <SelectItem value="developer">Developer</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Account Type Row (Admin Specific) */}
+        <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border bg-blue-500/[0.02]">
+          <div className="md:w-1/3 space-y-1">
+            <label htmlFor="accountType" className="text-sm font-medium text-blue-500">Tipo de Plan / Cuenta</label>
+            <p className="text-xs text-muted-foreground">Determina el nivel de suscripción y límites del usuario.</p>
+          </div>
+          <div className="md:w-2/3 max-w-md w-full">
+            <Select value={accountType} onValueChange={setAccountType}>
+              <SelectTrigger id="accountType" disabled={isSubmitting}>
+                <SelectValue placeholder="Selecciona un tipo de cuenta" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="basic">Gratuito</SelectItem>
+                <SelectItem value="premium">Premium</SelectItem>
+                <SelectItem value="enterprise">Enterprise</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Actions Row */}
+        <div className="bg-muted/10 px-6 py-4 flex justify-end gap-3">
+          <Button
+            type="submit"
+            disabled={isSubmitting}
+            className="font-medium px-5 transition-colors"
+          >
+            {isSubmitting ? "Guardando..." : "Guardar Cambios"}
+          </Button>
+        </div>
+      </div>
+    </form>
+  )
+}

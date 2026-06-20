@@ -5,25 +5,17 @@ const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-async function checkTable(tableName) {
+async function main() {
   const { data, error } = await supabase
-    .from(tableName)
+    .from("profiles")
     .select('*')
     .limit(1);
 
   if (error) {
-    console.log(`Table ${tableName}: ERROR - ${error.message} (${error.code})`);
+    console.error(error);
   } else {
-    console.log(`Table ${tableName}: EXISTS (Found ${data.length} rows)`);
+    console.log("Profiles columns:", Object.keys(data[0] || {}));
   }
-}
-
-async function main() {
-  console.log("Checking tables...");
-  await checkTable("profiles");
-  await checkTable("education");
-  await checkTable("employment_history");
-  await checkTable("certifications");
 }
 
 main().catch(console.error);
