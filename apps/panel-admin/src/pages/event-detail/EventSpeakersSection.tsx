@@ -47,7 +47,8 @@ export function EventSpeakersSection() {
   const eventEditions = editions.filter((ed) => ed.mainEventId === id)
 
   const searchQuery = searchParams.get("search") || ""
-  const editionFilter = searchParams.get("edition") || "all"
+  const currentEdition = eventEditions.find((ed) => ed.isCurrent)
+  const editionFilter = searchParams.get("edition") || currentEdition?.id || "all"
 
   const [localSearch, setLocalSearch] = useState(searchQuery)
 
@@ -83,7 +84,7 @@ export function EventSpeakersSection() {
   const handleEditionChange = (val: string) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev)
-      if (val && val !== "all") {
+      if (val) {
         next.set("edition", val)
       } else {
         next.delete("edition")
