@@ -4,7 +4,13 @@ import { LoginPage } from "@/pages/LoginPage"
 import { OrganizationsPage } from "@/pages/OrganizationsPage"
 import { OrganizationSettingsPage } from "@/pages/OrganizationSettingsPage"
 import { CreateOrganizationPage } from "@/pages/CreateOrganizationPage"
-import { ProfilePage } from "@/pages/ProfilePage"
+import {
+  ProfileLayout,
+  ProfileInfoSection,
+  ProfileExperienceSection,
+  ProfileEducationSection,
+  ProfileCertificationsSection,
+} from "@/pages/profile"
 import { EventsPage } from "@/pages/EventsPage"
 import { EventDetailPage } from "@/pages/EventDetailPage"
 import { DashboardPage } from "@/pages/DashboardPage"
@@ -58,10 +64,16 @@ export function AppRouter() {
           path="/dashboard/profile"
           element={
             <AuthGuard requireSelectedOrganization={false}>
-              <ProfilePage />
+              <ProfileLayout />
             </AuthGuard>
           }
-        />
+        >
+          <Route index element={<Navigate to="info" replace />} />
+          <Route path="info" element={<ProfileInfoSection />} />
+          <Route path="experience" element={<ProfileExperienceSection />} />
+          <Route path="education" element={<ProfileEducationSection />} />
+          <Route path="certifications" element={<ProfileCertificationsSection />} />
+        </Route>
 
         {/* Protected Dashboard Routes (Requires Selected Organization) */}
         <Route
