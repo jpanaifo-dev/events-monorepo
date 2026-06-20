@@ -247,29 +247,9 @@ export function EditSpeakerPage() {
             </div>
           </div>
 
-          <h2 className="text-lg">Charla, Rol y Ámbito</h2>
-          {/* Card: Detalles de Charla y Rol */}
+          <h2 className="text-lg">Rol y Ámbito</h2>
+          {/* Card: Detalles de Rol y Ámbito */}
           <div className="border border-border rounded-xl bg-card overflow-hidden shadow-sm">
-            {/* Talk Title Row */}
-            <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
-              <div className="md:w-1/3 space-y-1">
-                <label htmlFor="talkTitleInput" className="text-sm font-medium text-foreground">
-                  Título de la Charla <span className="text-destructive">*</span>
-                </label>
-                <p className="text-xs text-muted-foreground">Tema principal de la exposición.</p>
-              </div>
-              <div className="md:w-2/3 max-w-md w-full">
-                <Input
-                  id="talkTitleInput"
-                  value={talkTitle}
-                  onChange={(e) => setTalkTitle(e.target.value)}
-                  placeholder="Ej. Introducción al Desarrollo Frontend Premium con React"
-                  required
-                  disabled={isSubmitting}
-                />
-              </div>
-            </div>
-
             {/* Role Select Row */}
             <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
               <div className="md:w-1/3 space-y-1">
