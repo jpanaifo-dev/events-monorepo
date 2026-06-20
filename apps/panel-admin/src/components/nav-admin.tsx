@@ -31,7 +31,7 @@ export function NavAdmin({
 
     return (
         <SidebarGroup>
-            <SidebarGroupLabel className="text-xs font-semibold text-muted-foreground px-3 py-2 uppercase tracking-wider">
+            <SidebarGroupLabel className="text-xs text-muted-foreground px-3 py-2 uppercase tracking-wider">
                 {label}
             </SidebarGroupLabel>
             <SidebarMenu>
@@ -42,10 +42,10 @@ export function NavAdmin({
                         : (item.url.startsWith('/dashboard/settings')
                             ? pathname.startsWith('/dashboard/settings')
                             : (pathname === item.url || pathname.startsWith(item.url + "/")))
-                    
+
                     if (item.items && item.items.length > 0) {
                         const isSubActive = item.items.some(sub => pathname === sub.url)
-                        
+
                         return (
                             <Collapsible
                                 key={item.title}
@@ -54,8 +54,8 @@ export function NavAdmin({
                             >
                                 <SidebarMenuItem>
                                     <CollapsibleTrigger asChild>
-                                        <SidebarMenuButton 
-                                            tooltip={item.title} 
+                                        <SidebarMenuButton
+                                            tooltip={item.title}
                                             isActive={false}
                                             className={cn(
                                                 "w-full justify-between hover:bg-muted/50 rounded-md transition-colors",
@@ -64,11 +64,11 @@ export function NavAdmin({
                                         >
                                             <div className="flex items-center gap-3">
                                                 {item.icon && (
-                                                    <item.icon 
+                                                    <item.icon
                                                         className={cn(
-                                                            "size-4 transition-colors", 
+                                                            "size-4 transition-colors",
                                                             (isActive || isSubActive) ? "text-primary" : "text-muted-foreground group-hover/menu-button:text-sidebar-foreground"
-                                                        )} 
+                                                        )}
                                                     />
                                                 )}
                                                 <span className="text-sm font-medium">{item.title}</span>
@@ -85,8 +85,8 @@ export function NavAdmin({
                                                 const isChildActive = pathname === subItem.url
                                                 return (
                                                     <SidebarMenuSubItem key={subItem.title}>
-                                                        <SidebarMenuSubButton 
-                                                            isActive={false} 
+                                                        <SidebarMenuSubButton
+                                                            isActive={false}
                                                             asChild
                                                             className={cn(
                                                                 "w-full text-left hover:bg-muted/50 rounded-md transition-colors px-3 py-1.5",
@@ -108,25 +108,28 @@ export function NavAdmin({
                     }
                     return (
                         <SidebarMenuItem key={item.title}>
-                            <SidebarMenuButton 
-                                tooltip={item.title} 
-                                isActive={false} 
+                            <SidebarMenuButton
+                                tooltip={item.title}
+                                isActive={false}
                                 asChild
                                 className={cn(
                                     "hover:bg-muted/50 rounded-md transition-colors",
                                     isActive ? "text-primary font-semibold" : "text-sidebar-foreground"
                                 )}
+                                style={{
+                                    backgroundColor: "transparent"
+                                }}
                             >
                                 <Link to={item.url} className="flex items-center gap-3 w-full">
                                     {item.icon && (
-                                        <item.icon 
+                                        <item.icon
                                             className={cn(
-                                                "size-4 transition-colors", 
+                                                "size-4 transition-colors",
                                                 isActive ? "text-primary" : "text-muted-foreground group-hover/menu-button:text-sidebar-foreground"
-                                            )} 
+                                            )}
                                         />
                                     )}
-                                    <span className="text-sm font-medium">{item.title}</span>
+                                    <span className={cn("text-sm", isActive ? "text-primary  font-bold" : "text-sidebar-foreground")}>{item.title}</span>
                                 </Link>
                             </SidebarMenuButton>
                         </SidebarMenuItem>
