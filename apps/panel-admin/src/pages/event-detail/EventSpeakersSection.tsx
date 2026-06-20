@@ -1,8 +1,17 @@
-import { useParams, useNavigate } from "react-router-dom"
+import { useState, useEffect } from "react"
+import { useParams, useNavigate, useSearchParams } from "react-router-dom"
 import { useEventStore } from "@/store/event.store"
-import { Plus, Edit, Trash2, Globe, Layers, BookOpen } from "lucide-react"
+import { Plus, Edit, Trash2, Globe, Layers, BookOpen, Search, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select"
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -14,21 +23,84 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog"
+import { useDebouncedCallback } from "use-debounce"
 
 import { useSEO } from "@/hooks/use-seo"
 
 export function EventSpeakersSection() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { events, speakers, roles, editions, deleteSpeaker } = useEventStore()
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  const {
+    events,
+    speakers,
+    roles,
+    editions,
+    deleteSpeaker,
+    loadFilteredSpeakers,
+    isLoading,
+  } = useEventStore()
 
   const event = events.find((e) => e.id === id)
   const eventSpeakers = speakers.filter((sp) => sp.eventId === id)
+  const eventEditions = editions.filter((ed) => ed.mainEventId === id)
+
+  const searchQuery = searchParams.get("search") || ""
+  const editionFilter = searchParams.get("edition") || "all"
+
+  const [localSearch, setLocalSearch] = useState(searchQuery)
 
   useSEO({
     title: event ? `${event.name} - Ponentes` : "Ponentes de Evento",
-    description: `Listado de ponentes, expertos e invitados confirmados para el evento ${event?.name || ""}.`
+    description: `Listado de ponentes, expertos e invitados confirmados para el evento ${event?.name || ""}.`,
   })
+
+  // Sync local search when search query changes externally (like clear all filters)
+  useEffect(() => {
+    setLocalSearch(searchQuery)
+  }, [searchQuery])
+
+  // Debounced search params updater
+  const debouncedSearchUpdate = useDebouncedCallback((val: string) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (val.trim()) {
+        next.set("search", val.trim())
+      } else {
+        next.delete("search")
+      }
+      return next
+    })
+  }, 400)
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value
+    setLocalSearch(val)
+    debouncedSearchUpdate(val)
+  }
+
+  const handleEditionChange = (val: string) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (val && val !== "all") {
+        next.set("edition", val)
+      } else {
+        next.delete("edition")
+      }
+      return next
+    })
+  }
+
+  // Load/fetch speakers from the backend whenever search params change
+  useEffect(() => {
+    if (id) {
+      loadFilteredSpeakers(id, {
+        search: searchQuery,
+        editionId: editionFilter,
+      })
+    }
+  }, [id, searchQuery, editionFilter, loadFilteredSpeakers])
 
   const handleAddClick = () => {
     navigate(`/dashboard/events/${id}/speakers/new`)
@@ -55,14 +127,59 @@ export function EventSpeakersSection() {
         </Button>
       </div>
 
+      {/* Filters Row */}
+      <div className="flex flex-col sm:flex-row gap-3 items-center">
+        {/* Search Input */}
+        <div className="relative w-full sm:max-w-xs group">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+          <Input
+            placeholder="Buscar por nombre o correo..."
+            value={localSearch}
+            onChange={handleSearchChange}
+            className="pl-9 h-9 text-xs rounded-xl shadow-xs border-muted-foreground/20 focus-visible:ring-primary/20"
+          />
+        </div>
+
+        {/* Edition Select Filter */}
+        <div className="w-full sm:max-w-xs">
+          <Select value={editionFilter} onValueChange={handleEditionChange}>
+            <SelectTrigger className="h-9 text-xs rounded-xl shadow-xs border-muted-foreground/20">
+              <SelectValue placeholder="Todas las ediciones" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas las ediciones</SelectItem>
+              {eventEditions.map((ed) => (
+                <SelectItem key={ed.id} value={ed.id}>
+                  {`${ed.name} (${ed.year})`}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Loading Spinner for dynamic backend loading indicator */}
+        {isLoading && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground animate-in fade-in">
+            <Loader2 className="size-3.5 animate-spin text-primary" />
+            <span>Actualizando...</span>
+          </div>
+        )}
+      </div>
+
       {/* Speakers List */}
       {eventSpeakers.length === 0 ? (
         <div className="p-12 text-center text-muted-foreground text-sm border border-dashed border-border rounded-xl bg-card/10 space-y-3">
           <BookOpen className="size-8 mx-auto opacity-40 text-primary animate-pulse" />
           <div>
-            <p className="font-semibold">No hay ponentes registrados</p>
+            <p className="font-semibold">
+              {searchQuery || editionFilter !== "all"
+                ? "No se encontraron ponentes"
+                : "No hay ponentes registrados"}
+            </p>
             <p className="text-xs text-muted-foreground">
-              Haz clic en "Agregar Ponente" para registrar al primer conferencista.
+              {searchQuery || editionFilter !== "all"
+                ? "Prueba a cambiar los filtros o el término de búsqueda."
+                : 'Haz clic en "Agregar Ponente" para registrar al primer conferencista.'}
             </p>
           </div>
         </div>
