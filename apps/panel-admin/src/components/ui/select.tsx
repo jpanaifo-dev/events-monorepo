@@ -121,8 +121,19 @@ export function SelectItem({
   const isSelected = context.value === value
 
   React.useEffect(() => {
+    let label = ""
     if (typeof children === "string") {
-      context.registerOption(value, children)
+      label = children
+    } else if (typeof children === "number") {
+      label = String(children)
+    } else if (Array.isArray(children)) {
+      label = children
+        .map((child) => (typeof child === "string" || typeof child === "number" ? String(child) : ""))
+        .join("")
+        .trim()
+    }
+    if (label) {
+      context.registerOption(value, label)
     }
   }, [value, children, context])
 

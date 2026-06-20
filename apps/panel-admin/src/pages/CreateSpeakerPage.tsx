@@ -5,9 +5,9 @@ import { supabase } from "@/utils/supabase"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
+import { FormFooter } from "@/components/form-footer"
 import {
   Select,
   SelectTrigger,
@@ -15,7 +15,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select"
-import { Check, Loader2, Sparkles, Mail } from "lucide-react"
+import { Check, Loader2 } from "lucide-react"
 
 export function CreateSpeakerPage() {
   const { eventId } = useParams<{ eventId: string }>()
@@ -56,13 +56,17 @@ export function CreateSpeakerPage() {
   // Get active roles of this event
   const activeRoles = roles.filter((r) => r.mainEventId === eventId && r.isActive)
 
-  // Default-select role (prefer slug "speaker", else first active role)
+  // Find speaker and keynote-speaker roles
+  const speakerRole = activeRoles.find((r) => r.slug === "speaker")
+  const keynoteRole = activeRoles.find((r) => r.slug === "keynote-speaker")
+
+  // Default-select role (prefer slug "speaker", else keynote-speaker, else first active role)
   useEffect(() => {
     if (activeRoles.length > 0 && !selectedRoleId) {
-      const defaultRole = activeRoles.find((r) => r.slug === "speaker") || activeRoles[0]
+      const defaultRole = speakerRole || keynoteRole || activeRoles[0]
       setSelectedRoleId(defaultRole.id)
     }
-  }, [activeRoles, selectedRoleId])
+  }, [activeRoles, selectedRoleId, speakerRole, keynoteRole])
 
   // Default-select current edition
   useEffect(() => {
@@ -162,15 +166,16 @@ export function CreateSpeakerPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground font-sans py-12 px-6">
-      <div className="max-w-3xl mx-auto space-y-8">
-        
-        <PageHeader
-          title="Agregar Ponente"
-          description="Vincula un perfil de usuario existente o crea uno nuevo y asígnale su rol de ponente."
-          showBackButton
-          onBackClick={() => navigate(`/dashboard/events/${eventId}/speakers`)}
-        />
+    <div className="min-h-screen bg-background text-foreground font-sans flex flex-col">
+      <main className="max-w-4xl mx-auto px-6 py-12 flex-1 w-full pb-28">
+        <div className="mb-10">
+          <PageHeader
+            title="Agregar Ponente"
+            description="Vincula un perfil de usuario existente o crea uno nuevo y asígnale su rol de ponente."
+            showBackButton
+            onBackClick={() => navigate(`/dashboard/events/${eventId}/speakers`)}
+          />
+        </div>
 
         <form onSubmit={handleSave} className="space-y-6">
           {formError && (
@@ -180,16 +185,20 @@ export function CreateSpeakerPage() {
           )}
 
           {/* Card: Perfil del Ponente */}
-          <div className="p-6 bg-card border border-border rounded-xl space-y-6 shadow-xs">
-            <div className="flex items-center gap-2 border-b border-border pb-3">
-              <Mail className="size-5 text-primary" />
-              <h3 className="font-bold text-base">Información de Perfil</h3>
+          <div className="border border-border rounded-xl bg-card overflow-hidden shadow-sm">
+            <div className="p-6 border-b border-border">
+              <h2 className="text-sm font-medium uppercase tracking-wider text-primary">Información de Perfil</h2>
             </div>
 
-            <FieldGroup className="space-y-4">
-              {/* Email */}
-              <Field>
-                <FieldLabel htmlFor="emailInput">Correo Electrónico *</FieldLabel>
+            {/* Email Row */}
+            <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+              <div className="md:w-1/3 space-y-1">
+                <label htmlFor="emailInput" className="text-sm font-medium text-foreground">
+                  Correo Electrónico <span className="text-destructive">*</span>
+                </label>
+                <p className="text-xs text-muted-foreground">Comprueba si el usuario ya tiene perfil registrado.</p>
+              </div>
+              <div className="md:w-2/3 max-w-md w-full">
                 <div className="relative">
                   <Input
                     id="emailInput"
@@ -220,63 +229,81 @@ export function CreateSpeakerPage() {
                     )}
                   </div>
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-1">
-                  Introduce el correo para comprobar si el usuario ya tiene un perfil registrado en la plataforma.
-                </p>
-              </Field>
-
-              {/* Names */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Field>
-                  <FieldLabel htmlFor="firstNameInput">Nombre *</FieldLabel>
-                  <Input
-                    id="firstNameInput"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    placeholder="Ej. Carlos"
-                    required
-                    disabled={isSubmitting}
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="lastNameInput">Apellido *</FieldLabel>
-                  <Input
-                    id="lastNameInput"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    placeholder="Ej. Mendoza"
-                    required
-                    disabled={isSubmitting}
-                  />
-                </Field>
               </div>
+            </div>
 
-              {/* Avatar URL & Preview */}
-              <div className="flex flex-col md:flex-row gap-4 items-start">
-                <Field className="flex-1 w-full">
-                  <FieldLabel htmlFor="avatarInput">URL de Avatar (Foto de perfil - Opcional)</FieldLabel>
-                  <Input
-                    id="avatarInput"
-                    value={avatar}
-                    onChange={(e) => setAvatar(e.target.value)}
-                    placeholder="https://..."
-                    disabled={isSubmitting}
-                  />
-                </Field>
+            {/* Names Row */}
+            <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+              <div className="md:w-1/3 space-y-1">
+                <label className="text-sm font-medium text-foreground">
+                  Nombre Completo <span className="text-destructive">*</span>
+                </label>
+                <p className="text-xs text-muted-foreground">Nombre y apellido del ponente.</p>
+              </div>
+              <div className="md:w-2/3 max-w-md w-full">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="firstNameInput" className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Nombre</label>
+                    <Input
+                      id="firstNameInput"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      placeholder="Ej. Carlos"
+                      required
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="lastNameInput" className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Apellido</label>
+                    <Input
+                      id="lastNameInput"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      placeholder="Ej. Mendoza"
+                      required
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Avatar Row */}
+            <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+              <div className="md:w-1/3 space-y-1">
+                <label htmlFor="avatarInput" className="text-sm font-medium text-foreground">URL de Avatar</label>
+                <p className="text-xs text-muted-foreground">Foto de perfil (opcional).</p>
+              </div>
+              <div className="md:w-2/3 max-w-md w-full flex gap-4 items-center">
+                <Input
+                  id="avatarInput"
+                  value={avatar}
+                  onChange={(e) => setAvatar(e.target.value)}
+                  placeholder="https://..."
+                  disabled={isSubmitting}
+                  className="flex-1"
+                />
                 {(avatar.trim() || firstName) && (
-                  <div className="shrink-0 pt-6">
+                  <div className="shrink-0">
                     <img
                       src={avatar.trim() || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(firstName + " " + lastName)}`}
                       alt="Preview"
-                      className="size-16 rounded-full border border-border object-cover bg-muted"
+                      className="size-10 rounded-full border border-border object-cover bg-muted"
                     />
                   </div>
                 )}
               </div>
+            </div>
 
-              {/* Biography */}
-              <Field>
-                <FieldLabel htmlFor="bioInput">Biografía del Ponente *</FieldLabel>
+            {/* Bio Row */}
+            <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4">
+              <div className="md:w-1/3 space-y-1">
+                <label htmlFor="bioInput" className="text-sm font-medium text-foreground">
+                  Biografía del Ponente <span className="text-destructive">*</span>
+                </label>
+                <p className="text-xs text-muted-foreground">Breve descripción profesional del expositor.</p>
+              </div>
+              <div className="md:w-2/3 max-w-md w-full">
                 <textarea
                   id="bioInput"
                   value={bio}
@@ -284,24 +311,28 @@ export function CreateSpeakerPage() {
                   placeholder="Escribe una breve descripción del perfil profesional del ponente..."
                   required
                   rows={4}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-hidden focus-visible:ring-1 focus-visible:ring-ring focus-visible:border-ring"
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-1 focus-visible:ring-ring text-foreground"
                   disabled={isSubmitting}
                 />
-              </Field>
-            </FieldGroup>
+              </div>
+            </div>
           </div>
 
-          {/* Card: Lógica del Evento, Charla y Roles */}
-          <div className="p-6 bg-card border border-border rounded-xl space-y-6 shadow-xs">
-            <div className="flex items-center gap-2 border-b border-border pb-3">
-              <Sparkles className="size-5 text-primary" />
-              <h3 className="font-bold text-base">Charla, Rol y Ámbito</h3>
+          {/* Card: Detalles de Charla y Rol */}
+          <div className="border border-border rounded-xl bg-card overflow-hidden shadow-sm">
+            <div className="p-6 border-b border-border">
+              <h2 className="text-sm font-medium uppercase tracking-wider text-primary">Charla, Rol y Ámbito</h2>
             </div>
 
-            <FieldGroup className="space-y-4">
-              {/* Talk Title */}
-              <Field>
-                <FieldLabel htmlFor="talkTitleInput">Título de la Charla / Taller *</FieldLabel>
+            {/* Talk Title Row */}
+            <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+              <div className="md:w-1/3 space-y-1">
+                <label htmlFor="talkTitleInput" className="text-sm font-medium text-foreground">
+                  Título de la Charla <span className="text-destructive">*</span>
+                </label>
+                <p className="text-xs text-muted-foreground">Tema principal de la exposición.</p>
+              </div>
+              <div className="md:w-2/3 max-w-md w-full">
                 <Input
                   id="talkTitleInput"
                   value={talkTitle}
@@ -310,28 +341,40 @@ export function CreateSpeakerPage() {
                   required
                   disabled={isSubmitting}
                 />
-              </Field>
+              </div>
+            </div>
 
-              {/* Talk Description */}
-              <Field>
-                <FieldLabel htmlFor="talkDescriptionInput">Resumen de la Charla</FieldLabel>
+            {/* Talk Description Row */}
+            <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+              <div className="md:w-1/3 space-y-1">
+                <label htmlFor="talkDescriptionInput" className="text-sm font-medium text-foreground">Resumen de la Charla</label>
+                <p className="text-xs text-muted-foreground">Breve resumen de la presentación.</p>
+              </div>
+              <div className="md:w-2/3 max-w-md w-full">
                 <textarea
                   id="talkDescriptionInput"
                   value={talkDescription}
                   onChange={(e) => setTalkDescription(e.target.value)}
                   placeholder="Describe brevemente de qué tratará la presentación..."
                   rows={3}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-hidden focus-visible:ring-1 focus-visible:ring-ring focus-visible:border-ring"
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-1 focus-visible:ring-ring text-foreground"
                   disabled={isSubmitting}
                 />
-              </Field>
+              </div>
+            </div>
 
-              {/* Role Selector */}
-              <Field>
-                <FieldLabel htmlFor="roleSelect">Rol Asignado *</FieldLabel>
+            {/* Role Select Row */}
+            <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+              <div className="md:w-1/3 space-y-1">
+                <label htmlFor="roleSelect" className="text-sm font-medium text-foreground">
+                  Tipo de Ponente <span className="text-destructive">*</span>
+                </label>
+                <p className="text-xs text-muted-foreground">Selecciona el tipo de ponente para este evento.</p>
+              </div>
+              <div className="md:w-2/3 max-w-md w-full">
                 {activeRoles.length === 0 ? (
                   <p className="text-xs text-amber-500 font-medium">
-                    No hay roles de participante activos registrados en el evento. Crea un rol primero.
+                    No hay roles activos en el evento. Crea un rol primero en la sección de Roles.
                   </p>
                 ) : (
                   <Select value={selectedRoleId} onValueChange={setSelectedRoleId}>
@@ -339,25 +382,41 @@ export function CreateSpeakerPage() {
                       <SelectValue placeholder="Selecciona un rol" />
                     </SelectTrigger>
                     <SelectContent>
-                      {activeRoles.map((role) => (
+                      {speakerRole && (
+                        <SelectItem value={speakerRole.id}>
+                          Ponente
+                        </SelectItem>
+                      )}
+                      {keynoteRole && (
+                        <SelectItem value={keynoteRole.id}>
+                          Ponente Magistral
+                        </SelectItem>
+                      )}
+                      {!speakerRole && !keynoteRole && activeRoles.map((role) => (
                         <SelectItem key={role.id} value={role.id}>
-                          {role.name.es} ({role.slug})
+                          {role.name.es}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 )}
-              </Field>
+              </div>
+            </div>
 
-              {/* Scope Switch (Global vs Edition) */}
-              <div className="bg-muted/10 border border-border/60 p-4 rounded-xl space-y-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="space-y-0.5">
-                    <label className="text-sm font-semibold cursor-pointer select-none" htmlFor="speakerEditionSwitch">
+            {/* Scope Row */}
+            <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4">
+              <div className="md:w-1/3 space-y-1">
+                <label className="text-sm font-medium text-foreground">Ámbito de Asignación</label>
+                <p className="text-xs text-muted-foreground">¿Vincular a nivel global o a una edición específica?</p>
+              </div>
+              <div className="md:w-2/3 max-w-md w-full space-y-4">
+                <div className="flex items-center justify-between bg-muted/10 border border-border/60 p-4 rounded-xl">
+                  <div className="space-y-0.5 pr-4">
+                    <label className="text-xs font-semibold cursor-pointer select-none" htmlFor="speakerEditionSwitch">
                       ¿Asignar a una edición específica del evento?
                     </label>
-                    <p className="text-xs text-muted-foreground leading-normal">
-                      Si se apaga, el ponente se vinculará a nivel de evento (global). Si se enciende, estará asignado sólo a la edición elegida.
+                    <p className="text-[10px] text-muted-foreground leading-normal">
+                      Si se apaga será global. Si se enciende, estará asignado sólo a la edición elegida.
                     </p>
                   </div>
                   <Switch
@@ -368,10 +427,9 @@ export function CreateSpeakerPage() {
                   />
                 </div>
 
-                {/* Dropdown with event editions - visible only if switch is ON */}
                 {isEditionSpecific && (
-                  <Field className="animate-in fade-in slide-in-from-top-1 duration-200">
-                    <FieldLabel htmlFor="speakerEditionSelect">Seleccionar Edición</FieldLabel>
+                  <div className="animate-in fade-in slide-in-from-top-1 duration-200">
+                    <label htmlFor="speakerEditionSelect" className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Seleccionar Edición</label>
                     {eventEditions.length === 0 ? (
                       <p className="text-xs text-amber-500 font-medium">
                         No hay ediciones creadas para este evento.
@@ -384,34 +442,38 @@ export function CreateSpeakerPage() {
                         <SelectContent>
                           {eventEditions.map((ed) => (
                             <SelectItem key={ed.id} value={ed.id}>
-                              {ed.name} ({ed.year}) {ed.isCurrent ? "— [Actual]" : ""}
+                              {`${ed.name} (${ed.year}) ${ed.isCurrent ? "— [Actual]" : ""}`}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     )}
-                  </Field>
+                  </div>
                 )}
               </div>
-            </FieldGroup>
+            </div>
           </div>
 
-          {/* Form Actions */}
-          <div className="flex justify-end gap-3 pt-4 border-t border-border">
+          <FormFooter>
             <Button
               type="button"
               variant="outline"
               onClick={() => navigate(`/dashboard/events/${eventId}/speakers`)}
               disabled={isSubmitting}
+              className="cursor-pointer"
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={isSubmitting} className="font-semibold px-6">
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="cursor-pointer font-semibold px-6"
+            >
               {isSubmitting ? "Registrando..." : "Agregar Ponente"}
             </Button>
-          </div>
+          </FormFooter>
         </form>
-      </div>
+      </main>
     </div>
   )
 }

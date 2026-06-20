@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from "react"
-import { useNavigate } from "react-router-dom"
+import { useEffect, useCallback, useMemo } from "react"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import { useAuthStore } from "@/store/auth.store"
 import { useEventStore, type EventFilters } from "@/store/event.store"
 import { DynamicFilters, type FilterConfig, type FilterValues } from "@/components/ui/dynamic-filters"
@@ -71,7 +71,18 @@ export function EventsPage() {
   const { events, isLoading, loadData } = useEventStore()
   const navigate = useNavigate()
 
-  const [filterValues, setFilterValues] = useState<FilterValues>({})
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  const filterValues = useMemo<FilterValues>(() => {
+    const values: FilterValues = {}
+    FILTER_CONFIGS.forEach((filter) => {
+      const val = searchParams.get(filter.key)
+      if (val !== null) {
+        values[filter.key] = val
+      }
+    })
+    return values
+  }, [searchParams])
 
   const fetchEvents = useCallback(() => {
     if (!selectedOrganization?.id) return
@@ -87,7 +98,16 @@ export function EventsPage() {
   }, [fetchEvents])
 
   const handleFiltersChange = (values: FilterValues) => {
-    setFilterValues(values)
+    const newParams = new URLSearchParams(searchParams.toString())
+    FILTER_CONFIGS.forEach((filter) => {
+      const val = values[filter.key]
+      if (val !== undefined && val !== null && val !== "" && val !== "ALL") {
+        newParams.set(filter.key, String(val))
+      } else {
+        newParams.delete(filter.key)
+      }
+    })
+    setSearchParams(newParams)
   }
 
   const getStatusBadge = (st: string) => {
@@ -184,7 +204,7 @@ export function EventsPage() {
                       {event.createdAt ? new Date(event.createdAt).toLocaleDateString("es-ES", { year: "numeric", month: "short" }) : ""}
                     </span>
                   </div>
-                  <h3 className="font-bold text-lg truncate group-hover:text-primary transition-colors">
+                  <h3 className="font-bold text-lg line-clamp-2 group-hover:text-primary transition-colors">
                     {event.name}
                   </h3>
                   <p className="text-xs text-muted-foreground line-clamp-2">

@@ -2,18 +2,18 @@ import { useEffect } from "react"
 import { useParams, useNavigate, NavLink, Outlet } from "react-router-dom"
 import { useAuthStore } from "@/store/auth.store"
 import { useEventStore } from "@/store/event.store"
-import { AlertCircle, Settings, Layers, BookOpen, Clock, Users, Shield } from "lucide-react"
+import { AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/page-header"
 import { Skeleton } from "@/components/ui/skeleton"
 
 const NAV_ITEMS = [
-  { to: "info", label: "General", icon: Settings },
-  { to: "editions", label: "Ediciones", icon: Layers },
-  { to: "speakers", label: "Ponentes", icon: BookOpen },
-  { to: "agenda", label: "Agenda", icon: Clock },
-  { to: "attendees", label: "Participantes", icon: Users },
-  { to: "roles", label: "Roles", icon: Shield },
+  { to: "info", label: "General" },
+  { to: "editions", label: "Ediciones" },
+  { to: "speakers", label: "Ponentes" },
+  { to: "agenda", label: "Agenda" },
+  { to: "attendees", label: "Participantes" },
+  { to: "roles", label: "Roles" },
 ]
 
 export function EventDetailPage() {
@@ -109,7 +109,6 @@ export function EventDetailPage() {
               to={`${basePath}/${item.to}`}
               className={getLinkClass}
             >
-              <item.icon className="size-4" />
               {item.label}
               {counts[item.to] !== undefined && counts[item.to] > 0 && (
                 <span className="text-[10px] text-muted-foreground ml-1">
