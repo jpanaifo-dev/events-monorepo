@@ -271,6 +271,18 @@ export const useEventStore = create<EventState>((set, get) => ({
         }
       }
 
+      // Fetch participant roles to match role_id without postgrest join constraint issues
+      let formattedRoles: ParticipantRole[] = []
+      if (mainEventIds.length > 0) {
+        const { data: rolesData } = await supabase
+          .from("participant_roles")
+          .select("*")
+          .in("main_event_id", mainEventIds)
+        if (rolesData) {
+          formattedRoles = rolesData.map(mapParticipantRole)
+        }
+      }
+
       // Fetch speakers and attendees from event_participants
       const formattedAttendees: Attendee[] = []
       const formattedSpeakers: Speaker[] = []
@@ -288,9 +300,6 @@ export const useEventStore = create<EventState>((set, get) => ({
             created_at,
             profile:profile_id (
               id, first_name, last_name, email, avatar_url, bio
-            ),
-            role:role_id (
-              slug
             )
           `)
           .in("main_event_id", mainEventIds)
@@ -298,7 +307,8 @@ export const useEventStore = create<EventState>((set, get) => ({
         if (participantsData) {
           participantsData.forEach((part: any) => {
             const profile = part.profile || {}
-            const roleSlug = part.role?.slug || "attendee"
+            const matchedRole = formattedRoles.find((r) => r.id === part.role_id)
+            const roleSlug = matchedRole?.slug || "attendee"
             const roleId = part.role_id || ""
             const fullName = `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || "Participante"
 
@@ -339,7 +349,8 @@ export const useEventStore = create<EventState>((set, get) => ({
         editions: formattedEditions,
         speakers: formattedSpeakers,
         agendaItems: formattedAgenda,
-        attendees: formattedAttendees
+        attendees: formattedAttendees,
+        roles: formattedRoles
       })
     } catch (e) {
       console.error("Error loading events:", e)

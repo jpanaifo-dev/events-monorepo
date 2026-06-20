@@ -16,6 +16,7 @@ import {
   SelectItem,
 } from "@/components/ui/select"
 import { Check, Loader2 } from "lucide-react"
+import { ImageUploadWithPreview } from "@/components/ImageUploadWithPreview"
 
 export function CreateSpeakerPage() {
   const { eventId } = useParams<{ eventId: string }>()
@@ -33,7 +34,6 @@ export function CreateSpeakerPage() {
   const [bio, setBio] = useState("")
   const [avatar, setAvatar] = useState("")
   const [talkTitle, setTalkTitle] = useState("")
-  const [talkDescription, setTalkDescription] = useState("")
   const [selectedRoleId, setSelectedRoleId] = useState("")
   const [isEditionSpecific, setIsEditionSpecific] = useState(false)
   const [selectedEditionId, setSelectedEditionId] = useState("")
@@ -150,7 +150,7 @@ export function CreateSpeakerPage() {
       email: email.trim().toLowerCase(),
       avatar: avatar.trim() || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(firstName + " " + lastName)}`,
       talkTitle: talkTitle.trim() || "Charla Especial",
-      talkDescription: talkDescription.trim(),
+      talkDescription: "",
       bio: bio.trim(),
     }
 
@@ -267,27 +267,17 @@ export function CreateSpeakerPage() {
             {/* Avatar Row */}
             <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
               <div className="md:w-1/3 space-y-1">
-                <label htmlFor="avatarInput" className="text-sm font-medium text-foreground">URL de Avatar</label>
-                <p className="text-xs text-muted-foreground">Foto de perfil (opcional).</p>
+                <label className="text-sm font-medium text-foreground">Foto de Perfil</label>
+                <p className="text-xs text-muted-foreground">Sube una foto de avatar para el ponente o introduce un enlace directo.</p>
               </div>
-              <div className="md:w-2/3 max-w-md w-full flex gap-4 items-center">
-                <Input
-                  id="avatarInput"
+              <div className="md:w-2/3 max-w-md w-full">
+                <ImageUploadWithPreview
                   value={avatar}
-                  onChange={(e) => setAvatar(e.target.value)}
-                  placeholder="https://..."
-                  disabled={isSubmitting}
-                  className="flex-1"
+                  onChange={setAvatar}
+                  label=""
+                  folder={`events/${eventId}/speakers`}
+                  identifier="avatar"
                 />
-                {(avatar.trim() || firstName) && (
-                  <div className="shrink-0">
-                    <img
-                      src={avatar.trim() || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(firstName + " " + lastName)}`}
-                      alt="Preview"
-                      className="size-10 rounded-full border border-border object-cover bg-muted"
-                    />
-                  </div>
-                )}
               </div>
             </div>
 
@@ -313,13 +303,9 @@ export function CreateSpeakerPage() {
               </div>
             </div>
           </div>
-
+          <h2 className="text-lg">Charla, Rol y Ámbito</h2>
           {/* Card: Detalles de Charla y Rol */}
           <div className="border border-border rounded-xl bg-card overflow-hidden shadow-sm">
-            <div className="p-6 border-b border-border">
-              <h2 className="text-sm font-medium uppercase tracking-wider text-primary">Charla, Rol y Ámbito</h2>
-            </div>
-
             {/* Talk Title Row */}
             <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
               <div className="md:w-1/3 space-y-1">
@@ -335,25 +321,6 @@ export function CreateSpeakerPage() {
                   onChange={(e) => setTalkTitle(e.target.value)}
                   placeholder="Ej. Introducción al Desarrollo Frontend Premium con React"
                   required
-                  disabled={isSubmitting}
-                />
-              </div>
-            </div>
-
-            {/* Talk Description Row */}
-            <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
-              <div className="md:w-1/3 space-y-1">
-                <label htmlFor="talkDescriptionInput" className="text-sm font-medium text-foreground">Resumen de la Charla</label>
-                <p className="text-xs text-muted-foreground">Breve resumen de la presentación.</p>
-              </div>
-              <div className="md:w-2/3 max-w-md w-full">
-                <textarea
-                  id="talkDescriptionInput"
-                  value={talkDescription}
-                  onChange={(e) => setTalkDescription(e.target.value)}
-                  placeholder="Describe brevemente de qué tratará la presentación..."
-                  rows={3}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-1 focus-visible:ring-ring text-foreground"
                   disabled={isSubmitting}
                 />
               </div>
