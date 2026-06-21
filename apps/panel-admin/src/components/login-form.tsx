@@ -35,7 +35,40 @@ export function LoginForm({
   const [showPassword, setShowPassword] = useState(false)
   const [errors, setErrors] = useState<Partial<Record<keyof LoginInput, string>>>({})
   const [formError, setFormError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [mode, setMode] = useState<"login" | "forgot">("login")
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setErrors({})
+    setFormError(null)
+    setSuccessMessage(null)
+    setIsLoading(true)
+
+    if (!email) {
+      setErrors({ email: "El correo electrónico es requerido" })
+      setIsLoading(false)
+      return
+    }
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      })
+
+      if (error) {
+        setFormError(error.message || "Error al enviar el correo de recuperación.")
+      } else {
+        setSuccessMessage("Te hemos enviado un correo con instrucciones para restablecer tu contraseña.")
+      }
+    } catch (err: any) {
+      console.error(err)
+      setFormError("Ocurrió un error inesperado. Inténtalo de nuevo.")
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -217,6 +250,61 @@ export function LoginForm({
     }
   }
 
+  if (mode === "forgot") {
+    return (
+      <form onSubmit={handleForgotPassword} className={cn("flex flex-col gap-6", className)} {...props}>
+        <FieldGroup>
+          <div className="flex flex-col items-center gap-1 text-center">
+            <h1 className="text-2xl font-bold font-sans">Recuperar Contraseña</h1>
+            <p className="text-sm text-balance text-muted-foreground font-sans">
+              Ingresa tu correo para recibir instrucciones de restauración.
+            </p>
+          </div>
+          {formError && (
+            <div className="p-3 text-xs font-semibold text-destructive bg-destructive/10 border border-destructive/20 rounded-md text-center">
+              {formError}
+            </div>
+          )}
+          {successMessage && (
+            <div className="p-3 text-xs font-semibold text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 rounded-md text-center">
+              {successMessage}
+            </div>
+          )}
+          <Field>
+            <FieldLabel htmlFor="email">Correo Electrónico</FieldLabel>
+            <Input
+              id="email"
+              type="email"
+              placeholder="m@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className={cn("bg-background", errors.email && "border-destructive")}
+            />
+            {errors.email && <p className="text-xs text-destructive mt-1 font-semibold">{errors.email}</p>}
+          </Field>
+          <Field>
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? "Enviando..." : "Enviar Instrucciones"}
+            </Button>
+          </Field>
+          <Field>
+            <button
+              type="button"
+              onClick={() => {
+                setMode("login")
+                setFormError(null)
+                setSuccessMessage(null)
+              }}
+              className="w-full text-center text-xs text-muted-foreground hover:text-foreground hover:underline transition-colors mt-2 cursor-pointer bg-transparent border-0 outline-none"
+            >
+              Volver a Iniciar Sesión
+            </button>
+          </Field>
+        </FieldGroup>
+      </form>
+    )
+  }
+
   return (
     <form onSubmit={handleSubmit} className={cn("flex flex-col gap-6", className)} {...props}>
       <FieldGroup>
@@ -246,12 +334,17 @@ export function LoginForm({
         <Field>
           <div className="flex items-center">
             <FieldLabel htmlFor="password">Contraseña</FieldLabel>
-            <a
-              href="#"
-              className="ml-auto text-xs underline-offset-4 hover:underline text-muted-foreground"
+            <button
+              type="button"
+              onClick={() => {
+                setMode("forgot")
+                setFormError(null)
+                setSuccessMessage(null)
+              }}
+              className="ml-auto text-xs underline-offset-4 hover:underline text-muted-foreground cursor-pointer bg-transparent border-0 outline-none"
             >
               ¿Olvidaste tu contraseña?
-            </a>
+            </button>
           </div>
           <div className="relative flex items-center">
             <Input

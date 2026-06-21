@@ -56,7 +56,7 @@ export function LoginPage() {
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none" />
         <div className="absolute inset-0 flex flex-col justify-end p-12 text-white">
           <blockquote className="space-y-2 relative z-10">
-            <p className="text-lg font-medium leading-relaxed max-w-xl">
+            <p className="text-sm font-medium leading-relaxed max-w-xl text-gray-400">
               "Zynqro ha transformado por completo la manera en que planificamos y ejecutamos nuestros congresos y conferencias. Administrar ponentes, cronogramas y registros ahora es un proceso fluido e impecable."
             </p>
           </blockquote>

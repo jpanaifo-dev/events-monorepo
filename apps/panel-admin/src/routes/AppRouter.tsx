@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 import { AuthGuard } from "./AuthGuard"
 import { LoginPage } from "@/pages/LoginPage"
+import { ResetPasswordPage } from "@/pages/ResetPasswordPage"
 import { OrganizationsPage } from "@/pages/OrganizationsPage"
 import { OrganizationSettingsPage } from "@/pages/OrganizationSettingsPage"
 import { CreateOrganizationPage } from "@/pages/CreateOrganizationPage"
@@ -53,6 +54,7 @@ export function AppRouter() {
       <Routes>
         {/* Public Routes */}
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
 
         {/* Dashboard Routes requiring Authentication but NO Selected Organization yet */}
         <Route
