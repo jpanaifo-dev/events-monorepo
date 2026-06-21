@@ -4,6 +4,7 @@ import { z } from "zod"
 import { useAuthStore } from "@/store/auth.store"
 import { supabase } from "@/utils/supabase"
 import { ThemeSwitch } from "@/components/ui/theme-switch"
+import { ZynqroLogo } from "@/components/zynqro-logo"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -159,9 +160,7 @@ export function ProfilePage() {
             <ArrowLeft className="size-3.5" />
             Volver
           </button>
-          <span className="font-bold text-xl text-primary tracking-tighter ml-2">
-            Zynqro
-          </span>
+          <ZynqroLogo className="h-8 w-auto ml-2" />
         </div>
 
         <div className="flex items-center gap-6 text-sm">
