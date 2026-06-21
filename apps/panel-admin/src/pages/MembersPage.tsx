@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
+import { z } from "zod"
 import { useAuthStore } from "@/store/auth.store"
 import { supabase } from "@/utils/supabase"
 import { Button } from "@/components/ui/button"
@@ -9,9 +10,18 @@ import { PageHeader } from "@/components/page-header"
 import { Search, X, UserPlus } from "lucide-react"
 import { OrganizationMemberRole } from "@/types/auth.types"
 
+import { useSEO } from "@/hooks/use-seo"
+
 export function MembersPage() {
   const navigate = useNavigate()
   const { user, selectedOrganization } = useAuthStore()
+
+  useSEO({
+    title: "Miembros de la Organización",
+    description: selectedOrganization 
+      ? `Administra los niveles de acceso, permisos y colaboradores en tu espacio de trabajo para ${selectedOrganization.name}.`
+      : "Administración de colaboradores de la organización en EventHive."
+  })
 
   const [members, setMembers] = useState<any[]>([])
   const [isLoadingList, setIsLoadingList] = useState(true)
@@ -214,9 +224,22 @@ export function MembersPage() {
     toast.success(`Usuario seleccionado: ${selectedProfile.email}`)
   }
 
+  const inviteMemberSchema = z.object({
+    email: z.string().trim().min(1, "El correo electrónico es requerido.").email("Por favor, introduce un correo electrónico válido."),
+  })
+
   const handleInviteMember = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedOrganization?.id || !inviteEmail.trim()) return
+    if (!selectedOrganization?.id) return
+
+    const validation = inviteMemberSchema.safeParse({
+      email: inviteEmail,
+    })
+
+    if (!validation.success) {
+      toast.error(validation.error.issues[0].message)
+      return
+    }
 
     setIsInviting(true)
     try {

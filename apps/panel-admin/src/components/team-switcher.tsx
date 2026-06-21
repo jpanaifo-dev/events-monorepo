@@ -48,6 +48,13 @@ export function TeamSwitcher() {
             <SidebarMenuButton
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+              style={{
+                backgroundColor: 'transparent',
+                border: '1px solid #e4e4e7',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease-in-out',
+              }}
             >
               <div className="flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg overflow-hidden border border-border bg-muted/10">
                 {selectedOrganization.logoUrl ? (
@@ -62,11 +69,11 @@ export function TeamSwitcher() {
                 <span className="truncate font-semibold">{selectedOrganization.name}</span>
                 <div className="flex items-center mt-0.5">
                   {selectedOrganization.isActive ? (
-                    <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md">
+                    <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full">
                       ACTIVO
                     </span>
                   ) : (
-                    <span className="bg-destructive/10 text-destructive border border-destructive/20 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md">
+                    <span className="bg-destructive/10 text-destructive border border-destructive/20 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full">
                       INACTIVO
                     </span>
                   )}

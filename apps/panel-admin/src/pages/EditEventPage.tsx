@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react"
 import { useNavigate, useParams } from "react-router-dom"
+import { z } from "zod"
 import { useEventStore } from "@/store/event.store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -7,12 +8,19 @@ import { toast } from "sonner"
 import { PageHeader } from "@/components/page-header"
 import { Trash2 } from "lucide-react"
 
+import { useSEO } from "@/hooks/use-seo"
+
 export function EditEventPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { events, updateEvent, deleteEvent } = useEventStore()
 
   const event = events.find((e) => e.id === id)
+
+  useSEO({
+    title: event ? `Editar: ${event.name}` : "Editar Evento",
+    description: "Modifica los datos generales, descripción, imagen de portada, redes sociales y colores corporativos de tu evento en EventHive."
+  })
 
   const [name, setName] = useState("")
   const [shortDescription, setShortDescription] = useState("")
@@ -56,12 +64,34 @@ export function EditEventPage() {
     }
   }, [event, navigate])
 
+  const editEventSchema = z.object({
+    name: z.string().trim().min(1, "El nombre del evento es obligatorio."),
+    shortDescription: z.string().trim().min(1, "La descripcion corta es obligatoria."),
+    contactEmail: z.string().trim().email("El correo de contacto no es valido.").or(z.literal("")).optional(),
+    websiteUrl: z.string().trim().url("El sitio web no es valido (debe empezar con http:// o https://).").or(z.literal("")).optional(),
+    socialTwitter: z.string().trim().url("El enlace de Twitter/X no es valido (debe empezar con http:// o https://).").or(z.literal("")).optional(),
+    socialFacebook: z.string().trim().url("El enlace de Facebook no es valido (debe empezar con http:// o https://).").or(z.literal("")).optional(),
+    socialLinkedin: z.string().trim().url("El enlace de LinkedIn no es valido (debe empezar con http:// o https://).").or(z.literal("")).optional(),
+    socialInstagram: z.string().trim().url("El enlace de Instagram no es valido (debe empezar con http:// o https://).").or(z.literal("")).optional(),
+  })
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!id) return
 
-    if (!name.trim()) {
-      toast.error("El nombre del evento es obligatorio.")
+    const validation = editEventSchema.safeParse({
+      name,
+      shortDescription,
+      contactEmail,
+      websiteUrl,
+      socialTwitter,
+      socialFacebook,
+      socialLinkedin,
+      socialInstagram,
+    })
+
+    if (!validation.success) {
+      toast.error(validation.error.issues[0].message)
       return
     }
 

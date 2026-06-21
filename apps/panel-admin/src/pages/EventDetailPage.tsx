@@ -1,25 +1,29 @@
 import { useEffect } from "react"
-import { useParams, useNavigate, NavLink, Outlet } from "react-router-dom"
+import { useParams, useNavigate, NavLink, Outlet, useLocation } from "react-router-dom"
 import { useAuthStore } from "@/store/auth.store"
 import { useEventStore } from "@/store/event.store"
-import { AlertCircle, Settings, Layers, BookOpen, Clock, Users } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/page-header"
 import { Skeleton } from "@/components/ui/skeleton"
 
 const NAV_ITEMS = [
-  { to: "info", label: "General", icon: Settings },
-  { to: "editions", label: "Ediciones", icon: Layers },
-  { to: "speakers", label: "Ponentes", icon: BookOpen },
-  { to: "agenda", label: "Agenda", icon: Clock },
-  { to: "attendees", label: "Participantes", icon: Users },
+  { to: "info", label: "General" },
+  { to: "editions", label: "Ediciones" },
+  { to: "speakers", label: "Ponentes" },
+  { to: "agenda", label: "Agenda" },
+  { to: "attendees", label: "Participantes" },
+  { to: "roles", label: "Roles" },
+  { to: "thematic-lines", label: "Líneas Temáticas" },
+  { to: "tickets", label: "Tickets" },
 ]
 
 export function EventDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { selectedOrganization } = useAuthStore()
-  const { events, editions, speakers, agendaItems, attendees, isLoading, loadData } = useEventStore()
+  const { events, editions, speakers, agendaItems, attendees, roles, thematicLines, tickets, isLoading, loadData, loadRoles } = useEventStore()
 
   useEffect(() => {
     if (selectedOrganization?.id) {
@@ -27,18 +31,30 @@ export function EventDetailPage() {
     }
   }, [selectedOrganization?.id, loadData])
 
+  useEffect(() => {
+    if (id) {
+      loadRoles(id)
+    }
+  }, [id, loadRoles])
+
   const event = events.find((e) => e.id === id)
 
   const eventEditions = editions.filter((ed) => ed.mainEventId === id)
   const eventSpeakers = speakers.filter((sp) => sp.eventId === id)
   const eventAgenda = agendaItems.filter((ag) => ag.eventId === id)
   const eventAttendees = attendees.filter((at) => at.eventId === id)
+  const eventRoles = roles.filter((r) => r.mainEventId === id)
+  const eventThematicLines = thematicLines.filter((tl) => tl.mainEventId === id)
+  const eventTickets = tickets.filter((tk) => tk.mainEventId === id)
 
   const counts: Record<string, number> = {
     editions: eventEditions.length,
     speakers: eventSpeakers.length,
     agenda: eventAgenda.length,
     attendees: eventAttendees.length,
+    roles: eventRoles.length,
+    "thematic-lines": eventThematicLines.length,
+    tickets: eventTickets.length,
   }
 
   if (isLoading && !event) {
@@ -75,14 +91,20 @@ export function EventDetailPage() {
   const basePath = `/dashboard/events/${event.id}`
 
   const getLinkClass = ({ isActive }: { isActive: boolean }) =>
-    `flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors shrink-0 ${isActive
+    `flex items-center gap-2 px-4 py-2.5 text-sm border-b-2 transition-colors shrink-0 ${isActive
       ? "border-primary text-primary font-bold"
       : "border-transparent text-muted-foreground hover:text-foreground"
     }`
 
+  const { pathname } = useLocation()
+  const isAgendaPage = pathname.includes("/agenda")
+
   return (
     <div className="min-h-screen bg-background text-foreground font-sans flex flex-col">
-      <main className="max-w-7xl mx-auto px-6 py-12 flex-1 w-full">
+      <main className={cn(
+        "mx-auto py-12 flex-1 w-full px-6 transition-all duration-300",
+        isAgendaPage ? "max-w-[98%] md:px-8" : "max-w-7xl"
+      )}>
         <div className="mb-8">
           <PageHeader
             title={event.name}
@@ -100,7 +122,6 @@ export function EventDetailPage() {
               to={`${basePath}/${item.to}`}
               className={getLinkClass}
             >
-              <item.icon className="size-4" />
               {item.label}
               {counts[item.to] !== undefined && counts[item.to] > 0 && (
                 <span className="text-[10px] text-muted-foreground ml-1">

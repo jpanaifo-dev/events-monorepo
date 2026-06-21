@@ -20,6 +20,8 @@ export interface User {
   phone: string | null
   bio: string | null
   specialty: string | null
+  identity_document_type?: string | null
+  identity_document_number?: string | null
   role: UserRole
 }
 

@@ -4,7 +4,13 @@ import { LoginPage } from "@/pages/LoginPage"
 import { OrganizationsPage } from "@/pages/OrganizationsPage"
 import { OrganizationSettingsPage } from "@/pages/OrganizationSettingsPage"
 import { CreateOrganizationPage } from "@/pages/CreateOrganizationPage"
-import { ProfilePage } from "@/pages/ProfilePage"
+import {
+  ProfileLayout,
+  ProfileInfoSection,
+  ProfileExperienceSection,
+  ProfileEducationSection,
+  ProfileCertificationsSection,
+} from "@/pages/profile"
 import { EventsPage } from "@/pages/EventsPage"
 import { EventDetailPage } from "@/pages/EventDetailPage"
 import { DashboardPage } from "@/pages/DashboardPage"
@@ -16,13 +22,30 @@ import { CreateEventPage } from "@/pages/CreateEventPage"
 import { EditEventPage } from "@/pages/EditEventPage"
 import { CreateEditionPage } from "@/pages/CreateEditionPage"
 import { EditEditionPage } from "@/pages/EditEditionPage"
+import { CreateSpeakerPage } from "@/pages/CreateSpeakerPage"
+import { EditSpeakerPage } from "@/pages/EditSpeakerPage"
 import {
   EventInfoSection,
   EventEditionsSection,
   EventSpeakersSection,
   EventAgendaSection,
   EventAttendeesSection,
+  EventRolesSection,
+  EventThematicLinesSection,
+  EventActivityFormPage,
+  EventTicketsSection,
+  EventAttendeeFormPage,
 } from "@/pages/event-detail"
+import {
+  ProfilesPage,
+  ProfileManageLayout,
+  ProfileManageInfoSection,
+  ProfileManageExperienceSection,
+  ProfileManageEducationSection,
+  ProfileManageCertificationsSection,
+  ProfileManageDangerSection,
+  CreateProfilePage,
+} from "@/pages/profiles"
 
 export function AppRouter() {
   return (
@@ -54,10 +77,16 @@ export function AppRouter() {
           path="/dashboard/profile"
           element={
             <AuthGuard requireSelectedOrganization={false}>
-              <ProfilePage />
+              <ProfileLayout />
             </AuthGuard>
           }
-        />
+        >
+          <Route index element={<Navigate to="info" replace />} />
+          <Route path="info" element={<ProfileInfoSection />} />
+          <Route path="experience" element={<ProfileExperienceSection />} />
+          <Route path="education" element={<ProfileEducationSection />} />
+          <Route path="certifications" element={<ProfileCertificationsSection />} />
+        </Route>
 
         {/* Protected Dashboard Routes (Requires Selected Organization) */}
         <Route
@@ -73,6 +102,10 @@ export function AppRouter() {
 
           {/* Events Catalog */}
           <Route path="events" element={<EventsPage />} />
+
+          {/* Registered Profiles Catalog */}
+          <Route path="profiles" element={<ProfilesPage />} />
+          <Route path="profiles/new" element={<CreateProfilePage />} />
 
           {/* Settings Page */}
           <Route path="settings/business" element={<OrganizationSettingsPage />} />
@@ -119,6 +152,22 @@ export function AppRouter() {
             </AuthGuard>
           }
         />
+        <Route
+          path="/dashboard/events/:eventId/speakers/new"
+          element={
+            <AuthGuard requireSelectedOrganization={true}>
+              <CreateSpeakerPage />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/dashboard/events/:eventId/speakers/:speakerId/edit"
+          element={
+            <AuthGuard requireSelectedOrganization={true}>
+              <EditSpeakerPage />
+            </AuthGuard>
+          }
+        />
 
         {/* Event Detail - Standalone (no admin layout) */}
         <Route
@@ -134,7 +183,30 @@ export function AppRouter() {
           <Route path="editions" element={<EventEditionsSection />} />
           <Route path="speakers" element={<EventSpeakersSection />} />
           <Route path="agenda" element={<EventAgendaSection />} />
+          <Route path="agenda/new" element={<EventActivityFormPage />} />
+          <Route path="agenda/:activityId/edit" element={<EventActivityFormPage />} />
           <Route path="attendees" element={<EventAttendeesSection />} />
+          <Route path="attendees/new" element={<EventAttendeeFormPage />} />
+          <Route path="roles" element={<EventRolesSection />} />
+          <Route path="thematic-lines" element={<EventThematicLinesSection />} />
+          <Route path="tickets" element={<EventTicketsSection />} />
+        </Route>
+
+        {/* Profiles Detail - Standalone (no admin layout) */}
+        <Route
+          path="/dashboard/profiles/:profileId"
+          element={
+            <AuthGuard requireSelectedOrganization={true}>
+              <ProfileManageLayout />
+            </AuthGuard>
+          }
+        >
+          <Route index element={<Navigate to="info" replace />} />
+          <Route path="info" element={<ProfileManageInfoSection />} />
+          <Route path="experience" element={<ProfileManageExperienceSection />} />
+          <Route path="education" element={<ProfileManageEducationSection />} />
+          <Route path="certifications" element={<ProfileManageCertificationsSection />} />
+          <Route path="danger" element={<ProfileManageDangerSection />} />
         </Route>
 
         {/* Fallback redirect */}

@@ -34,9 +34,18 @@ const organizationSchema = z.object({
 
 type OrganizationInput = z.infer<typeof organizationSchema>
 
+import { useSEO } from "@/hooks/use-seo"
+
 export function OrganizationSettingsPage() {
   const navigate = useNavigate()
   const { user, selectedOrganization, selectOrganization, setOrganizations, organizations } = useAuthStore()
+
+  useSEO({
+    title: "Ajustes de la Organización",
+    description: selectedOrganization 
+      ? `Configura la información general, logotipo, portadas y parámetros de visualización para ${selectedOrganization.name}.`
+      : "Configuración de la organización."
+  })
 
   const [name, setName] = useState("")
   const [type, setType] = useState("")

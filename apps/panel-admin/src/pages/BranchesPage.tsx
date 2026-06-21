@@ -26,9 +26,18 @@ interface Branch {
   created_at: string
 }
 
+import { useSEO } from "@/hooks/use-seo"
+
 export function BranchesPage() {
   const navigate = useNavigate()
   const { selectedOrganization } = useAuthStore()
+
+  useSEO({
+    title: "Gestionar Sedes",
+    description: selectedOrganization 
+      ? `Administra las sucursales, oficinas principales y ubicaciones físicas de la organización ${selectedOrganization.name} en EventHive.`
+      : "Administración de sedes de la organización."
+  })
 
   // State
   const [branches, setBranches] = useState<Branch[]>([])

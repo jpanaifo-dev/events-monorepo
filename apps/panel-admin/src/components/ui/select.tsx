@@ -94,12 +94,11 @@ export function SelectContent({
   const context = React.useContext(SelectContext)
   if (!context) throw new Error("SelectContent must be used within a Select")
 
-  if (!context.open) return null
-
   return (
     <div
       className={cn(
         "absolute z-50 min-w-[8rem] overflow-hidden rounded-md border bg-card text-foreground shadow-md animate-in fade-in-80 slide-in-from-top-1 w-full max-h-60 overflow-y-auto mt-1 left-0 border-border",
+        !context.open && "hidden",
         className
       )}
       {...props}
@@ -121,8 +120,19 @@ export function SelectItem({
   const isSelected = context.value === value
 
   React.useEffect(() => {
+    let label = ""
     if (typeof children === "string") {
-      context.registerOption(value, children)
+      label = children
+    } else if (typeof children === "number") {
+      label = String(children)
+    } else if (Array.isArray(children)) {
+      label = children
+        .map((child) => (typeof child === "string" || typeof child === "number" ? String(child) : ""))
+        .join("")
+        .trim()
+    }
+    if (label) {
+      context.registerOption(value, label)
     }
   }, [value, children, context])
 

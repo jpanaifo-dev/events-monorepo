@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from "react"
 import { useNavigate, useParams } from "react-router-dom"
+import { z } from "zod"
 import { useEventStore } from "@/store/event.store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import { PageHeader } from "@/components/page-header"
 import { Trash2 } from "lucide-react"
+
+import { useSEO } from "@/hooks/use-seo"
 
 export function EditEditionPage() {
   const { eventId, editionId } = useParams<{ eventId: string; editionId: string }>()
@@ -14,6 +17,13 @@ export function EditEditionPage() {
 
   const event = events.find((e) => e.id === eventId)
   const edition = editions.find((ed) => ed.id === editionId)
+
+  useSEO({
+    title: edition ? `Editar Edición: ${edition.name}` : "Editar Edición",
+    description: event 
+      ? `Modifica los detalles, fechas, lema e imagen de portada para la edición ${edition?.name || ""} de ${event.name} en EventHive.`
+      : "Edición de evento."
+  })
 
   // Form states
   const [name, setName] = useState("")
@@ -41,12 +51,26 @@ export function EditEditionPage() {
     }
   }, [edition, eventId, navigate])
 
+  const editionSchema = z.object({
+    name: z.string().trim().min(1, "El nombre de la edición es obligatorio."),
+    coverUrl: z.string().trim().url("El enlace de portada no es válido.").or(z.literal("")).optional(),
+    startDate: z.string().min(1, "La fecha de inicio es requerida."),
+    endDate: z.string().min(1, "La fecha de fin es requerida."),
+  })
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!eventId || !editionId) return
 
-    if (!name.trim()) {
-      toast.error("El nombre de la edición es obligatorio.")
+    const validation = editionSchema.safeParse({
+      name,
+      coverUrl,
+      startDate,
+      endDate,
+    })
+
+    if (!validation.success) {
+      toast.error(validation.error.issues[0].message)
       return
     }
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react"
 import { useNavigate, useParams } from "react-router-dom"
+import { z } from "zod"
 import { useAuthStore } from "@/store/auth.store"
 import { supabase } from "@/utils/supabase"
 import { Button } from "@/components/ui/button"
@@ -13,10 +14,17 @@ declare global {
   }
 }
 
+import { useSEO } from "@/hooks/use-seo"
+
 export function BranchFormPage() {
   const navigate = useNavigate()
   const { branchId } = useParams()
   const { selectedOrganization } = useAuthStore()
+
+  useSEO({
+    title: branchId ? "Editar Sede" : "Agregar Nueva Sede",
+    description: "Configura los detalles de ubicación, mapa, dirección física y datos de contacto de la sede en EventHive."
+  })
 
   // Loading States
   const [isLoading, setIsLoading] = useState(false)
@@ -194,11 +202,24 @@ export function BranchFormPage() {
     setEmails(emails.filter((_, i) => i !== index))
   }
 
+  const branchSchema = z.object({
+    name: z.string().trim().min(1, "El nombre de la sede es requerido."),
+    latitude: z.string().refine((val) => !val || !isNaN(parseFloat(val)), "La latitud debe ser un número válido.").optional(),
+    longitude: z.string().refine((val) => !val || !isNaN(parseFloat(val)), "La longitud debe ser un número válido.").optional(),
+  })
+
   // Form Submit handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name.trim()) {
-      toast.error("El nombre de la sede es requerido.")
+
+    const validation = branchSchema.safeParse({
+      name,
+      latitude,
+      longitude,
+    })
+
+    if (!validation.success) {
+      toast.error(validation.error.issues[0].message)
       return
     }
 

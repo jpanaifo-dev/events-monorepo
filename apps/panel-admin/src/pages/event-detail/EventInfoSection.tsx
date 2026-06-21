@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
+import { z } from "zod"
 import { useEventStore } from "@/store/event.store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { ImageUploadWithPreview } from "@/components/ImageUploadWithPreview"
 import { toast } from "sonner"
 import { Trash2 } from "lucide-react"
 import {
@@ -17,11 +19,18 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog"
 
+import { useSEO } from "@/hooks/use-seo"
+
 export function EventInfoSection() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { events, updateEvent, deleteEvent } = useEventStore()
   const event = events.find((e) => e.id === id)
+
+  useSEO({
+    title: event ? `${event.name} - General` : "Detalle de Evento",
+    description: event?.shortDescription || "Gestiona la información principal, colores de marca y estado del evento en EventHive."
+  })
 
   const [name, setName] = useState("")
   const [shortDescription, setShortDescription] = useState("")
@@ -64,10 +73,33 @@ export function EventInfoSection() {
 
   if (!event) return null
 
+  const editEventSchema = z.object({
+    name: z.string().trim().min(1, "El nombre del evento es obligatorio."),
+    shortDescription: z.string().trim().min(1, "La descripcion corta es obligatoria."),
+    contactEmail: z.string().trim().email("El correo de contacto no es valido.").or(z.literal("")).optional(),
+    websiteUrl: z.string().trim().url("El sitio web no es valido (debe empezar con http:// o https://).").or(z.literal("")).optional(),
+    socialTwitter: z.string().trim().url("El enlace de Twitter/X no es valido (debe empezar con http:// o https://).").or(z.literal("")).optional(),
+    socialFacebook: z.string().trim().url("El enlace de Facebook no es valido (debe empezar con http:// o https://).").or(z.literal("")).optional(),
+    socialLinkedin: z.string().trim().url("El enlace de LinkedIn no es valido (debe empezar con http:// o https://).").or(z.literal("")).optional(),
+    socialInstagram: z.string().trim().url("El enlace de Instagram no es valido (debe empezar con http:// o https://).").or(z.literal("")).optional(),
+  })
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name.trim()) {
-      toast.error("El nombre del evento es obligatorio.")
+    
+    const validation = editEventSchema.safeParse({
+      name,
+      shortDescription,
+      contactEmail,
+      websiteUrl,
+      socialTwitter,
+      socialFacebook,
+      socialLinkedin,
+      socialInstagram,
+    })
+
+    if (!validation.success) {
+      toast.error(validation.error.issues[0].message)
       return
     }
     setIsSubmitting(true)
@@ -114,12 +146,9 @@ export function EventInfoSection() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      <h2 className="text-lg">Informacion del Evento</h2>
       {/* Informacion Basica */}
       <div className="border border-border rounded-xl bg-card overflow-hidden shadow-sm">
-        <div className="p-6 border-b border-border">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-primary">Informacion Basica</h2>
-        </div>
-
         <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
           <div className="md:w-1/3 space-y-1">
             <label htmlFor="evt-name" className="text-sm font-medium text-foreground">
@@ -156,21 +185,37 @@ export function EventInfoSection() {
 
         <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
           <div className="md:w-1/3 space-y-1">
-            <label htmlFor="evt-cover" className="text-sm font-medium text-foreground">URL de Portada</label>
+            <label htmlFor="evt-cover" className="text-sm font-medium text-foreground">Portada del Evento</label>
             <p className="text-xs text-muted-foreground">Imagen de portada del evento.</p>
           </div>
           <div className="md:w-2/3 max-w-md w-full">
-            <Input id="evt-cover" type="url" placeholder="https://ejemplo.com/portada.jpg" value={coverUrl} onChange={(e) => setCoverUrl(e.target.value)} className="bg-background" />
+            <ImageUploadWithPreview
+              value={coverUrl}
+              onChange={setCoverUrl}
+              label=""
+              aspectRatio="banner"
+              folder={`events/${event.id}`}
+              identifier="cover"
+              placeholder="Arrastra o pega una imagen de portada"
+            />
           </div>
         </div>
 
         <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
           <div className="md:w-1/3 space-y-1">
-            <label htmlFor="evt-logo" className="text-sm font-medium text-foreground">URL del Logo</label>
-            <p className="text-xs text-muted-foreground">Logo del evento o marca.</p>
+            <label htmlFor="evt-logo" className="text-sm font-medium text-foreground">Logo del Evento</label>
+            <p className="text-xs text-muted-foreground">Logo o marca del evento.</p>
           </div>
           <div className="md:w-2/3 max-w-md w-full">
-            <Input id="evt-logo" type="url" placeholder="https://ejemplo.com/logo.png" value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} className="bg-background" />
+            <ImageUploadWithPreview
+              value={logoUrl}
+              onChange={setLogoUrl}
+              label=""
+              aspectRatio="square"
+              folder={`events/${event.id}`}
+              identifier="logo"
+              placeholder="Arrastra o pega el logo"
+            />
           </div>
         </div>
 
@@ -189,12 +234,9 @@ export function EventInfoSection() {
         </div>
       </div>
 
+      <h2 className="text-lg">Contacto y Enlaces</h2>
       {/* Contacto y Enlaces */}
       <div className="border border-border rounded-xl bg-card overflow-hidden shadow-sm">
-        <div className="p-6 border-b border-border">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-primary">Contacto y Enlaces</h2>
-        </div>
-
         <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
           <div className="md:w-1/3 space-y-1">
             <label htmlFor="evt-email" className="text-sm font-medium text-foreground">Email de Contacto</label>
@@ -226,11 +268,9 @@ export function EventInfoSection() {
         </div>
       </div>
 
+      <h2 className="text-lg">Colores del Evento</h2>
       {/* Colores de Marca */}
       <div className="border border-border rounded-xl bg-card overflow-hidden shadow-sm">
-        <div className="p-6 border-b border-border">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-primary">Colores de Marca</h2>
-        </div>
         <div className="p-6 flex flex-col md:flex-row gap-6">
           <div className="space-y-2">
             <label className="text-xs font-bold uppercase text-muted-foreground">Primario</label>
@@ -288,7 +328,7 @@ export function EventInfoSection() {
 
       {/* Footer fijo */}
       <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-border bg-background/80 px-8 py-4 backdrop-blur-md">
-        <div className="max-w-4xl mx-auto flex justify-end gap-3 w-full">
+        <div className="max-w-7xl mx-auto flex justify-end gap-3 w-full">
           <Button type="button" variant="outline" onClick={() => navigate("/dashboard/events")} disabled={isSubmitting} className="cursor-pointer">
             Cancelar
           </Button>

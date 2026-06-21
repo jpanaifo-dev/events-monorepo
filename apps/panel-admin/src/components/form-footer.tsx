@@ -1,8 +1,8 @@
 "use client"
 
-import React from "react";
+import * as React from "react";
 import { cn } from "@/lib/utils";
-import { useSidebar } from "@/components/ui/sidebar";
+import { SidebarContext } from "@/components/ui/sidebar";
 
 interface FormFooterProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
@@ -10,7 +10,9 @@ interface FormFooterProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 export function FormFooter({ children, className, style, variant = "fixed", ...props }: FormFooterProps) {
-  const { state, isMobile } = useSidebar();
+  const sidebar = React.useContext(SidebarContext);
+  const state = sidebar ? sidebar.state : "expanded";
+  const isMobile = sidebar ? sidebar.isMobile : true;
 
   if (variant === "sticky") {
     return (

@@ -157,7 +157,8 @@ export interface EventActivity {
 
 export interface EventTicket {
   id: string
-  event_id: string
+  main_event_id: string
+  edition_id: string | null
   name: string
   description: string | null
   price: number
@@ -563,7 +564,7 @@ export interface EventCall {
 export interface EventParticipant {
   id: string
   main_event_id: string
-  edition_id: string
+  edition_id: string | null
   profile_id: string
   role_id: string
   check_in_status: boolean | null

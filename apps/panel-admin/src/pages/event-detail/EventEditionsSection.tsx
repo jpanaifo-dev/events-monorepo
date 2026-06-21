@@ -1,8 +1,10 @@
 import { useState } from "react"
 import { useParams } from "react-router-dom"
-import { useEventStore } from "@/store/event.store"
-import type { Edition } from "@/store/event.store"
-import { Plus, Edit2, Trash2 } from "lucide-react"
+import { z } from "zod"
+import { useEventStore, type Edition } from "@/store/event.store"
+import { toast } from "sonner"
+import { Plus, Trash2, Edit } from "lucide-react"
+import { DataTable, type ColumnDef } from "@/components/ui/data-table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
@@ -26,11 +28,19 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog"
 
+import { useSEO } from "@/hooks/use-seo"
+
 export function EventEditionsSection() {
   const { id } = useParams<{ id: string }>()
-  const { editions, addEdition, updateEdition, deleteEdition } = useEventStore()
+  const { events, editions, addEdition, updateEdition, deleteEdition } = useEventStore()
 
+  const event = events.find((e) => e.id === id)
   const eventEditions = editions.filter((ed) => ed.mainEventId === id)
+
+  useSEO({
+    title: event ? `${event.name} - Ediciones` : "Ediciones de Evento",
+    description: `Historial y programación de las diferentes ediciones periódicas para el evento ${event?.name || ""}.`
+  })
 
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -70,8 +80,25 @@ export function EventEditionsSection() {
     setIsCurrent(false)
   }
 
+  const editionSchema = z.object({
+    name: z.string().trim().min(1, "El nombre de la edición es obligatorio."),
+    startDate: z.string().min(1, "La fecha de inicio es requerida."),
+    endDate: z.string().min(1, "La fecha de fin es requerida."),
+  })
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    const validation = editionSchema.safeParse({
+      name,
+      startDate,
+      endDate,
+    })
+
+    if (!validation.success) {
+      toast.error(validation.error.issues[0].message)
+      return
+    }
     if (editingId) {
       await updateEdition(editingId, { name, description, startDate, endDate, isCurrent })
     } else {
@@ -88,6 +115,73 @@ export function EventEditionsSection() {
     closeSheet()
   }
 
+  const columns: ColumnDef<any>[] = [
+    {
+      header: "Nombre",
+      className: "p-3 font-semibold",
+      headerClassName: "p-3",
+      cell: (ed) => (
+        <>
+          {ed.name}
+          <p className="font-normal text-xs text-muted-foreground">
+            {ed?.description || 'Sin descripcion'}
+          </p>
+        </>
+      )
+    },
+    {
+      header: "Fechas",
+      className: "p-3 text-xs text-muted-foreground",
+      headerClassName: "p-3",
+      cell: (ed) => ed.startDate && ed.endDate
+        ? `${new Date(ed.startDate).toLocaleDateString("es-ES")} – ${new Date(ed.endDate).toLocaleDateString("es-ES")}`
+        : "Por definir"
+    },
+    {
+      header: "Estado",
+      className: "p-3",
+      headerClassName: "p-3",
+      cell: (ed) => (
+        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${ed.isCurrent ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+          {ed.isCurrent ? "Actual" : "Planeado"}
+        </span>
+      )
+    },
+    {
+      header: "Acciones",
+      headerClassName: "text-right p-3",
+      className: "text-right p-3",
+      cell: (ed) => (
+        <div className="flex items-center justify-end gap-1">
+          <Button onClick={() => openEdit(ed)} variant="ghost" className="size-7 p-0">
+            <Edit className="size-3.5" />
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="ghost" className="size-7 p-0 text-destructive hover:bg-destructive/10">
+                <Trash2 className="size-3.5" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Eliminar edición?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Se eliminará permanentemente "{ed.name}". Esta acción no se puede deshacer.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={() => deleteEdition(ed.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  Sí, eliminar
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      )
+    }
+  ]
+
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       <div className="flex items-center justify-between border-b border-border pb-3">
@@ -103,74 +197,18 @@ export function EventEditionsSection() {
           No hay ediciones programadas.
         </div>
       ) : (
-        <div className="overflow-x-auto border border-border rounded-xl">
-          <table className="w-full text-sm text-left border-collapse">
-            <thead>
-              <tr className="bg-muted/60 text-xs font-bold text-muted-foreground border-b border-border uppercase">
-                <th className="p-3">Nombre</th>
-                <th className="p-3">Fechas</th>
-                <th className="p-3">Estado</th>
-                <th className="p-3 text-right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/60">
-              {eventEditions.map((ed) => (
-                <tr key={ed.id} className="hover:bg-muted/10 transition-colors">
-                  <td className="p-3 font-semibold">{ed.name}</td>
-                  <td className="p-3 text-xs text-muted-foreground">
-                    {ed.startDate && ed.endDate
-                      ? `${new Date(ed.startDate).toLocaleDateString("es-ES")} – ${new Date(ed.endDate).toLocaleDateString("es-ES")}`
-                      : "Por definir"}
-                  </td>
-                  <td className="p-3">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${ed.isCurrent ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
-                      {ed.isCurrent ? "Actual" : "Planeado"}
-                    </span>
-                  </td>
-                  <td className="p-3 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button onClick={() => openEdit(ed)} variant="ghost" className="size-7 p-0">
-                        <Edit2 className="size-3.5" />
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" className="size-7 p-0 text-destructive hover:bg-destructive/10">
-                            <Trash2 className="size-3.5" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>¿Eliminar edición?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Se eliminará permanentemente "{ed.name}". Esta acción no se puede deshacer.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => deleteEdition(ed.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                              Sí, eliminar
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable columns={columns} data={eventEditions} containerClassName="border border-border rounded-xl" />
       )}
 
       {/* Sheet Create/Edit */}
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-        <SheetContent side="right" className="sm:max-w-md">
+        <SheetContent side="right" className="w-full sm:max-w-md">
           <SheetHeader>
             <SheetTitle>{editingId ? "Editar Edición" : "Nueva Edición"}</SheetTitle>
             <SheetDescription>Define los datos de la edición del evento.</SheetDescription>
           </SheetHeader>
 
-          <form onSubmit={handleSave} className="space-y-4 px-4">
+          <form onSubmit={handleSave} className="space-y-4 px-4 flex-1 overflow-y-auto pb-6">
             <FieldGroup>
               <Field>
                 <FieldLabel htmlFor="edName">Nombre</FieldLabel>
