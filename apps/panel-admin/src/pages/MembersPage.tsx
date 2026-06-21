@@ -378,7 +378,7 @@ export function MembersPage() {
   }
 
   return (
-    <div className="container mx-auto px-6 py-12 w-full font-sans">
+    <div className="container mx-auto px-6 w-full">
       <div className="mb-10">
         <PageHeader
           title="Miembros de la Organización"

@@ -13,8 +13,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { ChevronsUpDown, LogOut, ArrowLeft } from "lucide-react"
+import { ChevronsUpDown, LogOut } from "lucide-react"
 import { supabase } from "@/utils/supabase"
+import { PageHeader } from "@/components/page-header"
 
 export function ProfileLayout() {
   const navigate = useNavigate()
@@ -59,13 +60,6 @@ export function ProfileLayout() {
       {/* Top Header Navbar */}
       <header className="h-16 bg-card border-b border-border flex items-center justify-between px-8 flex-shrink-0">
         <div className="flex items-center gap-4">
-          <button
-            onClick={handleBack}
-            className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors py-1.5 px-3 border border-border rounded-md bg-muted/20 cursor-pointer"
-          >
-            <ArrowLeft className="size-3.5" />
-            Volver
-          </button>
           <ZynqroLogo className="h-8 w-auto ml-2" />
         </div>
 
@@ -132,12 +126,12 @@ export function ProfileLayout() {
 
       {/* Main Settings Form Container */}
       <main className="max-w-4xl mx-auto px-6 py-12 flex-1 w-full">
-        <div className="space-y-1 mb-8">
-          <h1 className="text-3xl font-medium tracking-tight text-foreground">Mi Perfil</h1>
-          <p className="text-sm text-muted-foreground">
-            Actualiza tus datos personales, profesionales y académicos para participar en eventos.
-          </p>
-        </div>
+        <PageHeader
+          title="Mi Perfil"
+          description="Actualiza tus datos personales"
+          showBackButton
+          onBackClick={handleBack}
+        />
 
         {/* Tab Navigation */}
         <div className="flex items-center gap-1 border-b border-border overflow-x-auto select-none no-scrollbar mb-8">
