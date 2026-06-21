@@ -3,6 +3,7 @@ import { useNavigate, NavLink, Outlet } from "react-router-dom"
 import { useAuthStore } from "@/store/auth.store"
 import { useProfileStore } from "@/store/profile.store"
 import { ThemeSwitch } from "@/components/ui/theme-switch"
+import { ZynqroLogo } from "@/components/zynqro-logo"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,10 +49,9 @@ export function ProfileLayout() {
   ]
 
   const getLinkClass = ({ isActive }: { isActive: boolean }) =>
-    `flex items-center gap-2 px-4 py-2.5 text-sm border-b-2 transition-colors shrink-0 ${
-      isActive
-        ? "border-primary text-primary font-bold"
-        : "border-transparent text-muted-foreground hover:text-foreground"
+    `flex items-center gap-2 px-4 py-2.5 text-sm border-b-2 transition-colors shrink-0 ${isActive
+      ? "border-primary text-primary font-bold"
+      : "border-transparent text-muted-foreground hover:text-foreground"
     }`
 
   return (
@@ -66,9 +66,7 @@ export function ProfileLayout() {
             <ArrowLeft className="size-3.5" />
             Volver
           </button>
-          <span className="font-bold text-xl text-primary tracking-tighter ml-2">
-            EventHive
-          </span>
+          <ZynqroLogo className="h-8 w-auto ml-2" />
         </div>
 
         <div className="flex items-center gap-6 text-sm">

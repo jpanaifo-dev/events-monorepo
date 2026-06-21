@@ -18,8 +18,8 @@ export function CreateEditionPage() {
 
   useSEO({
     title: "Nueva Edición",
-    description: event 
-      ? `Añade una nueva edición anual o periódica para el evento ${event.name} en EventHive.`
+    description: event
+      ? `Añade una nueva edición anual o periódica para el evento ${event.name} en Zynqro .`
       : "Crea una nueva edición de evento."
   })
 

@@ -44,7 +44,7 @@ export function ProfileEducationSection() {
 
   useSEO({
     title: "Mi Perfil - Estudios",
-    description: "Gestiona tu formación académica, universidades, grados y títulos en EventHive."
+    description: "Gestiona tu formación académica, universidades, grados y títulos en Zynqro ."
   })
 
   const [isSheetOpen, setIsSheetOpen] = useState(false)
@@ -218,7 +218,7 @@ export function ProfileEducationSection() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      
+
       {/* Title & Add Button */}
       <div className="flex items-center justify-between border-b border-border pb-3">
         <div>
@@ -266,7 +266,7 @@ export function ProfileEducationSection() {
                       </Badge>
                     )}
                   </div>
-                  
+
                   {/* Info Metadata Row */}
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                     {item.degree && (
@@ -342,7 +342,7 @@ export function ProfileEducationSection() {
           </SheetHeader>
 
           <form onSubmit={handleSave} className="space-y-5 px-4 mt-6 flex-1 overflow-y-auto pb-6">
-            
+
             {formError && (
               <div className="p-3 text-xs bg-destructive/15 text-destructive rounded-lg border border-destructive/20 font-medium">
                 {formError}
@@ -350,7 +350,7 @@ export function ProfileEducationSection() {
             )}
 
             <FieldGroup>
-              
+
               {/* Institution */}
               <Field>
                 <FieldLabel htmlFor="instName">Institución Académica *</FieldLabel>

@@ -19,7 +19,7 @@ export function EditEventPage() {
 
   useSEO({
     title: event ? `Editar: ${event.name}` : "Editar Evento",
-    description: "Modifica los datos generales, descripción, imagen de portada, redes sociales y colores corporativos de tu evento en EventHive."
+    description: "Modifica los datos generales, descripción, imagen de portada, redes sociales y colores corporativos de tu evento en Zynqro ."
   })
 
   const [name, setName] = useState("")

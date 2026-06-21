@@ -18,7 +18,7 @@ export function CreateEventPage() {
 
   useSEO({
     title: "Crear Evento",
-    description: "Registra y configura un nuevo evento con su información básica, redes sociales y detalles generales en EventHive."
+    description: "Registra y configura un nuevo evento con su información básica, redes sociales y detalles generales en Zynqro ."
   })
 
   const [name, setName] = useState("")

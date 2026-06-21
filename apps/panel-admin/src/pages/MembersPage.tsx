@@ -18,9 +18,9 @@ export function MembersPage() {
 
   useSEO({
     title: "Miembros de la Organización",
-    description: selectedOrganization 
+    description: selectedOrganization
       ? `Administra los niveles de acceso, permisos y colaboradores en tu espacio de trabajo para ${selectedOrganization.name}.`
-      : "Administración de colaboradores de la organización en EventHive."
+      : "Administración de colaboradores de la organización en Zynqro ."
   })
 
   const [members, setMembers] = useState<any[]>([])
@@ -143,7 +143,7 @@ export function MembersPage() {
 
       // Filter locally or from profiles
       let list: any[] = data || []
-      
+
       // Ensure the current user is added as Owner if not present in the list
       if (user && !list.some((m: any) => m.profile_id === user.id)) {
         list = [
@@ -541,7 +541,7 @@ export function MembersPage() {
                   Rol del miembro
                 </label>
                 <div className="space-y-2">
-                   {[
+                  {[
                     {
                       value: OrganizationMemberRole.OWNER,
                       label: "Owner (Dueño)",

@@ -2,6 +2,7 @@ import { useEffect } from "react"
 import { useNavigate, useParams, NavLink, Outlet } from "react-router-dom"
 import { useAdminProfilesStore } from "@/store/admin-profiles.store"
 import { ThemeSwitch } from "@/components/ui/theme-switch"
+import { ZynqroLogo } from "@/components/zynqro-logo"
 import { ArrowLeft } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
@@ -52,9 +53,12 @@ export function ProfileManageLayout() {
             <ArrowLeft className="size-3.5" />
             Volver a Directorio
           </button>
-          <span className="font-bold text-xl text-primary tracking-tighter ml-2">
-            EventHive Admin
-          </span>
+          <div className="flex items-center gap-2 ml-2">
+            <ZynqroLogo className="h-8 w-auto" />
+            <span className="text-[10px] bg-rose-500/10 border border-rose-500/20 text-rose-500 font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider mt-0.5">
+              Admin
+            </span>
+          </div>
         </div>
         <div className="flex items-center gap-6 text-sm">
           <ThemeSwitch />

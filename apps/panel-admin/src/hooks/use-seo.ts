@@ -8,7 +8,7 @@ interface SEOProps {
 export function useSEO({ title, description }: SEOProps) {
   useEffect(() => {
     const prevTitle = document.title
-    document.title = title ? `${title} | EventHive` : "EventHive"
+    document.title = title ? `${title} | Zynqro ` : "Zynqro "
 
     let metaDescription = document.querySelector('meta[name="description"]')
     let created = false

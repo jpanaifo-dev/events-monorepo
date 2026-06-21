@@ -20,8 +20,8 @@ export function EditEditionPage() {
 
   useSEO({
     title: edition ? `Editar Edición: ${edition.name}` : "Editar Edición",
-    description: event 
-      ? `Modifica los detalles, fechas, lema e imagen de portada para la edición ${edition?.name || ""} de ${event.name} en EventHive.`
+    description: event
+      ? `Modifica los detalles, fechas, lema e imagen de portada para la edición ${edition?.name || ""} de ${event.name} en Zynqro .`
       : "Edición de evento."
   })
 

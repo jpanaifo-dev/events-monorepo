@@ -12,7 +12,7 @@ export function ProfileInfoSection() {
 
   useSEO({
     title: "Mi Perfil - Datos Generales",
-    description: "Actualiza tu información de perfil personal, teléfono, biografía e institución en EventHive."
+    description: "Actualiza tu información de perfil personal, teléfono, biografía e institución en Zynqro ."
   })
 
   const [firstName, setFirstName] = useState("")

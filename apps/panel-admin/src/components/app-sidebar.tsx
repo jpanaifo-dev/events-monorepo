@@ -17,7 +17,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const adminRoutes = getAdminRoutes()
 
   const formattedUser = {
-    name: user?.full_name || user?.email || "Usuario EventHive",
+    name: user?.full_name || user?.email || "Usuario Zynqro ",
     email: user?.email || "",
     avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(
       user?.full_name || user?.email || "E"

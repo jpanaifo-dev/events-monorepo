@@ -34,8 +34,8 @@ export function BranchesPage() {
 
   useSEO({
     title: "Gestionar Sedes",
-    description: selectedOrganization 
-      ? `Administra las sucursales, oficinas principales y ubicaciones físicas de la organización ${selectedOrganization.name} en EventHive.`
+    description: selectedOrganization
+      ? `Administra las sucursales, oficinas principales y ubicaciones físicas de la organización ${selectedOrganization.name} en Zynqro .`
       : "Administración de sedes de la organización."
   })
 
@@ -159,9 +159,8 @@ export function BranchesPage() {
           {filteredBranches.map((branch) => (
             <div
               key={branch.id}
-              className={`bg-card border rounded-xl p-6 transition-all relative flex flex-col justify-between gap-4 hover:shadow-md ${
-                branch.is_main ? "border-primary/50 dark:border-primary/30 ring-1 ring-primary/20" : "border-border"
-              } ${!branch.is_active && "opacity-60"}`}
+              className={`bg-card border rounded-xl p-6 transition-all relative flex flex-col justify-between gap-4 hover:shadow-md ${branch.is_main ? "border-primary/50 dark:border-primary/30 ring-1 ring-primary/20" : "border-border"
+                } ${!branch.is_active && "opacity-60"}`}
             >
               {/* Badges and Top Actions */}
               <div className="flex items-start justify-between gap-4">
@@ -181,7 +180,7 @@ export function BranchesPage() {
                       </span>
                     )}
                   </div>
-                  
+
                   {/* Address */}
                   {branch.address && (
                     <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-1">

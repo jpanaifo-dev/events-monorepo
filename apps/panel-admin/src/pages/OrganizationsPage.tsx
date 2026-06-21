@@ -4,6 +4,7 @@ import { useAuthStore } from "@/store/auth.store"
 import { useEventStore } from "@/store/event.store"
 import { supabase } from "@/utils/supabase"
 import { Search, Plus, Layers, ChevronsUpDown, LogOut, User } from "lucide-react"
+import { ZynqroLogo } from "@/components/zynqro-logo"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ThemeSwitch } from "@/components/ui/theme-switch"
@@ -40,7 +41,7 @@ export function OrganizationsPage() {
 
   useSEO({
     title: "Mis Organizaciones",
-    description: "Administra y selecciona tus organizaciones registradas en EventHive."
+    description: "Administra y selecciona tus organizaciones registradas en Zynqro ."
   })
 
   const [search, setSearch] = useState("")
@@ -152,9 +153,7 @@ export function OrganizationsPage() {
       {/* Top Header Navbar */}
       <header className="h-16 bg-card border-b border-border flex items-center justify-between px-8 flex-shrink-0">
         <div className="flex items-center gap-6">
-          <span className="font-bold text-xl text-primary tracking-tighter flex items-center gap-1.5">
-            EventHive
-          </span>
+          <ZynqroLogo className="h-8 w-auto" />
         </div>
 
         <div className="flex items-center gap-6 text-sm">
