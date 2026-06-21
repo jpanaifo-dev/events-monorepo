@@ -40,7 +40,7 @@ export function OrganizationsPage() {
 
   useSEO({
     title: "Mis Organizaciones",
-    description: "Administra y selecciona tus organizaciones registradas en EventHive."
+    description: "Administra y selecciona tus organizaciones registradas en Zynqro ."
   })
 
   const [search, setSearch] = useState("")
@@ -153,7 +153,7 @@ export function OrganizationsPage() {
       <header className="h-16 bg-card border-b border-border flex items-center justify-between px-8 flex-shrink-0">
         <div className="flex items-center gap-6">
           <span className="font-bold text-xl text-primary tracking-tighter flex items-center gap-1.5">
-            EventHive
+            Zynqro
           </span>
         </div>
 

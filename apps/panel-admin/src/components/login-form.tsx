@@ -29,7 +29,7 @@ export function LoginForm({
   const navigate = useNavigate()
   const login = useAuthStore((state) => state.login)
   const setLoading = useAuthStore((state) => state.setLoading)
-  
+
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
@@ -223,7 +223,7 @@ export function LoginForm({
         <div className="flex flex-col items-center gap-1 text-center">
           <h1 className="text-2xl font-bold font-sans">Iniciar Sesión</h1>
           <p className="text-sm text-balance text-muted-foreground font-sans">
-            Ingresa tu correo abajo para acceder a tu cuenta en EventHive
+            Ingresa tu correo abajo para acceder a tu cuenta en Zynqro
           </p>
         </div>
         {formError && (

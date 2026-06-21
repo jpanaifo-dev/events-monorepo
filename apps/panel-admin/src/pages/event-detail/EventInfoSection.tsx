@@ -29,7 +29,7 @@ export function EventInfoSection() {
 
   useSEO({
     title: event ? `${event.name} - General` : "Detalle de Evento",
-    description: event?.shortDescription || "Gestiona la información principal, colores de marca y estado del evento en EventHive."
+    description: event?.shortDescription || "Gestiona la información principal, colores de marca y estado del evento en Zynqro ."
   })
 
   const [name, setName] = useState("")
@@ -86,7 +86,7 @@ export function EventInfoSection() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     const validation = editEventSchema.safeParse({
       name,
       shortDescription,

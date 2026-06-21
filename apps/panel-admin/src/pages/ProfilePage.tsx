@@ -26,7 +26,7 @@ export function ProfilePage() {
 
   useSEO({
     title: "Mi Perfil",
-    description: "Actualiza tu información de perfil personal, teléfono, biografía e institución en EventHive."
+    description: "Actualiza tu información de perfil personal, teléfono, biografía e institución en Zynqro ."
   })
 
   const [firstName, setFirstName] = useState("")
@@ -160,7 +160,7 @@ export function ProfilePage() {
             Volver
           </button>
           <span className="font-bold text-xl text-primary tracking-tighter ml-2">
-            EventHive
+            Zynqro
           </span>
         </div>
 

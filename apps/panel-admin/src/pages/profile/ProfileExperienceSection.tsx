@@ -44,12 +44,12 @@ export function ProfileExperienceSection() {
 
   useSEO({
     title: "Mi Perfil - Experiencia Profesional",
-    description: "Gestiona tu historial laboral, cargos desempeñados y organizaciones en EventHive."
+    description: "Gestiona tu historial laboral, cargos desempeñados y organizaciones en Zynqro ."
   })
 
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
-  
+
   // Form fields
   const [organization, setOrganization] = useState("")
   const [role, setRole] = useState("")
@@ -186,7 +186,7 @@ export function ProfileExperienceSection() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      
+
       {/* Title & Add Button */}
       <div className="flex items-center justify-between border-b border-border pb-3">
         <div>
@@ -234,7 +234,7 @@ export function ProfileExperienceSection() {
                       </Badge>
                     )}
                   </div>
-                  
+
                   {/* Metadata Row */}
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
@@ -302,7 +302,7 @@ export function ProfileExperienceSection() {
           </SheetHeader>
 
           <form onSubmit={handleSave} className="space-y-5 px-4 mt-6 flex-1 overflow-y-auto pb-6">
-            
+
             {formError && (
               <div className="p-3 text-xs bg-destructive/15 text-destructive rounded-lg border border-destructive/20 font-medium">
                 {formError}
@@ -310,7 +310,7 @@ export function ProfileExperienceSection() {
             )}
 
             <FieldGroup>
-              
+
               {/* Organization */}
               <Field>
                 <FieldLabel htmlFor="orgName">Empresa / Organización *</FieldLabel>

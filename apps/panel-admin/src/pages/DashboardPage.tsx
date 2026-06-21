@@ -13,16 +13,16 @@ export function DashboardPage() {
 
   useSEO({
     title: "Inicio",
-    description: selectedOrganization 
-      ? `Panel de administración y métricas generales para la organización ${selectedOrganization.name}.` 
-      : "Panel de control principal en EventHive."
+    description: selectedOrganization
+      ? `Panel de administración y métricas generales para la organización ${selectedOrganization.name}.`
+      : "Panel de control principal en Zynqro ."
   })
 
   // Calculate statistics for the active organization
   const totalEvents = events.length
   const totalSpeakers = speakers.length
   const totalAttendees = attendees.length
-  
+
   // Calculate upcoming events
   const upcomingEvents = events.filter(e => e.status === "published" || e.status === "draft").slice(0, 3)
 
@@ -57,8 +57,8 @@ export function DashboardPage() {
     <div className="space-y-8 animate-in fade-in duration-500">
       <PageHeader
         title="¡Hola de nuevo, admin!"
-        description={selectedOrganization 
-          ? `Administrando el panel para: ${selectedOrganization.name}.` 
+        description={selectedOrganization
+          ? `Administrando el panel para: ${selectedOrganization.name}.`
           : "No tienes una organización activa seleccionada."}
       />
 
@@ -80,7 +80,7 @@ export function DashboardPage() {
 
       {/* Main Grid Section */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        
+
         {/* Left Card: Upcoming Events list */}
         <div className="col-span-1 md:col-span-2 p-6 bg-card rounded-xl border border-border space-y-4">
           <div className="flex items-center justify-between border-b border-border pb-3">
@@ -90,14 +90,14 @@ export function DashboardPage() {
             </div>
             <span onClick={() => navigate("/dashboard/events")} className="text-xs text-primary hover:underline cursor-pointer">Ver todos</span>
           </div>
-          
+
           {upcomingEvents.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4 text-center">No hay eventos registrados en esta organización.</p>
           ) : (
             <div className="divide-y divide-border/60">
               {upcomingEvents.map((evt) => (
-                <div 
-                  key={evt.id} 
+                <div
+                  key={evt.id}
                   onClick={() => navigate(`/dashboard/events/${evt.id}`)}
                   className="py-3 flex items-center justify-between group cursor-pointer hover:bg-muted/10 px-2 rounded-lg transition-colors"
                 >
@@ -113,9 +113,8 @@ export function DashboardPage() {
                       )}
                     </div>
                   </div>
-                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase ${
-                    evt.status === "published" ? "bg-primary/10 text-primary" : "bg-amber-500/10 text-amber-600"
-                  }`}>
+                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase ${evt.status === "published" ? "bg-primary/10 text-primary" : "bg-amber-500/10 text-amber-600"
+                    }`}>
                     {evt.status === "published" ? "Publicado" : "Borrador"}
                   </span>
                 </div>
@@ -132,8 +131,8 @@ export function DashboardPage() {
           </div>
           <ul className="space-y-2 text-sm font-medium">
             <li>
-              <button 
-                onClick={() => navigate("/dashboard/events")} 
+              <button
+                onClick={() => navigate("/dashboard/events")}
                 className="flex items-center justify-between w-full p-2 hover:bg-muted/50 rounded-lg transition-colors group text-left"
               >
                 <span className="text-muted-foreground group-hover:text-foreground">Ver todos los eventos</span>
@@ -141,8 +140,8 @@ export function DashboardPage() {
               </button>
             </li>
             <li>
-              <button 
-                onClick={() => navigate("/dashboard/organizations")} 
+              <button
+                onClick={() => navigate("/dashboard/organizations")}
                 className="flex items-center justify-between w-full p-2 hover:bg-muted/50 rounded-lg transition-colors group text-left"
               >
                 <span className="text-muted-foreground group-hover:text-foreground">Cambiar de organización</span>
@@ -150,8 +149,8 @@ export function DashboardPage() {
               </button>
             </li>
             <li>
-              <button 
-                onClick={() => navigate("/dashboard/settings/business")} 
+              <button
+                onClick={() => navigate("/dashboard/settings/business")}
                 className="flex items-center justify-between w-full p-2 hover:bg-muted/50 rounded-lg transition-colors group text-left"
               >
                 <span className="text-muted-foreground group-hover:text-foreground">Ajustes de organización</span>

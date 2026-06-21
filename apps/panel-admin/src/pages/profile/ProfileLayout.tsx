@@ -48,10 +48,9 @@ export function ProfileLayout() {
   ]
 
   const getLinkClass = ({ isActive }: { isActive: boolean }) =>
-    `flex items-center gap-2 px-4 py-2.5 text-sm border-b-2 transition-colors shrink-0 ${
-      isActive
-        ? "border-primary text-primary font-bold"
-        : "border-transparent text-muted-foreground hover:text-foreground"
+    `flex items-center gap-2 px-4 py-2.5 text-sm border-b-2 transition-colors shrink-0 ${isActive
+      ? "border-primary text-primary font-bold"
+      : "border-transparent text-muted-foreground hover:text-foreground"
     }`
 
   return (
@@ -67,7 +66,7 @@ export function ProfileLayout() {
             Volver
           </button>
           <span className="font-bold text-xl text-primary tracking-tighter ml-2">
-            EventHive
+            Zynqro
           </span>
         </div>
 

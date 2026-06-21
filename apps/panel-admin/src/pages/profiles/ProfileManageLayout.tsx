@@ -53,7 +53,7 @@ export function ProfileManageLayout() {
             Volver a Directorio
           </button>
           <span className="font-bold text-xl text-primary tracking-tighter ml-2">
-            EventHive Admin
+            Zynqro  Admin
           </span>
         </div>
         <div className="flex items-center gap-6 text-sm">

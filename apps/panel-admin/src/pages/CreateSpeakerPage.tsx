@@ -25,7 +25,7 @@ export function CreateSpeakerPage() {
 
   useSEO({
     title: "Agregar Ponente",
-    description: "Vincula un perfil de usuario existente o crea uno nuevo y asígnale su rol de ponente para este evento en EventHive."
+    description: "Vincula un perfil de usuario existente o crea uno nuevo y asígnale su rol de ponente para este evento en Zynqro ."
   })
 
   const { roles, editions, loadRoles, addSpeaker } = useEventStore()

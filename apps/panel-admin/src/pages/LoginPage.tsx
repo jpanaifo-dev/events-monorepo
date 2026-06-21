@@ -12,7 +12,7 @@ export function LoginPage() {
 
   useSEO({
     title: "Iniciar Sesión",
-    description: "Inicia sesión en tu cuenta de EventHive para administrar tus organizaciones y eventos."
+    description: "Inicia sesión en tu cuenta de Zynqro  para administrar tus organizaciones y eventos."
   })
 
   useEffect(() => {
@@ -29,7 +29,7 @@ export function LoginPage() {
         {/* Top Header Branding */}
         <div>
           <Link to="/dashboard" className="font-bold text-2xl text-primary tracking-tighter flex items-center gap-1.5 w-fit">
-            EventHive
+            Zynqro
           </Link>
         </div>
 
@@ -40,7 +40,7 @@ export function LoginPage() {
 
         {/* Footer info */}
         <div className="text-xs text-muted-foreground">
-          © {new Date().getFullYear()} EventHive. Todos los derechos reservados.
+          © {new Date().getFullYear()} Zynqro . Todos los derechos reservados.
         </div>
       </div>
 
@@ -52,7 +52,7 @@ export function LoginPage() {
 
           <blockquote className="space-y-2 relative z-10">
             <p className="text-lg font-medium leading-relaxed">
-              "EventHive ha transformado por completo la manera en que planificamos y ejecutamos nuestros congresos y conferencias. Administrar ponentes, cronogramas y registros ahora es un proceso fluido e impecable."
+              "Zynqro  ha transformado por completo la manera en que planificamos y ejecutamos nuestros congresos y conferencias. Administrar ponentes, cronogramas y registros ahora es un proceso fluido e impecable."
             </p>
             <footer className="text-sm font-semibold text-white/80">
               — Carlos Mendoza, Director de Experiencias

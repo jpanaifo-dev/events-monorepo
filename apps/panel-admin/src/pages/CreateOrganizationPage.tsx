@@ -47,7 +47,7 @@ export function CreateOrganizationPage() {
 
   useSEO({
     title: "Nueva Organización",
-    description: "Registra una nueva organización en EventHive para gestionar tus eventos y equipos de manera profesional."
+    description: "Registra una nueva organización en Zynqro  para gestionar tus eventos y equipos de manera profesional."
   })
 
   const [name, setName] = useState("")
@@ -296,7 +296,7 @@ export function CreateOrganizationPage() {
             Volver
           </button>
           <span className="font-bold text-xl text-primary tracking-tighter ml-2">
-            EventHive
+            Zynqro
           </span>
         </div>
 

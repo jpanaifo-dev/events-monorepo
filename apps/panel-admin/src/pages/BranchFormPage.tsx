@@ -23,7 +23,7 @@ export function BranchFormPage() {
 
   useSEO({
     title: branchId ? "Editar Sede" : "Agregar Nueva Sede",
-    description: "Configura los detalles de ubicación, mapa, dirección física y datos de contacto de la sede en EventHive."
+    description: "Configura los detalles de ubicación, mapa, dirección física y datos de contacto de la sede en Zynqro ."
   })
 
   // Loading States
