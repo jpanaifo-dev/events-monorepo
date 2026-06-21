@@ -76,6 +76,7 @@ export interface Attendee {
   id: string
   eventId: string
   editionId: string | null
+  profileId?: string | null
   fullName: string
   email: string
   ticketType: "General" | "VIP" | "Speaker"
@@ -437,6 +438,7 @@ export const useEventStore = create<EventState>((set, get) => ({
                 id: part.id,
                 eventId: part.main_event_id,
                 editionId: part.edition_id || null,
+                profileId: profile.id || null,
                 fullName,
                 email: profile.email || "",
                 ticketType: roleSlug === "vip" ? "VIP" : "General",
@@ -996,7 +998,7 @@ export const useEventStore = create<EventState>((set, get) => ({
       }])
 
       set((state) => ({
-        attendees: [...state.attendees, { id: participantId, ...attendeeData, editionId: targetEditionId }]
+        attendees: [...state.attendees, { id: participantId, ...attendeeData, editionId: targetEditionId, profileId }]
       }))
     } catch (e) {
       console.error("Error adding attendee:", e)

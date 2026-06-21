@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react"
-import { useParams } from "react-router-dom"
+import { useParams, useSearchParams } from "react-router-dom"
 import { z } from "zod"
 import { useEventStore } from "@/store/event.store"
 import { toast } from "sonner"
-import { Plus, Trash2, UserCheck, Check } from "lucide-react"
+import { Plus, Trash2, UserCheck, Check, ExternalLink } from "lucide-react"
 import { DataTable, type ColumnDef } from "@/components/ui/data-table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -32,6 +32,7 @@ import { useSEO } from "@/hooks/use-seo"
 
 export function EventAttendeesSection() {
   const { id } = useParams<{ id: string }>()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { events, editions, attendees, addAttendee, toggleAttendeeCheckIn, deleteAttendee } = useEventStore()
 
   const event = events.find((e) => e.id === id)
@@ -47,7 +48,14 @@ export function EventAttendeesSection() {
   const vipCount = eventAttendees.filter((a) => a.ticketType === "VIP").length
   const attendanceRate = eventAttendees.length > 0 ? Math.round((checkedInCount / eventAttendees.length) * 100) : 0
 
-  const [isSheetOpen, setIsSheetOpen] = useState(false)
+  const isSheetOpen = searchParams.get("new") === "true"
+  const setIsSheetOpen = (open: boolean) => {
+    if (open) {
+      setSearchParams({ new: "true" })
+    } else {
+      setSearchParams({})
+    }
+  }
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [ticket, setTicket] = useState<"General" | "VIP" | "Speaker">("General")
@@ -153,27 +161,46 @@ export function EventAttendeesSection() {
       headerClassName: "text-right p-3",
       className: "text-right p-3",
       cell: (at) => (
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button variant="ghost" className="size-7 p-0 text-destructive hover:bg-destructive/10">
-              <Trash2 className="size-3.5" />
+        <div className="flex items-center justify-end gap-1.5">
+          {at.profileId && (
+            <Button
+              asChild
+              variant="ghost"
+              className="size-7 p-0 text-muted-foreground hover:text-foreground"
+              title="Gestionar Perfil Completo"
+            >
+              <a
+                href={`/dashboard/profiles/${at.profileId}/info`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center w-full h-full"
+              >
+                <ExternalLink className="size-3.5" />
+              </a>
             </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>¿Eliminar participante?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Se eliminará permanentemente "{at.fullName}". Esta acción no se puede deshacer.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={() => deleteAttendee(at.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                Sí, eliminar
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+          )}
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="ghost" className="size-7 p-0 text-destructive hover:bg-destructive/10">
+                <Trash2 className="size-3.5" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Eliminar participante?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Se eliminará permanentemente "{at.fullName}". Esta acción no se puede deshacer.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={() => deleteAttendee(at.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  Sí, eliminar
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       )
     }
   ]

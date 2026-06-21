@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useSearchParams } from "react-router-dom"
 import { useAdminProfilesStore } from "@/store/admin-profiles.store"
-import { Search, SlidersHorizontal, UserCheck, Eye, EyeOff, Plus } from "lucide-react"
+import { Search, SlidersHorizontal, UserCheck, Eye, EyeOff, Plus, ExternalLink } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -28,11 +28,18 @@ import { useSEO } from "@/hooks/use-seo"
 import { DataTable, type ColumnDef } from "@/components/ui/data-table"
 
 export function ProfilesPage() {
-  const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { profiles, isLoading, loadAllProfiles, createProfile } = useAdminProfilesStore()
 
   // Register Form states
-  const [isSheetOpen, setIsSheetOpen] = useState(false)
+  const isSheetOpen = searchParams.get("new") === "true"
+  const setIsSheetOpen = (open: boolean) => {
+    if (open) {
+      setSearchParams({ new: "true" })
+    } else {
+      setSearchParams({})
+    }
+  }
   const [firstName, setFirstName] = useState("")
   const [lastName, setLastName] = useState("")
   const [email, setEmail] = useState("")
@@ -243,11 +250,18 @@ export function ProfilesPage() {
       className: "text-right",
       cell: (p) => (
         <Button
-          onClick={() => navigate(`/dashboard/profiles/${p.id}/info`)}
+          asChild
           variant="outline"
-          className="text-xs h-8 px-3 font-semibold"
+          className="text-xs h-8 px-3 font-semibold gap-1.5"
         >
-          Gestionar
+          <a
+            href={`/dashboard/profiles/${p.id}/info`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <span>Gestionar</span>
+            <ExternalLink className="size-3" />
+          </a>
         </Button>
       )
     }
