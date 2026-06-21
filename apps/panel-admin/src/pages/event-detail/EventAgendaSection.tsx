@@ -25,6 +25,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { DataTable, ColumnDef } from "@/components/ui/data-table"
 import {
   Select,
   SelectTrigger,
@@ -361,6 +362,171 @@ export function EventAgendaSection() {
   const activityLayouts = useMemo(() => {
     return computeActivityLayouts(selectedDateActivities)
   }, [selectedDateActivities])
+
+  const agendaColumns: ColumnDef<any>[] = [
+    {
+      header: "Horario",
+      className: "p-4 font-semibold text-foreground border-r border-border whitespace-nowrap",
+      headerClassName: "p-4 w-[160px] border-r border-border",
+      cell: (item) => {
+        const [hStart, hEnd] = item.timeSlot ? item.timeSlot.split(" - ") : ["09:00", "10:00"]
+        return `${hStart} - ${hEnd}`
+      }
+    },
+    {
+      header: "Actividades",
+      className: "p-4 border-r border-border",
+      headerClassName: "p-4 border-r border-border",
+      cell: (item) => {
+        const titleLower = (item.title || "").toLowerCase()
+        const isSpecial = 
+          titleLower.includes("receso") ||
+          titleLower.includes("break") ||
+          titleLower.includes("refrigerio") ||
+          titleLower.includes("presentación") ||
+          titleLower.includes("presentacion") ||
+          titleLower.includes("preguntas") ||
+          titleLower.includes("apertura") ||
+          titleLower.includes("ingreso")
+        return (
+          <span className={isSpecial ? "text-red-500 font-semibold" : "font-semibold text-foreground"}>
+            {item.title}
+          </span>
+        )
+      }
+    },
+    {
+      header: "Ponente y Tema",
+      className: "p-4",
+      headerClassName: "p-4",
+      cell: (item) => {
+        const sp = eventSpeakers.find((s) => s.id === item.speakerId)
+        return (
+          <div className="space-y-1.5">
+            {sp && (
+              <div className="bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-800 dark:text-emerald-200 border-l-2 border-emerald-500 font-semibold text-xs px-2.5 py-1 rounded-md inline-block">
+                {sp.name}
+              </div>
+            )}
+            {item.description && (
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {item.description}
+              </p>
+            )}
+          </div>
+        )
+      }
+    }
+  ]
+
+  const listColumns: ColumnDef<any>[] = [
+    {
+      header: "Horario",
+      className: "p-4 font-semibold text-primary whitespace-nowrap",
+      headerClassName: "p-4 w-[140px]",
+      cell: (item) => {
+        const [hStart, hEnd] = item.timeSlot ? item.timeSlot.split(" - ") : ["09:00", "10:00"]
+        return `${hStart} - ${hEnd}`
+      }
+    },
+    {
+      header: "Actividad / Tema",
+      className: "p-4",
+      headerClassName: "p-4",
+      cell: (item) => (
+        <div className="space-y-0.5">
+          <p className="font-semibold text-foreground leading-snug">{item.title}</p>
+          {item.description && (
+            <p className="text-xs text-muted-foreground truncate max-w-xs sm:max-w-md">
+              {item.description}
+            </p>
+          )}
+        </div>
+      )
+    },
+    {
+      header: "Expositor",
+      className: "p-4",
+      headerClassName: "p-4",
+      cell: (item) => {
+        const sp = eventSpeakers.find((s) => s.id === item.speakerId)
+        return sp ? (
+          <div className="flex items-center gap-2">
+            <img
+              src={sp.avatar}
+              alt={sp.name}
+              className="size-5 rounded-full object-cover border border-border"
+            />
+            <span className="text-xs text-foreground font-medium">{sp.name}</span>
+          </div>
+        ) : (
+          <span className="text-xs text-muted-foreground">Sin asignar</span>
+        )
+      }
+    },
+    {
+      header: "Escenario",
+      className: "p-4 text-xs font-medium text-muted-foreground",
+      headerClassName: "p-4",
+      accessorKey: "stage"
+    },
+    {
+      header: "Modalidad",
+      className: "p-4",
+      headerClassName: "p-4",
+      cell: (item) => getModeBadge(item.activityMode || "PRESENCIAL")
+    },
+    {
+      header: "Estado",
+      className: "p-4",
+      headerClassName: "p-4",
+      cell: (item) => getStatusIcon(item.status)
+    },
+    {
+      header: "Acciones",
+      headerClassName: "text-right p-4",
+      className: "text-right p-4",
+      cell: (item) => (
+        <div className="inline-flex items-center gap-1 justify-end">
+          <Button
+            onClick={() => handleOpenEdit(item)}
+            variant="outline"
+            className="size-8 p-0 cursor-pointer"
+          >
+            <Edit2 className="size-3.5" />
+          </Button>
+
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="outline"
+                className="size-8 p-0 text-destructive hover:bg-destructive/10 border-destructive/20 hover:border-destructive/30 cursor-pointer"
+              >
+                <Trash2 className="size-3.5" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Eliminar actividad?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  ¿Seguro que deseas eliminar "{item.title}"? Esta acción borrará permanentemente la sesión.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => deleteAgendaItem(item.id)}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Sí, eliminar
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      )
+    }
+  ]
 
   // --- Modal & Form Logic ---
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -977,81 +1143,15 @@ export function EventAgendaSection() {
                 </div>
               )}
 
-              {/* Table Container */}
-              {selectedDate && (
-                <div className="border border-border rounded-xl bg-card overflow-hidden shadow-xs">
-                  <table className="w-full text-sm text-left border-collapse">
-                    <thead>
-                      <tr className="bg-muted/40 text-xs font-bold text-muted-foreground border-b border-border uppercase">
-                        <th className="p-4 w-[160px] border-r border-border">Horario</th>
-                        <th className="p-4 border-r border-border">Actividades</th>
-                        <th className="p-4">Ponente y Tema</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/60">
-                      {sortedSelectedActivities.length > 0 ? (
-                        sortedSelectedActivities.map((item) => {
-                          const sp = eventSpeakers.find((s) => s.id === item.speakerId)
-                          const [hStart, hEnd] = item.timeSlot ? item.timeSlot.split(" - ") : ["09:00", "10:00"]
-                          
-                          const titleLower = (item.title || "").toLowerCase()
-                          const isSpecial = 
-                            titleLower.includes("receso") ||
-                            titleLower.includes("break") ||
-                            titleLower.includes("refrigerio") ||
-                            titleLower.includes("presentación") ||
-                            titleLower.includes("presentacion") ||
-                            titleLower.includes("preguntas") ||
-                            titleLower.includes("apertura") ||
-                            titleLower.includes("ingreso")
-                          
-                          return (
-                            <tr 
-                              key={item.id} 
-                              onClick={() => handleOpenEdit(item)}
-                              className="hover:bg-muted/5 transition-colors cursor-pointer group"
-                            >
-                              {/* Horario */}
-                              <td className="p-4 font-semibold text-foreground border-r border-border whitespace-nowrap">
-                                {hStart} - {hEnd}
-                              </td>
-
-                              {/* Actividad */}
-                              <td className="p-4 border-r border-border">
-                                <span className={isSpecial ? "text-red-500 font-semibold" : "font-semibold text-foreground"}>
-                                  {item.title}
-                                </span>
-                              </td>
-
-                              {/* Ponente y Tema */}
-                              <td className="p-4">
-                                <div className="space-y-1.5">
-                                  {sp && (
-                                    <div className="bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-800 dark:text-emerald-200 border-l-2 border-emerald-500 font-semibold text-xs px-2.5 py-1 rounded-md inline-block">
-                                      {sp.name}
-                                    </div>
-                                  )}
-                                  {item.description && (
-                                    <p className="text-xs text-muted-foreground leading-relaxed">
-                                      {item.description}
-                                    </p>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          )
-                        })
-                      ) : (
-                        <tr>
-                          <td colSpan={3} className="p-8 text-center text-muted-foreground text-xs font-medium">
-                            No hay actividades programadas para este día.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+      ) : (
+        <DataTable
+          columns={agendaColumns}
+          data={sortedSelectedActivities}
+          containerClassName="border border-border rounded-xl bg-card overflow-hidden shadow-xs"
+          tbodyClassName="divide-y divide-border/60"
+          onRowClick={(item) => handleOpenEdit(item)}
+        />
+      )}
             </div>
           )}
 
@@ -1066,108 +1166,12 @@ export function EventAgendaSection() {
                     {formatDateDisplay(dateKey)}
                   </h4>
 
-                  {/* Day Activities Table */}
-                  <div className="overflow-x-auto border border-border rounded-xl bg-card/10 backdrop-blur-xs">
-                    <table className="w-full text-sm text-left border-collapse">
-                      <thead>
-                        <tr className="bg-muted/40 text-xs font-bold text-muted-foreground border-b border-border uppercase">
-                          <th className="p-4 w-[140px]">Horario</th>
-                          <th className="p-4">Actividad / Tema</th>
-                          <th className="p-4">Expositor</th>
-                          <th className="p-4">Escenario</th>
-                          <th className="p-4">Modalidad</th>
-                          <th className="p-4">Estado</th>
-                          <th className="p-4 text-right">Acciones</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border/50">
-                        {groupedAgenda[dateKey].map((item) => {
-                          const sp = eventSpeakers.find((s) => s.id === item.speakerId)
-                          const [hStart, hEnd] = item.timeSlot ? item.timeSlot.split(" - ") : ["09:00", "10:00"]
-
-                          return (
-                            <tr key={item.id} className="hover:bg-muted/5 transition-colors">
-                              <td className="p-4 font-semibold text-primary whitespace-nowrap">
-                                {hStart} - {hEnd}
-                              </td>
-                              <td className="p-4">
-                                <div className="space-y-0.5">
-                                  <p className="font-semibold text-foreground leading-snug">{item.title}</p>
-                                  {item.description && (
-                                    <p className="text-xs text-muted-foreground truncate max-w-xs sm:max-w-md">
-                                      {item.description}
-                                    </p>
-                                  )}
-                                </div>
-                              </td>
-                              <td className="p-4">
-                                {sp ? (
-                                  <div className="flex items-center gap-2">
-                                    <img
-                                      src={sp.avatar}
-                                      alt={sp.name}
-                                      className="size-5 rounded-full object-cover border border-border"
-                                    />
-                                    <span className="text-xs text-foreground font-medium">{sp.name}</span>
-                                  </div>
-                                ) : (
-                                  <span className="text-xs text-muted-foreground">Sin asignar</span>
-                                )}
-                              </td>
-                              <td className="p-4 text-xs font-medium text-muted-foreground">
-                                {item.stage}
-                              </td>
-                              <td className="p-4">
-                                {getModeBadge(item.activityMode || "PRESENCIAL")}
-                              </td>
-                              <td className="p-4">
-                                {getStatusIcon(item.status)}
-                              </td>
-                              <td className="p-4 text-right">
-                                <div className="inline-flex items-center gap-1 justify-end">
-                                  <Button
-                                    onClick={() => handleOpenEdit(item)}
-                                    variant="outline"
-                                    className="size-8 p-0 cursor-pointer"
-                                  >
-                                    <Edit2 className="size-3.5" />
-                                  </Button>
-
-                                  <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                      <Button
-                                        variant="outline"
-                                        className="size-8 p-0 text-destructive hover:bg-destructive/10 border-destructive/20 hover:border-destructive/30 cursor-pointer"
-                                      >
-                                        <Trash2 className="size-3.5" />
-                                      </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                      <AlertDialogHeader>
-                                        <AlertDialogTitle>¿Eliminar actividad?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                          ¿Seguro que deseas eliminar "{item.title}"? Esta acción borrará permanentemente la sesión.
-                                        </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                        <AlertDialogAction
-                                          onClick={() => deleteAgendaItem(item.id)}
-                                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                        >
-                                          Sí, eliminar
-                                        </AlertDialogAction>
-                                      </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                  </AlertDialog>
-                                </div>
-                              </td>
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                  <DataTable
+                    columns={listColumns}
+                    data={groupedAgenda[dateKey]}
+                    containerClassName="overflow-x-auto border border-border rounded-xl bg-card/10 backdrop-blur-xs"
+                    tbodyClassName="divide-y divide-border/50"
+                  />
                 </div>
               ))}
             </div>

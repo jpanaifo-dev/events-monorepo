@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom"
 import { z } from "zod"
 import { useEventStore, type ThematicLine } from "@/store/event.store"
 import { Plus, Trash2, Edit, BookOpen, Check } from "lucide-react"
+import { DataTable, ColumnDef } from "@/components/ui/data-table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
@@ -202,6 +203,128 @@ export function EventThematicLinesSection() {
       return tl.editionId === selectedEditionFilter
     })
 
+  const columns: ColumnDef<ThematicLine>[] = [
+    {
+      header: "Nombre / Descripción",
+      className: "max-w-sm p-3",
+      headerClassName: "p-3",
+      cell: (tl) => (
+        <div className="flex items-start gap-3">
+          {tl.iconUrl ? (
+            <img
+              src={tl.iconUrl}
+              alt={tl.name}
+              className="size-7 rounded-lg object-cover border border-border/80"
+              onError={(e) => {
+                (e.target as HTMLElement).style.display = "none"
+              }}
+            />
+          ) : (
+            <div className="size-7 rounded-lg border border-border/80 bg-muted/40 flex items-center justify-center text-muted-foreground">
+              <BookOpen className="size-3.5" />
+            </div>
+          )}
+          <div className="space-y-0.5">
+            <p className="font-semibold text-sm leading-tight text-foreground">{tl.name}</p>
+            {tl.description && (
+              <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                {tl.description}
+              </p>
+            )}
+          </div>
+        </div>
+      )
+    },
+    {
+      header: "Color",
+      className: "p-3",
+      headerClassName: "p-3",
+      cell: (tl) => {
+        const bgClr = tl.colorHex || "#6b7280"
+        return (
+          <div className="flex items-center gap-2">
+            <span
+              className="size-4 rounded border border-border/50 shadow-xs"
+              style={{ backgroundColor: bgClr }}
+            />
+            <code className="text-xs font-mono text-muted-foreground uppercase">{bgClr}</code>
+          </div>
+        )
+      }
+    },
+    {
+      header: "Ámbito (Aplicabilidad)",
+      className: "p-3 text-xs",
+      headerClassName: "p-3",
+      cell: (tl) => {
+        const isGlobal = !tl.editionId
+        const targetEditionName = isGlobal
+          ? ""
+          : eventEditions.find((ed) => ed.id === tl.editionId)?.name || "Edición Desconocida"
+        return isGlobal ? (
+          <Badge variant="secondary" className="bg-blue-500/10 text-blue-500 border-blue-500/20">
+            Global (Todas las ediciones)
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="border-primary/20 text-primary">
+            Edición: {targetEditionName}
+          </Badge>
+        )
+      }
+    },
+    {
+      header: "Estado",
+      className: "p-3 text-xs",
+      headerClassName: "p-3",
+      cell: (tl) => (
+        <span className={`inline-flex items-center gap-1.5 font-semibold ${tl.isActive ? "text-emerald-500" : "text-muted-foreground"}`}>
+          <span className={`size-1.5 rounded-full ${tl.isActive ? "bg-emerald-500" : "bg-muted-foreground"}`} />
+          {tl.isActive ? "Activo" : "Inactivo"}
+        </span>
+      )
+    },
+    {
+      header: "Acciones",
+      headerClassName: "text-right p-3",
+      className: "text-right p-3",
+      cell: (tl) => (
+        <div className="flex items-center justify-end gap-1">
+          <Button onClick={() => openEdit(tl)} variant="ghost" className="size-7 p-0">
+            <Edit className="size-3.5" />
+          </Button>
+
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="ghost"
+                className="size-7 p-0 text-destructive hover:bg-destructive/10"
+              >
+                <Trash2 className="size-3.5" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Eliminar línea temática?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Se eliminará permanentemente la línea temática "{tl.name}". Esto puede remover la asociación en las ponencias o trabajos enviados que la utilicen. Esta acción no se puede deshacer.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => handleDelete(tl.id)}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Sí, eliminar
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      )
+    }
+  ]
+
   return (
     <div className="space-y-8 animate-in fade-in duration-200">
 
@@ -253,122 +376,7 @@ export function EventThematicLinesSection() {
           </div>
         </div>
       ) : (
-        <div className="overflow-x-auto border border-border rounded-xl bg-card/10 backdrop-blur-xs">
-          <table className="w-full text-sm text-left border-collapse">
-            <thead>
-              <tr className="bg-muted/40 text-xs font-bold text-muted-foreground border-b border-border uppercase">
-                <th className="p-3">Nombre / Descripción</th>
-                <th className="p-3">Color</th>
-                <th className="p-3">Ámbito (Aplicabilidad)</th>
-                <th className="p-3">Estado</th>
-                <th className="p-3 text-right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/50">
-              {filteredLines.map((tl) => {
-                const isGlobal = !tl.editionId
-                const targetEditionName = isGlobal
-                  ? ""
-                  : eventEditions.find((ed) => ed.id === tl.editionId)?.name || "Edición Desconocida"
-
-                const bgClr = tl.colorHex || "#6b7280"
-                return (
-                  <tr key={tl.id} className="hover:bg-muted/5 transition-colors">
-                    <td className="p-3 max-w-sm">
-                      <div className="flex items-start gap-3">
-                        {tl.iconUrl ? (
-                          <img
-                            src={tl.iconUrl}
-                            alt={tl.name}
-                            className="size-7 rounded-lg object-cover border border-border/80"
-                            onError={(e) => {
-                              // Fallback if image fails to load
-                              (e.target as HTMLElement).style.display = "none"
-                            }}
-                          />
-                        ) : (
-                          <div className="size-7 rounded-lg border border-border/80 bg-muted/40 flex items-center justify-center text-muted-foreground">
-                            <BookOpen className="size-3.5" />
-                          </div>
-                        )}
-                        <div className="space-y-0.5">
-                          <p className="font-semibold text-sm leading-tight text-foreground">{tl.name}</p>
-                          {tl.description && (
-                            <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-                              {tl.description}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-3">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="size-4 rounded border border-border/50 shadow-xs"
-                          style={{ backgroundColor: bgClr }}
-                        />
-                        <code className="text-xs font-mono text-muted-foreground uppercase">{bgClr}</code>
-                      </div>
-                    </td>
-                    <td className="p-3 text-xs">
-                      {isGlobal ? (
-                        <Badge variant="secondary" className="bg-blue-500/10 text-blue-500 border-blue-500/20">
-                          Global (Todas las ediciones)
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="border-primary/20 text-primary">
-                          Edición: {targetEditionName}
-                        </Badge>
-                      )}
-                    </td>
-                    <td className="p-3 text-xs">
-                      <span className={`inline-flex items-center gap-1.5 font-semibold ${tl.isActive ? "text-emerald-500" : "text-muted-foreground"
-                        }`}>
-                        <span className={`size-1.5 rounded-full ${tl.isActive ? "bg-emerald-500" : "bg-muted-foreground"}`} />
-                        {tl.isActive ? "Activo" : "Inactivo"}
-                      </span>
-                    </td>
-                    <td className="p-3 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button onClick={() => openEdit(tl)} variant="ghost" className="size-7 p-0">
-                          <Edit className="size-3.5" />
-                        </Button>
-
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              className="size-7 p-0 text-destructive hover:bg-destructive/10"
-                            >
-                              <Trash2 className="size-3.5" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>¿Eliminar línea temática?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Se eliminará permanentemente la línea temática "{tl.name}". Esto puede remover la asociación en las ponencias o trabajos enviados que la utilicen. Esta acción no se puede deshacer.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => handleDelete(tl.id)}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              >
-                                Sí, eliminar
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+        <DataTable columns={columns} data={filteredLines} />
       )}
 
       {/* Creation/Editing Sheet Form */}

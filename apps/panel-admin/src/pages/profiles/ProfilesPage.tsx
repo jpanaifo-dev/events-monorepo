@@ -14,6 +14,7 @@ import {
   SelectItem,
 } from "@/components/ui/select"
 import { useSEO } from "@/hooks/use-seo"
+import { DataTable, ColumnDef } from "@/components/ui/data-table"
 
 export function ProfilesPage() {
   const navigate = useNavigate()
@@ -77,6 +78,70 @@ export function ProfilesPage() {
         return <Badge className="bg-slate-500/10 text-slate-500 border-slate-500/20">Gratuito</Badge>
     }
   }
+
+  const columns: ColumnDef<any>[] = [
+    {
+      header: "Usuario",
+      cell: (p) => {
+        const fullName = `${p.firstName} ${p.lastName}`.trim() || "Usuario sin nombre"
+        const avatarSeed = encodeURIComponent(fullName || p.email || "User")
+        return (
+          <div className="flex items-center gap-3">
+            <img
+              src={p.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${avatarSeed}`}
+              alt={fullName}
+              className="size-9 rounded-lg object-cover border border-border/80"
+            />
+            <div className="space-y-0.5">
+              <p className="font-bold text-sm text-foreground">{fullName}</p>
+              <p className="text-xs text-muted-foreground">{p.email || "Sin correo"}</p>
+            </div>
+          </div>
+        )
+      }
+    },
+    {
+      header: "Rol Global",
+      cell: (p) => getRoleBadge(p.globalRole)
+    },
+    {
+      header: "Plan / Cuenta",
+      cell: (p) => getAccountBadge(p.accountType)
+    },
+    {
+      header: "Estado",
+      cell: (p) => p.isPublic ? (
+        <span className="inline-flex items-center gap-1.5 text-xs text-emerald-500 font-semibold">
+          <Eye className="size-3.5" />
+          Público
+        </span>
+      ) : (
+        <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground font-semibold">
+          <EyeOff className="size-3.5" />
+          Privado
+        </span>
+      )
+    },
+    {
+      header: "Registro",
+      className: "text-xs text-muted-foreground",
+      cell: (p) => formatDate(p.createdAt)
+    },
+    {
+      header: "Acción",
+      headerClassName: "text-right",
+      className: "text-right",
+      cell: (p) => (
+        <Button
+          onClick={() => navigate(`/dashboard/profiles/${p.id}/info`)}
+          variant="outline"
+          className="text-xs h-8 px-3 font-semibold"
+        >
+          Gestionar
+        </Button>
+      )
+    }
+  ]
 
   return (
     <div className="space-y-8 animate-in fade-in duration-200">
@@ -162,75 +227,7 @@ export function ProfilesPage() {
           </div>
         </div>
       ) : (
-        <div className="overflow-x-auto border border-border rounded-xl bg-card/10 backdrop-blur-xs">
-          <table className="w-full text-sm text-left border-collapse">
-            <thead>
-              <tr className="bg-muted/40 text-xs font-bold text-muted-foreground border-b border-border uppercase">
-                <th className="p-4">Usuario</th>
-                <th className="p-4">Rol Global</th>
-                <th className="p-4">Plan / Cuenta</th>
-                <th className="p-4">Estado</th>
-                <th className="p-4">Registro</th>
-                <th className="p-4 text-right">Acción</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/50">
-              {filteredProfiles.map((p) => {
-                const fullName = `${p.firstName} ${p.lastName}`.trim() || "Usuario sin nombre"
-                const avatarSeed = encodeURIComponent(fullName || p.email || "User")
-
-                return (
-                  <tr key={p.id} className="hover:bg-muted/5 transition-colors">
-                    <td className="p-4">
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={p.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${avatarSeed}`}
-                          alt={fullName}
-                          className="size-9 rounded-lg object-cover border border-border/80"
-                        />
-                        <div className="space-y-0.5">
-                          <p className="font-bold text-sm text-foreground">{fullName}</p>
-                          <p className="text-xs text-muted-foreground">{p.email || "Sin correo"}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      {getRoleBadge(p.globalRole)}
-                    </td>
-                    <td className="p-4">
-                      {getAccountBadge(p.accountType)}
-                    </td>
-                    <td className="p-4">
-                      {p.isPublic ? (
-                        <span className="inline-flex items-center gap-1.5 text-xs text-emerald-500 font-semibold">
-                          <Eye className="size-3.5" />
-                          Público
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground font-semibold">
-                          <EyeOff className="size-3.5" />
-                          Privado
-                        </span>
-                      )}
-                    </td>
-                    <td className="p-4 text-xs text-muted-foreground">
-                      {formatDate(p.createdAt)}
-                    </td>
-                    <td className="p-4 text-right">
-                      <Button
-                        onClick={() => navigate(`/dashboard/profiles/${p.id}/info`)}
-                        variant="outline"
-                        className="text-xs h-8 px-3 font-semibold"
-                      >
-                        Gestionar
-                      </Button>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+        <DataTable columns={columns} data={filteredProfiles} />
       )}
     </div>
   )

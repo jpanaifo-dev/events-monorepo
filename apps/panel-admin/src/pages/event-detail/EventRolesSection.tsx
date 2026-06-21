@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
+import { DataTable, ColumnDef } from "@/components/ui/data-table"
 import {
   Select,
   SelectTrigger,
@@ -253,6 +254,118 @@ export function EventRolesSection() {
     }
   }
 
+  const columns: ColumnDef<any>[] = [
+    {
+      header: "Nombre",
+      className: "p-3",
+      headerClassName: "p-3",
+      cell: (role) => {
+        const bgClr = role.badgeColor || "#6b7280"
+        const styleBadge = {
+          backgroundColor: `${bgClr}12`,
+          color: bgClr,
+          borderColor: `${bgClr}30`,
+        }
+        return (
+          <div className="flex items-center gap-2">
+            <div
+              className="px-2 py-0.5 rounded-md border text-xs font-bold font-sans tracking-wide"
+              style={styleBadge}
+            >
+              {role.name.es}
+            </div>
+            {role.name.en && (
+              <span className="text-xs text-muted-foreground">
+                / {role.name.en}
+              </span>
+            )}
+          </div>
+        )
+      }
+    },
+    {
+      header: "Slug",
+      className: "p-3",
+      headerClassName: "p-3",
+      cell: (role) => (
+        <code className="text-xs font-mono bg-muted/30 px-1.5 py-0.5 rounded border border-border/40">
+          {role.slug}
+        </code>
+      )
+    },
+    {
+      header: "Ámbito (Aplicabilidad)",
+      className: "p-3 text-xs",
+      headerClassName: "p-3",
+      cell: (role) => {
+        const isGlobal = !role.editionId
+        const targetEditionName = isGlobal
+          ? ""
+          : eventEditions.find((ed) => ed.id === role.editionId)?.name || "Edición Desconocida"
+        return isGlobal ? (
+          <Badge variant="secondary" className="bg-blue-500/10 text-blue-500 border-blue-500/20">
+            Global (Todas las ediciones)
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="border-primary/20 text-primary">
+            Edición: {targetEditionName}
+          </Badge>
+        )
+      }
+    },
+    {
+      header: "Estado",
+      className: "p-3 text-xs",
+      headerClassName: "p-3",
+      cell: (role) => (
+        <span className={`inline-flex items-center gap-1.5 font-semibold ${role.isActive ? "text-emerald-500" : "text-muted-foreground"}`}>
+          <span className={`size-1.5 rounded-full ${role.isActive ? "bg-emerald-500" : "bg-muted-foreground"}`} />
+          {role.isActive ? "Activo" : "Inactivo"}
+        </span>
+      )
+    },
+    {
+      header: "Acciones",
+      headerClassName: "text-right p-3",
+      className: "text-right p-3",
+      cell: (role) => (
+        <div className="flex items-center justify-end gap-1">
+          <Button onClick={() => openEdit(role)} variant="ghost" className="size-7 p-0">
+            <Edit className="size-3.5" />
+          </Button>
+
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="ghost"
+                className="size-7 p-0 text-destructive hover:bg-destructive/10"
+              >
+                <Trash2 className="size-3.5" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Eliminar rol de participante?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Se eliminará el rol "{role.name.es}" ({role.slug}). Esto removerá la asociación en los participantes que lo utilicen. Esta acción no se puede deshacer.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => deleteRole(role.id)}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Sí, eliminar
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      )
+    }
+  ]
+
   return (
     <div className="space-y-8 animate-in fade-in duration-200">
       
@@ -327,113 +440,7 @@ export function EventRolesSection() {
           </div>
         </div>
       ) : (
-        <div className="overflow-x-auto border border-border rounded-xl bg-card/10 backdrop-blur-xs">
-          <table className="w-full text-sm text-left border-collapse">
-            <thead>
-              <tr className="bg-muted/40 text-xs font-bold text-muted-foreground border-b border-border uppercase">
-                <th className="p-3">Nombre</th>
-                <th className="p-3">Slug</th>
-                <th className="p-3">Ámbito (Aplicabilidad)</th>
-                <th className="p-3">Estado</th>
-                <th className="p-3 text-right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/50">
-              {eventRoles.map((role) => {
-                const isGlobal = !role.editionId
-                const targetEditionName = isGlobal
-                  ? ""
-                  : eventEditions.find((ed) => ed.id === role.editionId)?.name || "Edición Desconocida"
-
-                const bgClr = role.badgeColor || "#6b7280"
-                const styleBadge = {
-                  backgroundColor: `${bgClr}12`,
-                  color: bgClr,
-                  borderColor: `${bgClr}30`,
-                }
-
-                return (
-                  <tr key={role.id} className="hover:bg-muted/5 transition-colors">
-                    <td className="p-3">
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="px-2 py-0.5 rounded-md border text-xs font-bold font-sans tracking-wide"
-                          style={styleBadge}
-                        >
-                          {role.name.es}
-                        </div>
-                        {role.name.en && (
-                          <span className="text-xs text-muted-foreground">
-                            / {role.name.en}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="p-3">
-                      <code className="text-xs font-mono bg-muted/30 px-1.5 py-0.5 rounded border border-border/40">
-                        {role.slug}
-                      </code>
-                    </td>
-                    <td className="p-3 text-xs">
-                      {isGlobal ? (
-                        <Badge variant="secondary" className="bg-blue-500/10 text-blue-500 border-blue-500/20">
-                          Global (Todas las ediciones)
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="border-primary/20 text-primary">
-                          Edición: {targetEditionName}
-                        </Badge>
-                      )}
-                    </td>
-                    <td className="p-3 text-xs">
-                      <span className={`inline-flex items-center gap-1.5 font-semibold ${
-                        role.isActive ? "text-emerald-500" : "text-muted-foreground"
-                      }`}>
-                        <span className={`size-1.5 rounded-full ${role.isActive ? "bg-emerald-500" : "bg-muted-foreground"}`} />
-                        {role.isActive ? "Activo" : "Inactivo"}
-                      </span>
-                    </td>
-                    <td className="p-3 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button onClick={() => openEdit(role)} variant="ghost" className="size-7 p-0">
-                          <Edit className="size-3.5" />
-                        </Button>
-
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              className="size-7 p-0 text-destructive hover:bg-destructive/10"
-                            >
-                              <Trash2 className="size-3.5" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>¿Eliminar rol de participante?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Se eliminará el rol "{role.name.es}" ({role.slug}). Esto removerá la asociación en los participantes que lo utilicen. Esta acción no se puede deshacer.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => deleteRole(role.id)}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              >
-                                Sí, eliminar
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+        <DataTable columns={columns} data={eventRoles} />
       )}
 
       {/* Creation/Editing Sheet Form */}

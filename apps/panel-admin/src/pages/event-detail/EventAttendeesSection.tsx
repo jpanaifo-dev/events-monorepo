@@ -4,6 +4,7 @@ import { z } from "zod"
 import { useEventStore } from "@/store/event.store"
 import { toast } from "sonner"
 import { Plus, Trash2, UserCheck, Check } from "lucide-react"
+import { DataTable, ColumnDef } from "@/components/ui/data-table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
@@ -84,6 +85,72 @@ export function EventAttendeesSection() {
     closeSheet()
   }
 
+  const columns: ColumnDef<any>[] = [
+    {
+      header: "Nombre",
+      className: "p-3 font-semibold",
+      headerClassName: "p-3",
+      cell: (at) => at.fullName
+    },
+    {
+      header: "Correo",
+      className: "p-3 text-xs text-muted-foreground",
+      headerClassName: "p-3",
+      cell: (at) => at.email
+    },
+    {
+      header: "Ticket",
+      className: "p-3",
+      headerClassName: "p-3",
+      cell: (at) => (
+        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${at.ticketType === "VIP" ? "bg-amber-500/10 text-amber-600" : at.ticketType === "Speaker" ? "bg-indigo-500/10 text-indigo-600" : "bg-muted text-muted-foreground"}`}>
+          {at.ticketType}
+        </span>
+      )
+    },
+    {
+      header: "Check-In",
+      className: "p-3 text-center",
+      headerClassName: "p-3 text-center",
+      cell: (at) => (
+        <button
+          onClick={() => toggleAttendeeCheckIn(at.id)}
+          className={`p-1.5 rounded-full border transition-colors inline-flex ${at.checkedIn ? "bg-primary/10 border-primary/30 text-primary" : "bg-muted/40 border-border/80 text-muted-foreground/60 hover:text-foreground"}`}
+        >
+          {at.checkedIn ? <UserCheck className="size-4" /> : <Check className="size-4" />}
+        </button>
+      )
+    },
+    {
+      header: "Acciones",
+      headerClassName: "text-right p-3",
+      className: "text-right p-3",
+      cell: (at) => (
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="ghost" className="size-7 p-0 text-destructive hover:bg-destructive/10">
+              <Trash2 className="size-3.5" />
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Eliminar participante?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Se eliminará permanentemente "{at.fullName}". Esta acción no se puede deshacer.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={() => deleteAttendee(at.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Sí, eliminar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )
+    }
+  ]
+
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       <div className="flex items-center justify-between border-b border-border pb-3">
@@ -115,63 +182,7 @@ export function EventAttendeesSection() {
           No hay participantes inscritos.
         </div>
       ) : (
-        <div className="overflow-x-auto border border-border rounded-xl">
-          <table className="w-full text-sm text-left border-collapse">
-            <thead>
-              <tr className="bg-muted/60 text-xs font-bold text-muted-foreground border-b border-border uppercase">
-                <th className="p-3">Nombre</th>
-                <th className="p-3">Correo</th>
-                <th className="p-3">Ticket</th>
-                <th className="p-3 text-center">Check-In</th>
-                <th className="p-3 text-right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/60">
-              {eventAttendees.map((at) => (
-                <tr key={at.id} className="hover:bg-muted/10 transition-colors">
-                  <td className="p-3 font-semibold">{at.fullName}</td>
-                  <td className="p-3 text-xs text-muted-foreground">{at.email}</td>
-                  <td className="p-3">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${at.ticketType === "VIP" ? "bg-amber-500/10 text-amber-600" : at.ticketType === "Speaker" ? "bg-indigo-500/10 text-indigo-600" : "bg-muted text-muted-foreground"}`}>
-                      {at.ticketType}
-                    </span>
-                  </td>
-                  <td className="p-3 text-center">
-                    <button
-                      onClick={() => toggleAttendeeCheckIn(at.id)}
-                      className={`p-1.5 rounded-full border transition-colors inline-flex ${at.checkedIn ? "bg-primary/10 border-primary/30 text-primary" : "bg-muted/40 border-border/80 text-muted-foreground/60 hover:text-foreground"}`}
-                    >
-                      {at.checkedIn ? <UserCheck className="size-4" /> : <Check className="size-4" />}
-                    </button>
-                  </td>
-                  <td className="p-3 text-right">
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" className="size-7 p-0 text-destructive hover:bg-destructive/10">
-                          <Trash2 className="size-3.5" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>¿Eliminar participante?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Se eliminará permanentemente "{at.fullName}". Esta acción no se puede deshacer.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => deleteAttendee(at.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                            Sí, eliminar
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable columns={columns} data={eventAttendees} containerClassName="border border-border rounded-xl" />
       )}
 
       {/* Sheet Create */}
