@@ -144,7 +144,7 @@ export function DashboardPage() {
           <div className="flex items-start justify-between">
             <div className="space-y-1">
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Eventos Activos</span>
-              <h3 className="text-3xl font-extrabold tracking-tight">{totalEvents}</h3>
+              <h3 className="text-3xl font-bold tracking-tight">{totalEvents}</h3>
             </div>
             <div className="p-2.5 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
               <Calendar className="size-5" />
@@ -162,7 +162,7 @@ export function DashboardPage() {
           <div className="flex items-start justify-between">
             <div className="space-y-1">
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Ponentes</span>
-              <h3 className="text-3xl font-extrabold tracking-tight">{totalSpeakers}</h3>
+              <h3 className="text-3xl font-bold tracking-tight">{totalSpeakers}</h3>
             </div>
             <div className="p-2.5 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
               <BookOpen className="size-5" />
@@ -178,7 +178,7 @@ export function DashboardPage() {
           <div className="flex items-start justify-between">
             <div className="space-y-1">
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Participantes</span>
-              <h3 className="text-3xl font-extrabold tracking-tight">{totalAttendees}</h3>
+              <h3 className="text-3xl font-bold tracking-tight">{totalAttendees}</h3>
             </div>
             <div className="p-2.5 rounded-lg bg-cyan-500/10 text-cyan-600 dark:text-cyan-400">
               <Users className="size-5" />
@@ -194,7 +194,7 @@ export function DashboardPage() {
           <div className="flex items-start justify-between">
             <div className="space-y-1">
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Acreditación</span>
-              <h3 className="text-3xl font-extrabold tracking-tight">{checkInPercentage}%</h3>
+              <h3 className="text-3xl font-bold tracking-tight">{checkInPercentage}%</h3>
             </div>
             <div className="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
               <CheckCircle className="size-5" />
@@ -263,7 +263,7 @@ export function DashboardPage() {
                           <h4 className="font-semibold text-sm text-foreground truncate group-hover:text-primary transition-colors">
                             {evt.name}
                           </h4>
-                          <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-md border uppercase tracking-wider ${evt.status === "published"
+                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md border uppercase tracking-wider ${evt.status === "published"
                             ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25"
                             : "bg-amber-500/10 text-amber-600 border-amber-500/25"
                             }`}>
