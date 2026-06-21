@@ -60,6 +60,16 @@ export interface AgendaItem {
   title: string
   stage: string
   speakerId: string
+  description?: string | null
+  startTime?: string | null
+  endTime?: string | null
+  duration?: number | null
+  meetingUrl?: string | null
+  activityMode?: "PRESENCIAL" | "VIRTUAL" | "HIBRIDO"
+  status?: "PUBLIC" | "DRAFT" | "ARCHIVED"
+  orderIndex?: number
+  startDate?: string | null
+  endDate?: string | null
 }
 
 export interface Attendee {
@@ -289,20 +299,31 @@ export const useEventStore = create<EventState>((set, get) => ({
 
       // Fetch agenda from event_activities
       let formattedAgenda: AgendaItem[] = []
-      if (mainEventIds.length > 0) {
+      const editionIds = formattedEditions.map((ed) => ed.id)
+      if (editionIds.length > 0) {
         const { data: activitiesData } = await supabase
           .from("event_activities")
           .select("*")
-          .in("event_id", mainEventIds)
+          .in("event_id", editionIds)
 
         if (activitiesData) {
           formattedAgenda = activitiesData.map((act: any) => ({
             id: act.id,
             eventId: act.event_id,
-            timeSlot: act.description || `${act.start_time ? act.start_time.split("T")[1]?.substring(0, 5) : "09:00"} - ${act.end_time ? act.end_time.split("T")[1]?.substring(0, 5) : "10:00"}`,
+            timeSlot: `${act.start_time ? act.start_time.split("T")[1]?.substring(0, 5) : "09:00"} - ${act.end_time ? act.end_time.split("T")[1]?.substring(0, 5) : "10:00"}`,
             title: act.activity_name,
             stage: act.custom_location || "Escenario Principal",
-            speakerId: act.parent_activity_id || ""
+            speakerId: act.parent_activity_id || "",
+            description: act.description || "",
+            startTime: act.start_time || null,
+            endTime: act.end_time || null,
+            duration: act.duration || null,
+            meetingUrl: act.meeting_url || null,
+            activityMode: act.activity_mode || "PRESENCIAL",
+            status: act.status || "PUBLIC",
+            orderIndex: act.order_index || 0,
+            startDate: act.start_date || null,
+            endDate: act.end_date || null,
           }))
         }
       }
@@ -500,8 +521,8 @@ export const useEventStore = create<EventState>((set, get) => ({
 
       if (editionIds.length > 0) {
         await supabase.from("event_participants").delete().in("edition_id", editionIds)
+        await supabase.from("event_activities").delete().in("event_id", editionIds)
       }
-      await supabase.from("event_activities").delete().eq("event_id", id)
       await supabase.from("thematic_lines").delete().eq("main_event_id", id)
       await supabase.from("editions").delete().eq("main_event_id", id)
       await supabase.from("main_events").delete().eq("id", id)
@@ -510,7 +531,7 @@ export const useEventStore = create<EventState>((set, get) => ({
         events: state.events.filter((e) => e.id !== id),
         editions: state.editions.filter((ed) => ed.mainEventId !== id),
         speakers: state.speakers.filter((s) => s.eventId !== id),
-        agendaItems: state.agendaItems.filter((a) => a.eventId !== id),
+        agendaItems: state.agendaItems.filter((a) => !editionIds.includes(a.eventId)),
         attendees: state.attendees.filter((at) => at.eventId !== id),
         thematicLines: state.thematicLines.filter((tl) => tl.mainEventId !== id)
       }))
@@ -763,11 +784,18 @@ export const useEventStore = create<EventState>((set, get) => ({
         id,
         event_id: itemData.eventId,
         activity_name: itemData.title,
-        description: itemData.timeSlot,
+        description: itemData.description || null,
         custom_location: itemData.stage,
         parent_activity_id: itemData.speakerId || null,
-        start_time: new Date().toISOString(),
-        end_time: new Date().toISOString()
+        start_time: itemData.startTime || null,
+        end_time: itemData.endTime || null,
+        duration: itemData.duration || null,
+        meeting_url: itemData.meetingUrl || null,
+        activity_mode: itemData.activityMode || "PRESENCIAL",
+        status: itemData.status || "PUBLIC",
+        order_index: itemData.orderIndex ?? 0,
+        start_date: itemData.startDate || null,
+        end_date: itemData.endDate || null,
       }])
 
       if (error) throw error
@@ -777,6 +805,7 @@ export const useEventStore = create<EventState>((set, get) => ({
       }))
     } catch (e) {
       console.error("Error adding agenda activity:", e)
+      throw e
     }
   },
 
@@ -784,17 +813,28 @@ export const useEventStore = create<EventState>((set, get) => ({
     try {
       const mappedUpdates: any = {}
       if (updates.title !== undefined) mappedUpdates.activity_name = updates.title
-      if (updates.timeSlot !== undefined) mappedUpdates.description = updates.timeSlot
+      if (updates.description !== undefined) mappedUpdates.description = updates.description
       if (updates.stage !== undefined) mappedUpdates.custom_location = updates.stage
       if (updates.speakerId !== undefined) mappedUpdates.parent_activity_id = updates.speakerId || null
+      if (updates.startTime !== undefined) mappedUpdates.start_time = updates.startTime
+      if (updates.endTime !== undefined) mappedUpdates.end_time = updates.endTime
+      if (updates.duration !== undefined) mappedUpdates.duration = updates.duration
+      if (updates.meetingUrl !== undefined) mappedUpdates.meeting_url = updates.meetingUrl
+      if (updates.activityMode !== undefined) mappedUpdates.activity_mode = updates.activityMode
+      if (updates.status !== undefined) mappedUpdates.status = updates.status
+      if (updates.orderIndex !== undefined) mappedUpdates.order_index = updates.orderIndex
+      if (updates.startDate !== undefined) mappedUpdates.start_date = updates.startDate
+      if (updates.endDate !== undefined) mappedUpdates.end_date = updates.endDate
 
-      await supabase.from("event_activities").update(mappedUpdates).eq("id", id)
+      const { error } = await supabase.from("event_activities").update(mappedUpdates).eq("id", id)
+      if (error) throw error
 
       set((state) => ({
         agendaItems: state.agendaItems.map((a) => a.id === id ? { ...a, ...updates } : a)
       }))
     } catch (e) {
       console.error("Error updating agenda item:", e)
+      throw e
     }
   },
 

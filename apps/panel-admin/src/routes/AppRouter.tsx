@@ -32,6 +32,7 @@ import {
   EventAttendeesSection,
   EventRolesSection,
   EventThematicLinesSection,
+  EventActivityFormPage,
 } from "@/pages/event-detail"
 import {
   ProfilesPage,
@@ -178,6 +179,8 @@ export function AppRouter() {
           <Route path="editions" element={<EventEditionsSection />} />
           <Route path="speakers" element={<EventSpeakersSection />} />
           <Route path="agenda" element={<EventAgendaSection />} />
+          <Route path="agenda/new" element={<EventActivityFormPage />} />
+          <Route path="agenda/:activityId/edit" element={<EventActivityFormPage />} />
           <Route path="attendees" element={<EventAttendeesSection />} />
           <Route path="roles" element={<EventRolesSection />} />
           <Route path="thematic-lines" element={<EventThematicLinesSection />} />

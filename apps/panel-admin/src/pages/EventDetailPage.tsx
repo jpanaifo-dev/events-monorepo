@@ -1,7 +1,8 @@
 import { useEffect } from "react"
-import { useParams, useNavigate, NavLink, Outlet } from "react-router-dom"
+import { useParams, useNavigate, NavLink, Outlet, useLocation } from "react-router-dom"
 import { useAuthStore } from "@/store/auth.store"
 import { useEventStore } from "@/store/event.store"
+import { cn } from "@/lib/utils"
 import { AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/page-header"
@@ -92,9 +93,15 @@ export function EventDetailPage() {
       : "border-transparent text-muted-foreground hover:text-foreground"
     }`
 
+  const { pathname } = useLocation()
+  const isAgendaPage = pathname.includes("/agenda")
+
   return (
     <div className="min-h-screen bg-background text-foreground font-sans flex flex-col">
-      <main className="max-w-7xl mx-auto px-6 py-12 flex-1 w-full">
+      <main className={cn(
+        "mx-auto py-12 flex-1 w-full px-6 transition-all duration-300",
+        isAgendaPage ? "max-w-[98%] md:px-8" : "max-w-7xl"
+      )}>
         <div className="mb-8">
           <PageHeader
             title={event.name}
