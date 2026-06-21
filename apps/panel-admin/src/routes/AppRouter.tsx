@@ -34,6 +34,7 @@ import {
   EventThematicLinesSection,
   EventActivityFormPage,
   EventTicketsSection,
+  EventAttendeeFormPage,
 } from "@/pages/event-detail"
 import {
   ProfilesPage,
@@ -43,6 +44,7 @@ import {
   ProfileManageEducationSection,
   ProfileManageCertificationsSection,
   ProfileManageDangerSection,
+  CreateProfilePage,
 } from "@/pages/profiles"
 
 export function AppRouter() {
@@ -103,6 +105,7 @@ export function AppRouter() {
 
           {/* Registered Profiles Catalog */}
           <Route path="profiles" element={<ProfilesPage />} />
+          <Route path="profiles/new" element={<CreateProfilePage />} />
 
           {/* Settings Page */}
           <Route path="settings/business" element={<OrganizationSettingsPage />} />
@@ -183,6 +186,7 @@ export function AppRouter() {
           <Route path="agenda/new" element={<EventActivityFormPage />} />
           <Route path="agenda/:activityId/edit" element={<EventActivityFormPage />} />
           <Route path="attendees" element={<EventAttendeesSection />} />
+          <Route path="attendees/new" element={<EventAttendeeFormPage />} />
           <Route path="roles" element={<EventRolesSection />} />
           <Route path="thematic-lines" element={<EventThematicLinesSection />} />
           <Route path="tickets" element={<EventTicketsSection />} />

@@ -79,7 +79,7 @@ export interface Attendee {
   profileId?: string | null
   fullName: string
   email: string
-  ticketType: "General" | "VIP" | "Speaker"
+  ticketType: string
   registrationDate: string
   checkedIn: boolean
 }
@@ -190,7 +190,12 @@ interface EventState {
   updateAgendaItem: (id: string, updates: Partial<AgendaItem>) => Promise<void>
   deleteAgendaItem: (id: string) => Promise<void>
 
-  addAttendee: (attendee: Omit<Attendee, "id">) => Promise<void>
+  addAttendee: (attendee: Omit<Attendee, "id"> & {
+    firstName?: string
+    lastName?: string
+    identityDocumentType?: string | null
+    identityDocumentNumber?: string | null
+  }) => Promise<void>
   toggleAttendeeCheckIn: (id: string) => Promise<void>
   deleteAttendee: (id: string) => Promise<void>
 }
@@ -958,15 +963,25 @@ export const useEventStore = create<EventState>((set, get) => ({
 
       const profileId = crypto.randomUUID()
       const participantId = crypto.randomUUID()
-      const nameParts = attendeeData.fullName.trim().split(" ")
-      const firstName = nameParts[0] || "Asistente"
-      const lastName = nameParts.slice(1).join(" ") || ""
+
+      let firstName = attendeeData.firstName?.trim()
+      let lastName = attendeeData.lastName?.trim()
+      if (firstName === undefined || lastName === undefined) {
+        const nameParts = attendeeData.fullName ? attendeeData.fullName.trim().split(" ") : []
+        firstName = firstName ?? (nameParts[0] || "Asistente")
+        lastName = lastName ?? (nameParts.slice(1).join(" ") || "")
+      }
+
+      const docType = attendeeData.identityDocumentType || null
+      const docNumber = attendeeData.identityDocumentNumber?.trim() || null
 
       await supabase.from("profiles").insert([{
         id: profileId,
         first_name: firstName,
         last_name: lastName,
-        email: attendeeData.email
+        email: attendeeData.email,
+        identity_document_type: docType,
+        identity_document_number: docNumber
       }])
 
       const ticketRole = attendeeData.ticketType.toLowerCase()
@@ -997,8 +1012,17 @@ export const useEventStore = create<EventState>((set, get) => ({
         check_in_status: attendeeData.checkedIn
       }])
 
+      const fullName = `${firstName} ${lastName}`.trim()
+      const { firstName: _, lastName: __, identityDocumentType: ___, identityDocumentNumber: ____, ...cleanAttendeeData } = attendeeData
+
       set((state) => ({
-        attendees: [...state.attendees, { id: participantId, ...attendeeData, editionId: targetEditionId, profileId }]
+        attendees: [...state.attendees, { 
+          ...cleanAttendeeData,
+          id: participantId, 
+          editionId: targetEditionId, 
+          profileId,
+          fullName
+        }]
       }))
     } catch (e) {
       console.error("Error adding attendee:", e)
