@@ -4,6 +4,7 @@ import { createPortal } from "react-dom"
 import { z } from "zod"
 import { useEventStore } from "@/store/event.store"
 import type { AgendaItem } from "@/store/event.store"
+import { supabase } from "@/utils/supabase"
 import {
   Plus,
   Edit2,
@@ -378,6 +379,26 @@ export function EventAgendaSection() {
   const [status, setStatus] = useState<"PUBLIC" | "DRAFT" | "ARCHIVED">("PUBLIC")
   const [orderIndex, setOrderIndex] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [branches, setBranches] = useState<any[]>([])
+
+  useEffect(() => {
+    async function loadBranches() {
+      if (!event?.organizationId) return
+      try {
+        const { data, error } = await supabase
+          .from("organization_branches")
+          .select("*")
+          .eq("organization_id", event.organizationId)
+          .eq("is_active", true)
+        if (!error && data) {
+          setBranches(data)
+        }
+      } catch (err) {
+        console.error("Error loading branches:", err)
+      }
+    }
+    loadBranches()
+  }, [event?.organizationId])
 
   const eventActivitySchema = z.object({
     activityName: z.string().trim().min(1, "El nombre de la actividad es requerido."),
@@ -1275,6 +1296,27 @@ export function EventAgendaSection() {
                   required
                   disabled={isSubmitting}
                 />
+                {branches.length > 0 && (
+                  <div className="flex flex-col gap-1 mt-1">
+                    <span className="text-[10px] font-medium text-muted-foreground">Sugerencias de sedes:</span>
+                    <div className="flex flex-wrap gap-1">
+                      {branches.map((branch) => {
+                        const val = branch.address ? `${branch.name} - ${branch.address}` : branch.name
+                        return (
+                          <button
+                            key={branch.id}
+                            type="button"
+                            onClick={() => setCustomLocation(val)}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded-md border border-border bg-muted/40 hover:bg-muted text-foreground transition-colors cursor-pointer"
+                          >
+                            <MapPin className="size-2.5 text-muted-foreground" />
+                            <span>{branch.name}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Speaker Select */}
@@ -1362,18 +1404,7 @@ export function EventAgendaSection() {
               </div>
             )}
 
-            {/* Order index */}
-            <div className="space-y-1.5">
-              <label htmlFor="modalOrderIndex" className="text-xs font-semibold text-foreground">Índice de Ordenación Visual</label>
-              <Input
-                id="modalOrderIndex"
-                type="number"
-                min={0}
-                value={orderIndex}
-                onChange={(e) => setOrderIndex(parseInt(e.target.value) || 0)}
-                disabled={isSubmitting}
-              />
-            </div>
+            {/* Order index removed from JSX layout to simplify form */}
 
           </div>
 

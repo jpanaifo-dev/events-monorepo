@@ -4,6 +4,7 @@ import { z } from "zod"
 import { useEventStore } from "@/store/event.store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { supabase } from "@/utils/supabase"
 import {
   Select,
   SelectTrigger,
@@ -52,6 +53,7 @@ export function EventActivityFormPage() {
   const [status, setStatus] = useState<"PUBLIC" | "DRAFT" | "ARCHIVED">("PUBLIC")
   const [orderIndex, setOrderIndex] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [branches, setBranches] = useState<any[]>([])
 
   // Initialize dates from current/first edition or today
   useEffect(() => {
@@ -106,6 +108,25 @@ export function EventActivityFormPage() {
       }
     }
   }, [activityId, agendaItems, isEditMode])
+
+  useEffect(() => {
+    async function loadBranches() {
+      if (!event?.organizationId) return
+      try {
+        const { data, error } = await supabase
+          .from("organization_branches")
+          .select("*")
+          .eq("organization_id", event.organizationId)
+          .eq("is_active", true)
+        if (!error && data) {
+          setBranches(data)
+        }
+      } catch (err) {
+        console.error("Error loading branches:", err)
+      }
+    }
+    loadBranches()
+  }, [event?.organizationId])
 
   const eventActivitySchema = z.object({
     activityName: z.string().trim().min(1, "El nombre de la actividad es requerido."),
@@ -371,6 +392,32 @@ export function EventActivityFormPage() {
                   required
                   disabled={isSubmitting}
                 />
+                {branches.length > 0 && (
+                  <div className="flex flex-col gap-1.5 mt-2">
+                    <span className="text-[11px] font-medium text-muted-foreground">Sugerencias de sedes de la organización:</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {branches.map((branch) => {
+                        const val = branch.address ? `${branch.name} - ${branch.address}` : branch.name
+                        return (
+                          <button
+                            key={branch.id}
+                            type="button"
+                            onClick={() => setCustomLocation(val)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md border border-border bg-muted/40 hover:bg-muted text-foreground transition-colors cursor-pointer"
+                          >
+                            <MapPin className="size-3 text-muted-foreground" />
+                            <span>{branch.name}</span>
+                            {branch.address && (
+                              <span className="text-muted-foreground/75 font-normal text-[10px]">
+                                ({branch.address})
+                              </span>
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -455,19 +502,19 @@ export function EventActivityFormPage() {
               </div>
             )}
 
-            {/* Status & Index Order */}
+            {/* Status */}
             <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 pb-2">
               <div className="md:w-1/3 space-y-1">
                 <label className="text-sm font-semibold text-foreground flex items-center gap-1.5">
                   <Sliders className="size-4 text-muted-foreground" />
                   <span>Configuración Adicional</span>
                 </label>
-                <p className="text-xs text-muted-foreground">Estado de publicación y orden visual.</p>
+                <p className="text-xs text-muted-foreground">Estado de publicación de la actividad.</p>
               </div>
-              <div className="md:w-2/3 w-full grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="md:w-2/3 w-full">
                 
                 {/* Publication Status */}
-                <div className="space-y-1">
+                <div className="space-y-1 max-w-xs">
                   <span className="text-xs text-muted-foreground font-medium">Estado:</span>
                   <Select
                     value={status}
@@ -482,19 +529,6 @@ export function EventActivityFormPage() {
                       <SelectItem value="ARCHIVED">Archivado</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
-
-                {/* Index Order */}
-                <div className="space-y-1">
-                  <label htmlFor="orderIndex" className="text-xs text-muted-foreground font-medium">Orden de Visualización:</label>
-                  <Input
-                    id="orderIndex"
-                    type="number"
-                    min={0}
-                    value={orderIndex}
-                    onChange={(e) => setOrderIndex(parseInt(e.target.value) || 0)}
-                    disabled={isSubmitting}
-                  />
                 </div>
 
               </div>
