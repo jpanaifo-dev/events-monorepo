@@ -166,6 +166,15 @@ export function EventAgendaSection() {
     return `${year}-${month}-${day}`
   }, [currentTime])
 
+  const orderedHours = useMemo(() => {
+    const currentHour = currentTime.getHours()
+    const hours = []
+    for (let i = 0; i < 24; i++) {
+      hours.push((currentHour + i) % 24)
+    }
+    return hours
+  }, [currentTime])
+
   // Calendar Date Navigation
   const [currentYear, setCurrentYear] = useState<number>(new Date().getFullYear())
   const [currentMonth, setCurrentMonth] = useState<number>(new Date().getMonth()) // 0-11
@@ -243,21 +252,18 @@ export function EventAgendaSection() {
 
   const timelineGridRef = useRef<HTMLDivElement>(null)
 
-  // Scroll window to current hour (or 8 AM) on timeline load
+  // Scroll window to top of the grid on timeline load
   useEffect(() => {
     if (viewMode === "agenda" && timelineGridRef.current) {
-      const isToday = selectedDate === todayStr
-      const targetHour = isToday ? new Date().getHours() : 8
       setTimeout(() => {
-        const rowTop = targetHour * rowHeight
         const elementTop = timelineGridRef.current.getBoundingClientRect().top + window.scrollY
         window.scrollTo({
-          top: elementTop + rowTop - 120, // offset slightly to align nicely
+          top: elementTop - 120, // offset slightly to align nicely
           behavior: "smooth"
         })
       }, 200)
     }
-  }, [viewMode, selectedDate, todayStr])
+  }, [viewMode, selectedDate])
 
   // Drag selection state
   const [isDragging, setIsDragging] = useState(false)
@@ -297,9 +303,21 @@ export function EventAgendaSection() {
     const startHourVal = h1
     const endHourVal = h2 - h1 < 0.25 ? h1 + 1 : h2
 
+    const startAbs = (orderedHours[0] + startHourVal) % 24
+    const endAbs = (orderedHours[0] + endHourVal) % 24
+
     handleOpenCreate(selectedDate)
-    setStartTime(formatHourDecimal(startHourVal))
-    setEndTime(formatHourDecimal(endHourVal))
+    setStartTime(formatHourDecimal(startAbs))
+    setEndTime(formatHourDecimal(endAbs))
+
+    if (endAbs < startAbs) {
+      const d = new Date(`${selectedDate}T00:00:00`)
+      d.setDate(d.getDate() + 1)
+      const nextDayStr = d.toISOString().split("T")[0]
+      setEndDate(nextDayStr)
+    } else {
+      setEndDate(selectedDate)
+    }
   }
 
   const handlePrevDay = () => {
@@ -321,7 +339,10 @@ export function EventAgendaSection() {
     const d = new Date(item.startTime)
     const hour = d.getHours()
     const minute = d.getMinutes()
-    return (hour + minute / 60) * rowHeight
+    const startHour = orderedHours[0]
+    let relativeHour = hour - startHour
+    if (relativeHour < 0) relativeHour += 24
+    return (relativeHour + minute / 60) * rowHeight
   }
 
   const getHeight = (item: AgendaItem) => {
@@ -656,10 +677,50 @@ export function EventAgendaSection() {
     <div className="space-y-6 animate-in fade-in duration-200">
 
       {/* View Switcher & Title Action Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4">
-        <div>
-          <h3 className="text-lg font-bold text-foreground">Planificador del Cronograma</h3>
-          <p className="text-xs text-muted-foreground">Estructura las ponencias, talleres e itinerarios principales.</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <div>
+            <h3 className="text-lg font-bold text-foreground">Planificador del Cronograma</h3>
+            <p className="text-xs text-muted-foreground">Estructura las ponencias, talleres e itinerarios principales.</p>
+          </div>
+          
+          {/* Edition Select Dropdown in header */}
+          {currentEdition && (
+            <div className="flex items-center gap-2 bg-muted/20 border border-border/60 px-3 py-1 rounded-lg">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Edición:</span>
+              <Select
+                value={currentEdition.id}
+                onValueChange={(val) => {
+                  setSelectedEditionId(val)
+                  const selected = editions.find((ed) => ed.id === val)
+                  if (selected && selected.startDate) {
+                    setSelectedDate(selected.startDate)
+                    const d = new Date(`${selected.startDate}T00:00:00`)
+                    if (!isNaN(d.getTime())) {
+                      setCurrentYear(d.getFullYear())
+                      setCurrentMonth(d.getMonth())
+                    }
+                  }
+                }}
+              >
+                <SelectTrigger className="w-[180px] h-7 text-xs border-none bg-transparent shadow-none focus:ring-0 p-0 pr-2 cursor-pointer">
+                  <SelectValue placeholder="Seleccionar edición" />
+                </SelectTrigger>
+                <SelectContent>
+                  {editions
+                    .filter((ed) => ed.mainEventId === eventId)
+                    .map((ed) => (
+                      <SelectItem key={ed.id} value={ed.id} className="text-xs">
+                        {ed.name && typeof ed.name === "object"
+                          ? (ed.name as any).es || (ed.name as any).en || JSON.stringify(ed.name)
+                          : (ed.name || "")}
+                        {ed.isCurrent ? " (Actual)" : ""}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-3">
@@ -840,66 +901,30 @@ export function EventAgendaSection() {
           {viewMode === "agenda" && (
             <div className="space-y-6 animate-in fade-in duration-200">
 
-              {/* Horizontal Navigation & Edition Selector */}
+              {/* Horizontal Navigation */}
               {selectedDate && (
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none bg-card border border-border px-6 py-3.5 rounded-xl shadow-xs">
-                  {/* Left Side: Day Switcher Navigation */}
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1">
-                      <Button
-                        onClick={handlePrevDay}
-                        disabled={switcherDates.indexOf(selectedDate) <= 0}
-                        variant="outline"
-                        className="size-8 p-0 cursor-pointer hover:bg-muted"
-                      >
-                        <ChevronLeft className="size-4" />
-                      </Button>
-                      <Button
-                        onClick={handleNextDay}
-                        disabled={switcherDates.indexOf(selectedDate) >= switcherDates.length - 1}
-                        variant="outline"
-                        className="size-8 p-0 cursor-pointer hover:bg-muted"
-                      >
-                        <ChevronRight className="size-4" />
-                      </Button>
-                    </div>
-                    <span className="text-sm font-bold text-foreground capitalize">
+                <div className="flex flex-row items-center justify-center select-none bg-card border border-border px-6 py-3 rounded-xl shadow-xs">
+                  {/* Left Side: Day Switcher Navigation: ChevronLeft - DayText - ChevronRight */}
+                  <div className="flex items-center gap-4">
+                    <Button
+                      onClick={handlePrevDay}
+                      disabled={switcherDates.indexOf(selectedDate) <= 0}
+                      variant="outline"
+                      className="size-8 p-0 cursor-pointer hover:bg-muted rounded-full"
+                    >
+                      <ChevronLeft className="size-4" />
+                    </Button>
+                    <span className="text-sm font-bold text-foreground capitalize min-w-[200px] text-center">
                       {formatSelectedDateDisplay(selectedDate)}
                     </span>
-                  </div>
-
-                  {/* Right Side: Edition Select Dropdown */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-muted-foreground">Edición:</span>
-                    <Select
-                      value={currentEdition?.id || ""}
-                      onValueChange={(val) => {
-                        setSelectedEditionId(val)
-                        const selected = editions.find((ed) => ed.id === val)
-                        if (selected && selected.startDate) {
-                          setSelectedDate(selected.startDate)
-                          const d = new Date(`${selected.startDate}T00:00:00`)
-                          if (!isNaN(d.getTime())) {
-                            setCurrentYear(d.getFullYear())
-                            setCurrentMonth(d.getMonth())
-                          }
-                        }
-                      }}
+                    <Button
+                      onClick={handleNextDay}
+                      disabled={switcherDates.indexOf(selectedDate) >= switcherDates.length - 1}
+                      variant="outline"
+                      className="size-8 p-0 cursor-pointer hover:bg-muted rounded-full"
                     >
-                      <SelectTrigger className="w-[200px] h-9 text-xs">
-                        <SelectValue placeholder="Seleccionar edición" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {editions
-                          .filter((ed) => ed.mainEventId === eventId)
-                          .map((ed) => (
-                            <SelectItem key={ed.id} value={ed.id} className="text-xs">
-                              {typeof ed.name === "object" ? ed?.name?.es || ed?.name?.en || JSON.stringify(ed?.name) : ed?.name}
-                              {ed.isCurrent ? " (Actual)" : ""}
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
+                      <ChevronRight className="size-4" />
+                    </Button>
                   </div>
                 </div>
               )}
@@ -919,7 +944,7 @@ export function EventAgendaSection() {
                   >
                     {/* Left Column: Hour Labels */}
                     <div className="w-20 border-r border-border bg-muted/[0.02] shrink-0 flex flex-col pointer-events-none">
-                      {Array.from({ length: 24 }, (_, i) => i).map((h) => (
+                      {orderedHours.map((h) => (
                         <div
                           key={h}
                           className="text-right pr-4 text-[10px] font-bold text-muted-foreground"
@@ -936,11 +961,11 @@ export function EventAgendaSection() {
                     {/* Right Column: Grid and Cards */}
                     <div className="flex-1 relative">
                       {/* Horizontal Grid lines */}
-                      {Array.from({ length: 24 }, (_, i) => i).map((h) => (
+                      {orderedHours.map((h, index) => (
                         <div
                           key={h}
                           className="absolute left-0 right-0 border-t border-border/40 pointer-events-none"
-                          style={{ top: `${h * rowHeight}px`, height: `${rowHeight}px` }}
+                          style={{ top: `${index * rowHeight}px`, height: `${rowHeight}px` }}
                         />
                       ))}
 
@@ -954,7 +979,7 @@ export function EventAgendaSection() {
                           }}
                         >
                           <div className="bg-primary text-primary-foreground font-semibold text-[10px] px-2 py-0.5 rounded shadow-sm">
-                            {formatHourDecimal(Math.min(dragStart, dragCurrent))} - {formatHourDecimal(Math.max(dragStart, dragCurrent))}
+                            {formatHourDecimal((orderedHours[0] + Math.min(dragStart, dragCurrent)) % 24)} - {formatHourDecimal((orderedHours[0] + Math.max(dragStart, dragCurrent)) % 24)}
                           </div>
                         </div>
                       )}
@@ -963,7 +988,7 @@ export function EventAgendaSection() {
                       {selectedDate === todayStr && (
                         <div
                           className="absolute left-0 right-0 border-t-2 border-red-500 z-30 pointer-events-none"
-                          style={{ top: `${(currentTime.getHours() + currentTime.getMinutes() / 60) * rowHeight}px` }}
+                          style={{ top: `${(currentTime.getMinutes() / 60) * rowHeight}px` }}
                         >
                           <div className="absolute left-2 -translate-y-1/2 bg-red-500 text-white font-bold text-[9px] px-1.5 py-0.5 rounded shadow-sm">
                             {currentTime.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
