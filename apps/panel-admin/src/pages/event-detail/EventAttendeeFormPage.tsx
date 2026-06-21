@@ -3,9 +3,9 @@ import { useParams, useNavigate } from "react-router-dom"
 import { z } from "zod"
 import { useEventStore } from "@/store/event.store"
 import { toast } from "sonner"
-import { ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { PageHeader } from "@/components/page-header"
 import { useSEO } from "@/hooks/use-seo"
 
 export function EventAttendeeFormPage() {
@@ -113,27 +113,12 @@ export function EventAttendeeFormPage() {
   return (
     <div className="w-full space-y-6 animate-in fade-in duration-200">
       
-      {/* Back button sub-header */}
-      <div className="flex items-center justify-between border-b border-border pb-4">
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => navigate(`/dashboard/events/${id}/attendees`)}
-            className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors py-1.5 px-3 border border-border rounded-md bg-muted/20 cursor-pointer"
-          >
-            <ArrowLeft className="size-3.5" />
-            Volver a Participantes
-          </button>
-          <div>
-            <h3 className="text-lg font-bold tracking-tight text-foreground">
-              Inscribir Participante
-            </h3>
-            <p className="text-xs text-muted-foreground">
-              Registra los datos del boleto del nuevo asistente.
-            </p>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        title="Inscribir Participante"
+        description="Registra los datos del boleto del nuevo asistente."
+        showBackButton
+        onBackClick={() => navigate(`/dashboard/events/${id}/attendees`)}
+      />
 
       <form onSubmit={handleSave} className="space-y-6 w-full">
         <div className="border border-border rounded-xl bg-card overflow-hidden w-full">
