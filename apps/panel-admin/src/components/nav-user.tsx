@@ -50,6 +50,13 @@ export function NavUser({
             <SidebarMenuButton
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+              style={{
+                backgroundColor: 'transparent',
+                border: '1px solid #e4e4e7',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease-in-out',
+              }}
             >
               <Avatar className="h-8 w-8 rounded-lg">
                 <AvatarImage src={user.avatar} alt={user.name} />
@@ -82,7 +89,7 @@ export function NavUser({
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem 
+              <DropdownMenuItem
                 onClick={() => navigate("/dashboard/profile")}
                 className="gap-2 p-2 cursor-pointer"
               >
@@ -91,7 +98,7 @@ export function NavUser({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem 
+            <DropdownMenuItem
               onClick={handleLogout}
               className="gap-2 p-2 cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10"
             >
