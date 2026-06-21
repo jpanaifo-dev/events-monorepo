@@ -30,9 +30,6 @@ export function EventAttendeesSection() {
     description: `Administración de la lista de asistentes inscritos, entradas de cortesía, VIP, generales y control de asistencia (check-in) para el evento ${event?.name || ""}.`
   })
 
-  const checkedInCount = eventAttendees.filter((a) => a.checkedIn).length
-  const vipCount = eventAttendees.filter((a) => a.ticketType === "VIP").length
-  const attendanceRate = eventAttendees.length > 0 ? Math.round((checkedInCount / eventAttendees.length) * 100) : 0
 
   const columns: ColumnDef<any>[] = [
     {
@@ -142,22 +139,6 @@ export function EventAttendeesSection() {
           <Plus className="size-4 mr-1.5" />
           Inscribir Participante
         </Button>
-      </div>
-
-      {/* Metrics */}
-      <div className="grid grid-cols-3 gap-4 p-4 bg-muted/40 border border-border/80 rounded-xl text-center">
-        <div>
-          <p className="text-[10px] font-bold text-muted-foreground uppercase">Registrados</p>
-          <p className="text-xl font-bold">{eventAttendees.length}</p>
-        </div>
-        <div>
-          <p className="text-[10px] font-bold text-muted-foreground uppercase">VIP</p>
-          <p className="text-xl font-bold text-amber-600">{vipCount}</p>
-        </div>
-        <div>
-          <p className="text-[10px] font-bold text-muted-foreground uppercase">Check-in</p>
-          <p className="text-xl font-bold text-primary">{attendanceRate}%</p>
-        </div>
       </div>
 
       {eventAttendees.length === 0 ? (
