@@ -16,7 +16,12 @@ import { useSEO } from "@/hooks/use-seo"
 import { toast } from "sonner"
 
 const resetSchema = z.object({
-  password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
+  password: z.string()
+    .min(8, "La contraseña debe tener al menos 8 caracteres")
+    .regex(/[A-Z]/, "Debe contener al menos una letra mayúscula")
+    .regex(/[a-z]/, "Debe contener al menos una letra minúscula")
+    .regex(/[0-9]/, "Debe contener al menos un número")
+    .regex(/[!@#$%^&*(),.?":{}|<>]/, "Debe contener al menos un carácter especial"),
   confirmPassword: z.string().min(8, "La confirmación de contraseña debe tener al menos 8 caracteres"),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Las contraseñas no coinciden",
@@ -39,6 +44,26 @@ export function ResetPasswordPage() {
   const [errors, setErrors] = useState<Partial<Record<keyof ResetInput, string>>>({})
   const [formError, setFormError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+
+  // Password complexity check
+  const criteria = {
+    length: password.length >= 8,
+    uppercase: /[A-Z]/.test(password),
+    lowercase: /[a-z]/.test(password),
+    number: /[0-9]/.test(password),
+    specialChar: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+  }
+
+  const criteriaList = [
+    { label: "Mínimo 8 caracteres", met: criteria.length },
+    { label: "Una letra mayúscula", met: criteria.uppercase },
+    { label: "Una letra minúscula", met: criteria.lowercase },
+    { label: "Un número", met: criteria.number },
+    { label: "Un carácter especial (ej. !@#$%^&*)", met: criteria.specialChar },
+  ]
+
+  const metCount = criteriaList.filter((c) => c.met).length
+  const strengthPercentage = (metCount / criteriaList.length) * 100
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -68,6 +93,8 @@ export function ResetPasswordPage() {
       if (error) {
         setFormError(error.message || "Error al actualizar la contraseña.")
       } else {
+        // Sign out of the recovery session cleanly
+        await supabase.auth.signOut()
         toast.success("Tu contraseña ha sido restablecida correctamente.")
         navigate("/login", { replace: true })
       }
@@ -129,6 +156,61 @@ export function ResetPasswordPage() {
                   </button>
                 </div>
                 {errors.password && <p className="text-xs text-destructive mt-1 font-semibold">{errors.password}</p>}
+
+                {/* Password strength and requirements checklist */}
+                <div className="mt-3 space-y-2 border border-border/50 rounded-lg p-3 bg-muted/20">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-muted-foreground font-sans">Seguridad de contraseña</span>
+                    <span className={cn("font-bold font-sans", 
+                      metCount === 5 ? "text-emerald-500" : 
+                      metCount >= 3 ? "text-yellow-500" : 
+                      metCount > 0 ? "text-destructive" : "text-muted-foreground"
+                    )}>
+                      {metCount === 5 ? "Fuerte" : 
+                       metCount >= 3 ? "Media" : 
+                       metCount > 0 ? "Débil" : "No válida"}
+                    </span>
+                  </div>
+                  
+                  {/* Progress Bar */}
+                  <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className={cn("h-full transition-all duration-300", 
+                        metCount === 5 ? "bg-emerald-500" : 
+                        metCount >= 3 ? "bg-yellow-500" : 
+                        "bg-destructive"
+                      )}
+                      style={{ width: `${strengthPercentage}%` }}
+                    />
+                  </div>
+
+                  {/* Checklist items */}
+                  <ul className="space-y-1.5 pt-1">
+                    {criteriaList.map((item, index) => (
+                      <li key={index} className="flex items-center gap-2 text-xs font-sans">
+                        <div className={cn(
+                          "size-4 rounded-full border flex items-center justify-center shrink-0 transition-colors duration-200",
+                          item.met 
+                            ? "bg-emerald-500/10 border-emerald-500 text-emerald-500" 
+                            : "bg-muted/10 border-muted text-muted-foreground"
+                        )}>
+                          {item.met ? (
+                            <svg className="size-2.5 stroke-[3.5]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                          ) : (
+                            <div className="size-1 bg-muted-foreground rounded-full" />
+                          )}
+                        </div>
+                        <span className={cn(
+                          item.met ? "text-foreground font-medium" : "text-muted-foreground"
+                        )}>
+                          {item.label}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </Field>
 
               <Field>
@@ -146,7 +228,7 @@ export function ResetPasswordPage() {
               </Field>
 
               <Field>
-                <Button type="submit" className="w-full" disabled={isLoading}>
+                <Button type="submit" className="w-full" disabled={isLoading || metCount < 5}>
                   {isLoading ? "Actualizando..." : "Restablecer Contraseña"}
                 </Button>
               </Field>

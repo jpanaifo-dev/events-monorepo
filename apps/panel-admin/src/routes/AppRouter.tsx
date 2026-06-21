@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
+import { useEffect } from "react"
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom"
 import { AuthGuard } from "./AuthGuard"
 import { LoginPage } from "@/pages/LoginPage"
 import { ResetPasswordPage } from "@/pages/ResetPasswordPage"
@@ -48,9 +49,35 @@ import {
   CreateProfilePage,
 } from "@/pages/profiles"
 
+function HashHandler() {
+  const navigate = useNavigate()
+  const location = useLocation()
+
+  useEffect(() => {
+    const hash = window.location.hash || location.hash
+    if (
+      location.pathname !== "/reset-password" &&
+      hash &&
+      hash.includes("type=recovery") &&
+      hash.includes("access_token")
+    ) {
+      navigate(
+        {
+          pathname: "/reset-password",
+          hash: hash,
+        },
+        { replace: true }
+      )
+    }
+  }, [navigate, location])
+
+  return null
+}
+
 export function AppRouter() {
   return (
     <BrowserRouter>
+      <HashHandler />
       <Routes>
         {/* Public Routes */}
         <Route path="/login" element={<LoginPage />} />
