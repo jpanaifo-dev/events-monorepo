@@ -37,10 +37,6 @@ export function PrivateLayout() {
             </div>
             <div className="flex items-center gap-6 text-sm">
               <ThemeSwitch />
-              <div className="flex items-center gap-4">
-                <span className="text-muted-foreground font-medium">Entorno de Producción</span>
-                <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-              </div>
             </div>
           </header>
 
