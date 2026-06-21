@@ -46,13 +46,6 @@ import {
 import { toast } from "sonner"
 import { useSEO } from "@/hooks/use-seo"
 
-const MONTH_NAMES = [
-  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
-]
-
-const DAYS_OF_WEEK = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"]
-
 // Custom Modal Component using React Portal for bulletproof rendering
 interface ModalProps {
   isOpen: boolean
@@ -128,22 +121,22 @@ export function EventAgendaSection() {
   const eventSpeakers = useMemo(() => speakers.filter((sp) => sp.eventId === eventId), [speakers, eventId])
 
   useSEO({
-    title: event ? `${event.name} - Calendario y Agenda` : "Agenda de Evento",
+    title: event ? `${event.name} - Cronograma` : "Cronograma de Evento",
     description: `Administra las actividades del cronograma del evento ${event?.name || ""}.`
   })
 
-  // View mode switcher: 'calendar' | 'agenda' | 'list' using URL search parameters
+  // View mode switcher: 'dia' | 'agenda' | 'list' using URL search parameters
   const [searchParams, setSearchParams] = useSearchParams()
 
   const viewMode = useMemo(() => {
     const val = searchParams.get("view")
-    if (val === "calendar" || val === "agenda" || val === "list") {
+    if (val === "dia" || val === "agenda" || val === "list") {
       return val
     }
-    return "calendar"
+    return "dia"
   }, [searchParams])
 
-  const setViewMode = (mode: "calendar" | "agenda" | "list") => {
+  const setViewMode = (mode: "dia" | "agenda" | "list") => {
     const params = new URLSearchParams(searchParams)
     params.set("view", mode)
     setSearchParams(params)
@@ -175,20 +168,7 @@ export function EventAgendaSection() {
     return hours
   }, [currentTime])
 
-  // Calendar Date Navigation
-  const [currentYear, setCurrentYear] = useState<number>(new Date().getFullYear())
-  const [currentMonth, setCurrentMonth] = useState<number>(new Date().getMonth()) // 0-11
 
-  // Set initial calendar month and year to match event edition dates
-  useEffect(() => {
-    if (currentEdition?.startDate) {
-      const d = new Date(`${currentEdition.startDate}T00:00:00`)
-      if (!isNaN(d.getTime())) {
-        setCurrentYear(d.getFullYear())
-        setCurrentMonth(d.getMonth())
-      }
-    }
-  }, [currentEdition])
 
   // Group activities by date
   const groupedAgenda = useMemo(() => {
