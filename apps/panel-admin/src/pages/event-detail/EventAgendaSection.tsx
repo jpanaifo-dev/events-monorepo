@@ -19,8 +19,7 @@ import {
   Lock,
   ChevronLeft,
   ChevronRight,
-  X,
-  CalendarDays
+  X
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -234,8 +233,9 @@ export function EventAgendaSection() {
 
   // Scroll window to top of the grid on timeline load
   useEffect(() => {
-    if (viewMode === "agenda" && timelineGridRef.current) {
+    if (viewMode === "dia" && timelineGridRef.current) {
       setTimeout(() => {
+        if (!timelineGridRef.current) return
         const elementTop = timelineGridRef.current.getBoundingClientRect().top + window.scrollY
         window.scrollTo({
           top: elementTop - 120, // offset slightly to align nicely
@@ -348,6 +348,14 @@ export function EventAgendaSection() {
   const selectedDateActivities = useMemo(() => {
     return groupedAgenda[selectedDate] || []
   }, [groupedAgenda, selectedDate])
+
+  const sortedSelectedActivities = useMemo(() => {
+    return [...selectedDateActivities].sort((a, b) => {
+      const timeA = a.startTime ? new Date(a.startTime).getTime() : 0
+      const timeB = b.startTime ? new Date(b.startTime).getTime() : 0
+      return timeA - timeB
+    })
+  }, [selectedDateActivities])
 
   const activityLayouts = useMemo(() => {
     return computeActivityLayouts(selectedDateActivities)
@@ -534,76 +542,7 @@ export function EventAgendaSection() {
     }
   }
 
-  // --- Calendar Grid Calculations ---
-  const calendarCells = useMemo(() => {
-    const cells = []
-    const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay()
-    const totalDays = new Date(currentYear, currentMonth + 1, 0).getDate()
-    const prevMonthDays = new Date(currentYear, currentMonth, 0).getDate()
 
-    // Previous month cells
-    for (let i = firstDayIndex - 1; i >= 0; i--) {
-      const dayNum = prevMonthDays - i
-      const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1
-      const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear
-      const monthStr = String(prevMonth + 1).padStart(2, "0")
-      const dayStr = String(dayNum).padStart(2, "0")
-      cells.push({
-        dateStr: `${prevYear}-${monthStr}-${dayStr}`,
-        dayNum,
-        isCurrentMonth: false
-      })
-    }
-
-    // Current month cells
-    for (let i = 1; i <= totalDays; i++) {
-      const monthStr = String(currentMonth + 1).padStart(2, "0")
-      const dayStr = String(i).padStart(2, "0")
-      cells.push({
-        dateStr: `${currentYear}-${monthStr}-${dayStr}`,
-        dayNum: i,
-        isCurrentMonth: true
-      })
-    }
-
-    // Next month cells
-    const remainingCells = 42 - cells.length
-    for (let i = 1; i <= remainingCells; i++) {
-      const nextMonth = currentMonth === 11 ? 0 : currentMonth + 1
-      const nextYear = currentMonth === 11 ? currentYear + 1 : currentYear
-      const monthStr = String(nextMonth + 1).padStart(2, "0")
-      const dayStr = String(i).padStart(2, "0")
-      cells.push({
-        dateStr: `${nextYear}-${monthStr}-${dayStr}`,
-        dayNum: i,
-        isCurrentMonth: false
-      })
-    }
-    return cells
-  }, [currentYear, currentMonth])
-
-  const isDateInEventRange = (dateStr: string) => {
-    if (!currentEdition?.startDate || !currentEdition?.endDate) return false
-    return dateStr >= currentEdition.startDate && dateStr <= currentEdition.endDate
-  }
-
-  const handlePrevMonth = () => {
-    if (currentMonth === 0) {
-      setCurrentMonth(11)
-      setCurrentYear((prev) => prev - 1)
-    } else {
-      setCurrentMonth((prev) => prev - 1)
-    }
-  }
-
-  const handleNextMonth = () => {
-    if (currentMonth === 11) {
-      setCurrentMonth(0)
-      setCurrentYear((prev) => prev + 1)
-    } else {
-      setCurrentMonth((prev) => prev + 1)
-    }
-  }
 
   const formatDateDisplay = (dateStr: string) => {
     if (dateStr === "Sin fecha" || !dateStr) return "Por Asignar"
@@ -675,11 +614,6 @@ export function EventAgendaSection() {
                   const selected = editions.find((ed) => ed.id === val)
                   if (selected && selected.startDate) {
                     setSelectedDate(selected.startDate)
-                    const d = new Date(`${selected.startDate}T00:00:00`)
-                    if (!isNaN(d.getTime())) {
-                      setCurrentYear(d.getFullYear())
-                      setCurrentMonth(d.getMonth())
-                    }
                   }
                 }}
               >
@@ -707,14 +641,14 @@ export function EventAgendaSection() {
           {/* 3-View Toggle Switcher */}
           <div className="flex items-center bg-muted/40 border border-border p-1 rounded-lg">
             <button
-              onClick={() => setViewMode("calendar")}
-              className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-md transition-all cursor-pointer font-medium ${viewMode === "calendar"
+              onClick={() => setViewMode("dia")}
+              className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-md transition-all cursor-pointer font-medium ${viewMode === "dia"
                 ? "bg-card text-foreground shadow-xs border border-border/50"
                 : "text-muted-foreground hover:text-foreground"
                 }`}
             >
-              <CalendarDays className="size-3.5" />
-              Calendario
+              <Clock className="size-3.5" />
+              Día
             </button>
             <button
               onClick={() => setViewMode("agenda")}
@@ -748,7 +682,7 @@ export function EventAgendaSection() {
         </div>
       </div>
 
-      {(eventAgenda.length === 0 && viewMode === "list") || (viewMode === "agenda" && switcherDates.length === 0) ? (
+      {(eventAgenda.length === 0 && viewMode === "list") || (viewMode === "dia" && switcherDates.length === 0) || (viewMode === "agenda" && switcherDates.length === 0) ? (
         <div className="p-16 text-center text-muted-foreground text-sm border border-dashed border-border rounded-xl bg-card/20 space-y-3">
           <Calendar className="size-10 mx-auto opacity-30" />
           <div>
@@ -767,118 +701,8 @@ export function EventAgendaSection() {
         </div>
       ) : (
         <>
-          {/* VIEW: CALENDAR */}
-          {viewMode === "calendar" && (
-            <div className="space-y-4">
-              {/* Calendar month control bar */}
-              <div className="flex items-center justify-between bg-card border border-border px-6 py-3.5 rounded-xl shadow-xs">
-                <div className="flex items-center gap-2">
-                  <h4 className="text-base font-bold text-foreground select-none">
-                    {MONTH_NAMES[currentMonth]} {currentYear}
-                  </h4>
-                  {currentEdition && (
-                    <Badge className="bg-primary/5 text-primary border-primary/20 text-[10px] py-0.5">
-                      Edición Activa: {currentEdition.name}
-                    </Badge>
-                  )}
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Button onClick={handlePrevMonth} variant="outline" className="size-8 p-0 cursor-pointer">
-                    <ChevronLeft className="size-4" />
-                  </Button>
-                  <Button onClick={handleNextMonth} variant="outline" className="size-8 p-0 cursor-pointer">
-                    <ChevronRight className="size-4" />
-                  </Button>
-                </div>
-              </div>
-
-              {/* Calendar grid container */}
-              <div className="border border-border/80 rounded-xl overflow-hidden shadow-xs bg-card/20">
-                {/* Week days labels row */}
-                <div className="grid grid-cols-7 border-b border-border bg-muted/40">
-                  {DAYS_OF_WEEK.map((day) => (
-                    <div key={day} className="p-3 text-center text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                      {day}
-                    </div>
-                  ))}
-                </div>
-
-                {/* Day cells grid */}
-                <div className="grid grid-cols-7 gap-px bg-border/40">
-                  {calendarCells.map((cell, idx) => {
-                    const cellActivities = groupedAgenda[cell.dateStr] || []
-                    const isEventRange = isDateInEventRange(cell.dateStr)
-
-                    return (
-                      <div
-                        key={cell.dateStr + "-" + idx}
-                        className={`min-h-[140px] p-2.5 flex flex-col justify-between group transition-colors duration-200 relative ${cell.isCurrentMonth ? "bg-card" : "bg-muted/10 text-muted-foreground/50"
-                          } ${isEventRange ? "bg-primary/[0.015] ring-1 ring-primary/10" : ""
-                          }`}
-                      >
-                        {/* Cell day label & quick-add button */}
-                        <div className="flex items-center justify-between">
-                          <span className={`text-xs font-bold ${isEventRange
-                            ? "text-primary bg-primary/10 size-6 flex items-center justify-center rounded-full"
-                            : "text-muted-foreground"
-                            }`}>
-                            {cell.dayNum}
-                          </span>
-
-                          {isEventRange && cell.isCurrentMonth && (
-                            <span className="text-[9px] text-primary/70 font-semibold select-none">
-                              Día del Evento
-                            </span>
-                          )}
-
-                          {isEventRange && cell.isCurrentMonth ? (
-                            <button
-                              onClick={() => handleOpenCreate(cell.dateStr)}
-                              className="opacity-0 group-hover:opacity-100 transition-opacity size-5 p-0 flex items-center justify-center text-muted-foreground hover:text-foreground rounded-md hover:bg-muted/50 cursor-pointer"
-                              title="Añadir actividad este día"
-                            >
-                              <Plus className="size-3.5" />
-                            </button>
-                          ) : (
-                            <div className="size-5" />
-                          )}
-                        </div>
-
-                        {/* Activities list list */}
-                        <div className="flex-1 mt-2.5 space-y-1 overflow-y-auto max-h-[85px] no-scrollbar">
-                          {cellActivities.map((act) => {
-                            const [hStart] = act.timeSlot ? act.timeSlot.split(" - ") : ["09:00"]
-                            const isVirtual = act.activityMode === "VIRTUAL"
-                            const isHybrid = act.activityMode === "HIBRIDO"
-
-                            return (
-                              <div
-                                key={act.id}
-                                onClick={() => handleOpenEdit(act)}
-                                className={`text-[10px] px-2 py-1 rounded-md truncate font-semibold transition-all hover:scale-[1.01] hover:shadow-xs cursor-pointer flex items-center gap-1 ${isVirtual
-                                  ? "bg-blue-500/10 text-blue-500 border border-blue-500/20"
-                                  : isHybrid
-                                    ? "bg-violet-500/10 text-violet-500 border border-violet-500/20"
-                                    : "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-                                  }`}
-                                title={`${hStart} - ${act.title}`}
-                              >
-                                <span className="opacity-75">{hStart}</span>
-                                <span className="truncate">{act.title}</span>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* VIEW: AGENDA */}
-          {viewMode === "agenda" && (
+          {/* VIEW: DIA (Vertical 24-Hour Timeline Grid with Drag Selection) */}
+          {viewMode === "dia" && (
             <div className="space-y-6 animate-in fade-in duration-200">
 
               {/* Horizontal Navigation */}
@@ -1097,6 +921,114 @@ export function EventAgendaSection() {
                     </div>
 
                   </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* VIEW: AGENDA (Boceto / Table View) */}
+          {viewMode === "agenda" && (
+            <div className="space-y-6 animate-in fade-in duration-200">
+              {/* Day Switcher Navigation */}
+              {selectedDate && (
+                <div className="flex flex-row items-center justify-center select-none bg-card border border-border px-6 py-3 rounded-xl shadow-xs">
+                  <div className="flex items-center gap-4">
+                    <Button
+                      onClick={handlePrevDay}
+                      disabled={switcherDates.indexOf(selectedDate) <= 0}
+                      variant="outline"
+                      className="size-8 p-0 cursor-pointer hover:bg-muted rounded-full"
+                    >
+                      <ChevronLeft className="size-4" />
+                    </Button>
+                    <span className="text-sm font-bold text-foreground capitalize min-w-[200px] text-center">
+                      {formatSelectedDateDisplay(selectedDate)}
+                    </span>
+                    <Button
+                      onClick={handleNextDay}
+                      disabled={switcherDates.indexOf(selectedDate) >= switcherDates.length - 1}
+                      variant="outline"
+                      className="size-8 p-0 cursor-pointer hover:bg-muted rounded-full"
+                    >
+                      <ChevronRight className="size-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Table Container */}
+              {selectedDate && (
+                <div className="border border-border rounded-xl bg-card overflow-hidden shadow-xs">
+                  <table className="w-full text-sm text-left border-collapse">
+                    <thead>
+                      <tr className="bg-muted/40 text-xs font-bold text-muted-foreground border-b border-border uppercase">
+                        <th className="p-4 w-[160px] border-r border-border">Horario</th>
+                        <th className="p-4 border-r border-border">Actividades</th>
+                        <th className="p-4">Ponente y Tema</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/60">
+                      {sortedSelectedActivities.length > 0 ? (
+                        sortedSelectedActivities.map((item) => {
+                          const sp = eventSpeakers.find((s) => s.id === item.speakerId)
+                          const [hStart, hEnd] = item.timeSlot ? item.timeSlot.split(" - ") : ["09:00", "10:00"]
+                          
+                          const titleLower = (item.title || "").toLowerCase()
+                          const isSpecial = 
+                            titleLower.includes("receso") ||
+                            titleLower.includes("break") ||
+                            titleLower.includes("refrigerio") ||
+                            titleLower.includes("presentación") ||
+                            titleLower.includes("presentacion") ||
+                            titleLower.includes("preguntas") ||
+                            titleLower.includes("apertura") ||
+                            titleLower.includes("ingreso")
+                          
+                          return (
+                            <tr 
+                              key={item.id} 
+                              onClick={() => handleOpenEdit(item)}
+                              className="hover:bg-muted/5 transition-colors cursor-pointer group"
+                            >
+                              {/* Horario */}
+                              <td className="p-4 font-semibold text-foreground border-r border-border whitespace-nowrap">
+                                {hStart} - {hEnd}
+                              </td>
+
+                              {/* Actividad */}
+                              <td className="p-4 border-r border-border">
+                                <span className={isSpecial ? "text-red-500 font-semibold" : "font-semibold text-foreground"}>
+                                  {item.title}
+                                </span>
+                              </td>
+
+                              {/* Ponente y Tema */}
+                              <td className="p-4">
+                                <div className="space-y-1.5">
+                                  {sp && (
+                                    <div className="bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-800 dark:text-emerald-200 border-l-2 border-emerald-500 font-semibold text-xs px-2.5 py-1 rounded-md inline-block">
+                                      {sp.name}
+                                    </div>
+                                  )}
+                                  {item.description && (
+                                    <p className="text-xs text-muted-foreground leading-relaxed">
+                                      {item.description}
+                                    </p>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          )
+                        })
+                      ) : (
+                        <tr>
+                          <td colSpan={3} className="p-8 text-center text-muted-foreground text-xs font-medium">
+                            No hay actividades programadas para este día.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </div>
@@ -1486,7 +1418,7 @@ const formatHourDecimal = (hDec: number) => {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`
 }
 
-const formatTimeOnly = (isoStr?: string) => {
+const formatTimeOnly = (isoStr?: string | null) => {
   if (!isoStr) return ""
   const d = new Date(isoStr)
   let h = d.getHours()
