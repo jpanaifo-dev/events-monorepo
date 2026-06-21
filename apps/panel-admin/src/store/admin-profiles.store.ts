@@ -42,6 +42,7 @@ interface AdminProfilesState {
   loadProfileDetails: (profileId: string) => Promise<void>
   updateProfile: (profileId: string, updates: Partial<Profile>) => Promise<void>
   deleteProfile: (profileId: string) => Promise<void>
+  createProfile: (profile: Partial<Profile> & { firstName: string; lastName: string }) => Promise<string>
 
   // Education CRUD
   addEducation: (profileId: string, data: Omit<Education, "id" | "userId" | "createdAt" | "updatedAt">) => Promise<void>
@@ -255,6 +256,51 @@ export const useAdminProfilesStore = create<AdminProfilesState>((set) => ({
       }))
     } catch (e) {
       console.error("Error deleting profile:", e)
+      throw e
+    }
+  },
+
+  createProfile: async (profileData) => {
+    try {
+      const id = crypto.randomUUID()
+      const newProfile = {
+        id,
+        auth_id: null,
+        first_name: profileData.firstName,
+        last_name: profileData.lastName,
+        email: profileData.email || null,
+        identity_document_type: profileData.identityDocumentType || null,
+        identity_document_number: profileData.identityDocumentNumber || null,
+        phone: profileData.phone || null,
+        bio: profileData.bio || null,
+        avatar_url: profileData.avatarUrl || null,
+        institution: profileData.institution || null,
+        dedication: profileData.dedication || null,
+        global_role: profileData.globalRole || "user",
+        account_type: profileData.accountType || "basic",
+        is_public: !!profileData.isPublic,
+        onboarding_completed: !!profileData.onboardingCompleted,
+        areas_of_interest: profileData.areasOfInterest || [],
+        expertise_areas: profileData.expertiseAreas || [],
+        social_links: profileData.socialLinks || [],
+        additional_emails: profileData.additionalEmails || [],
+      }
+
+      const { error } = await supabase.from("profiles").insert([newProfile])
+      if (error) throw error
+
+      const mapped = mapProfile({
+        ...newProfile,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+
+      set((state) => ({
+        profiles: [mapped, ...state.profiles]
+      }))
+      return id
+    } catch (e) {
+      console.error("Error creating profile:", e)
       throw e
     }
   },

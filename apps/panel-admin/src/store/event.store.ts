@@ -75,6 +75,7 @@ export interface AgendaItem {
 export interface Attendee {
   id: string
   eventId: string
+  editionId: string | null
   fullName: string
   email: string
   ticketType: "General" | "VIP" | "Speaker"
@@ -435,6 +436,7 @@ export const useEventStore = create<EventState>((set, get) => ({
               formattedAttendees.push({
                 id: part.id,
                 eventId: part.main_event_id,
+                editionId: part.edition_id || null,
                 fullName,
                 email: profile.email || "",
                 ticketType: roleSlug === "vip" ? "VIP" : "General",
@@ -912,39 +914,44 @@ export const useEventStore = create<EventState>((set, get) => ({
   addAttendee: async (attendeeData) => {
     try {
       const state = get()
-      let edition = state.editions.find((ed) => ed.mainEventId === attendeeData.eventId)
+      let targetEditionId = attendeeData.editionId
 
-      if (!edition) {
-        const editionId = crypto.randomUUID()
-        const defaultEdition = {
-          id: editionId,
-          main_event_id: attendeeData.eventId,
-          slug: `default-${editionId.substring(0, 8)}`,
-          year: new Date().getFullYear(),
-          name: { es: "Edición Principal" },
-          start_date: new Date().toISOString().split("T")[0],
-          end_date: new Date().toISOString().split("T")[0],
-          is_current: true
+      if (targetEditionId === undefined) {
+        let edition = state.editions.find((ed) => ed.mainEventId === attendeeData.eventId)
+
+        if (!edition) {
+          const editionId = crypto.randomUUID()
+          const defaultEdition = {
+            id: editionId,
+            main_event_id: attendeeData.eventId,
+            slug: `default-${editionId.substring(0, 8)}`,
+            year: new Date().getFullYear(),
+            name: { es: "Edición Principal" },
+            start_date: new Date().toISOString().split("T")[0],
+            end_date: new Date().toISOString().split("T")[0],
+            is_current: true
+          }
+          await supabase.from("editions").insert([defaultEdition])
+
+          const newEd: Edition = {
+            id: editionId,
+            mainEventId: attendeeData.eventId,
+            slug: defaultEdition.slug,
+            year: defaultEdition.year,
+            name: "Edición Principal",
+            startDate: defaultEdition.start_date,
+            endDate: defaultEdition.end_date,
+            isCurrent: true,
+            description: "",
+            coverUrl: "",
+          }
+
+          set((state) => ({
+            editions: [...state.editions, newEd]
+          }))
+          edition = newEd
         }
-        await supabase.from("editions").insert([defaultEdition])
-
-        const newEd: Edition = {
-          id: editionId,
-          mainEventId: attendeeData.eventId,
-          slug: defaultEdition.slug,
-          year: defaultEdition.year,
-          name: "Edición Principal",
-          startDate: defaultEdition.start_date,
-          endDate: defaultEdition.end_date,
-          isCurrent: true,
-          description: "",
-          coverUrl: "",
-        }
-
-        set((state) => ({
-          editions: [...state.editions, newEd]
-        }))
-        edition = newEd
+        targetEditionId = edition.id
       }
 
       const profileId = crypto.randomUUID()
@@ -982,14 +989,14 @@ export const useEventStore = create<EventState>((set, get) => ({
       await supabase.from("event_participants").insert([{
         id: participantId,
         main_event_id: attendeeData.eventId,
-        edition_id: edition.id,
+        edition_id: targetEditionId,
         profile_id: profileId,
         role_id: roleId,
         check_in_status: attendeeData.checkedIn
       }])
 
       set((state) => ({
-        attendees: [...state.attendees, { id: participantId, ...attendeeData }]
+        attendees: [...state.attendees, { id: participantId, ...attendeeData, editionId: targetEditionId }]
       }))
     } catch (e) {
       console.error("Error adding attendee:", e)

@@ -1,11 +1,22 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAdminProfilesStore } from "@/store/admin-profiles.store"
-import { Search, SlidersHorizontal, UserCheck, Eye, EyeOff } from "lucide-react"
+import { Search, SlidersHorizontal, UserCheck, Eye, EyeOff, Plus } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { PageHeader } from "@/components/page-header"
+import { z } from "zod"
+import { toast } from "sonner"
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetFooter,
+} from "@/components/ui/sheet"
 import {
   Select,
   SelectTrigger,
@@ -18,7 +29,106 @@ import { DataTable, type ColumnDef } from "@/components/ui/data-table"
 
 export function ProfilesPage() {
   const navigate = useNavigate()
-  const { profiles, isLoading, loadAllProfiles } = useAdminProfilesStore()
+  const { profiles, isLoading, loadAllProfiles, createProfile } = useAdminProfilesStore()
+
+  // Register Form states
+  const [isSheetOpen, setIsSheetOpen] = useState(false)
+  const [firstName, setFirstName] = useState("")
+  const [lastName, setLastName] = useState("")
+  const [email, setEmail] = useState("")
+  const [phone, setPhone] = useState("")
+  const [identityDocumentType, setIdentityDocumentType] = useState("")
+  const [identityDocumentNumber, setIdentityDocumentNumber] = useState("")
+  const [avatarUrl, setAvatarUrl] = useState("")
+  const [institution, setInstitution] = useState("")
+  const [dedication, setDedication] = useState("")
+  const [bio, setBio] = useState("")
+  const [globalRole, setGlobalRole] = useState("user")
+  const [accountType, setAccountType] = useState("basic")
+  
+  const [formError, setFormError] = useState("")
+
+  const profileFormSchema = z.object({
+    firstName: z.string().trim().min(1, "El nombre es obligatorio."),
+    lastName: z.string().trim().min(1, "El apellido es obligatorio."),
+    email: z.string().trim().email("Formato de correo no válido.").or(z.literal("")).optional().nullable(),
+    avatarUrl: z.string().trim().url("El enlace del avatar debe ser una URL válida.").or(z.literal("")).optional().nullable(),
+    phone: z.string().trim().optional().nullable(),
+    identityDocumentType: z.string().trim().optional().nullable(),
+    identityDocumentNumber: z.string().trim().optional().nullable(),
+    institution: z.string().trim().optional().nullable(),
+    dedication: z.string().trim().optional().nullable(),
+    bio: z.string().trim().optional().nullable(),
+    globalRole: z.string().min(1),
+    accountType: z.string().min(1),
+  })
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setFormError("")
+
+    const validation = profileFormSchema.safeParse({
+      firstName,
+      lastName,
+      email: email || null,
+      avatarUrl: avatarUrl || null,
+      phone: phone || null,
+      identityDocumentType: identityDocumentType || null,
+      identityDocumentNumber: identityDocumentNumber || null,
+      institution: institution || null,
+      dedication: dedication || null,
+      bio: bio || null,
+      globalRole,
+      accountType,
+    })
+
+    if (!validation.success) {
+      setFormError(validation.error.issues[0].message)
+      return
+    }
+
+    try {
+      await createProfile({
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: email.trim() || null,
+        avatarUrl: avatarUrl.trim() || null,
+        phone: phone.trim() || null,
+        identityDocumentType: identityDocumentType || null,
+        identityDocumentNumber: identityDocumentNumber.trim() || null,
+        institution: institution.trim() || null,
+        dedication: dedication.trim() || null,
+        bio: bio.trim() || null,
+        globalRole,
+        accountType,
+      })
+
+      toast.success("Perfil registrado correctamente")
+      setIsSheetOpen(false)
+      // Reset form
+      setFirstName("")
+      setLastName("")
+      setEmail("")
+      setPhone("")
+      setIdentityDocumentType("")
+      setIdentityDocumentNumber("")
+      setAvatarUrl("")
+      setInstitution("")
+      setDedication("")
+      setBio("")
+      setGlobalRole("user")
+      setAccountType("basic")
+    } catch (err: any) {
+      console.error(err)
+      if (err?.message?.includes("profiles_email_key")) {
+        setFormError("El correo electrónico ya está registrado por otro perfil.")
+      } else if (err?.message?.includes("profiles_identity_document_number_key")) {
+        setFormError("El número de documento de identidad ya está registrado por otro perfil.")
+      } else {
+        setFormError(err?.message || "Ocurrió un error al registrar el perfil.")
+      }
+    }
+  }
 
   useSEO({
     title: "Directorio de Perfiles Registrados",
@@ -148,6 +258,12 @@ export function ProfilesPage() {
       <PageHeader
         title="Perfiles Registrados"
         description="Explora, busca y administra las cuentas, accesos y privilegios globales de los usuarios de la plataforma."
+        actionButton={
+          <Button onClick={() => setIsSheetOpen(true)} className="flex items-center gap-2">
+            <Plus className="size-4" />
+            Registrar Perfil
+          </Button>
+        }
       />
 
       {/* Filter Toolbar */}
@@ -229,6 +345,180 @@ export function ProfilesPage() {
       ) : (
         <DataTable columns={columns} data={filteredProfiles} />
       )}
+
+      {/* Register Profile Sheet Form */}
+      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+        <SheetContent className="overflow-y-auto sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle>Registrar Nuevo Perfil</SheetTitle>
+            <SheetDescription>
+              Crea un nuevo perfil de usuario de forma manual en la plataforma.
+            </SheetDescription>
+          </SheetHeader>
+
+          <form onSubmit={handleSave} className="space-y-5 px-6 py-6">
+            <FieldGroup>
+              <div className="grid grid-cols-2 gap-4">
+                <Field>
+                  <FieldLabel htmlFor="regFirstName">Nombre *</FieldLabel>
+                  <Input
+                    id="regFirstName"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    placeholder="Ej. Juan"
+                    required
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="regLastName">Apellido *</FieldLabel>
+                  <Input
+                    id="regLastName"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    placeholder="Ej. Pérez"
+                    required
+                  />
+                </Field>
+              </div>
+
+              <Field>
+                <FieldLabel htmlFor="regEmail">Correo Electrónico</FieldLabel>
+                <Input
+                  id="regEmail"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="juan.perez@example.com"
+                />
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="regPhone">Teléfono</FieldLabel>
+                <Input
+                  id="regPhone"
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="Ej. +51 987654321"
+                />
+              </Field>
+
+              <div className="grid grid-cols-2 gap-4">
+                <Field>
+                  <FieldLabel htmlFor="regDocType">Tipo de Documento</FieldLabel>
+                  <select
+                    id="regDocType"
+                    value={identityDocumentType}
+                    onChange={(e) => setIdentityDocumentType(e.target.value)}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  >
+                    <option value="">Ninguno</option>
+                    <option value="DNI">DNI</option>
+                    <option value="RUC">RUC</option>
+                    <option value="OTROS">Otros</option>
+                  </select>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="regDocNumber">Número de Documento</FieldLabel>
+                  <Input
+                    id="regDocNumber"
+                    value={identityDocumentNumber}
+                    onChange={(e) => setIdentityDocumentNumber(e.target.value)}
+                    placeholder="Ej. 12345678"
+                  />
+                </Field>
+              </div>
+
+              <Field>
+                <FieldLabel htmlFor="regAvatarUrl">URL del Avatar</FieldLabel>
+                <Input
+                  id="regAvatarUrl"
+                  type="url"
+                  value={avatarUrl}
+                  onChange={(e) => setAvatarUrl(e.target.value)}
+                  placeholder="https://ejemplo.com/avatar.png"
+                />
+              </Field>
+
+              <div className="grid grid-cols-2 gap-4">
+                <Field>
+                  <FieldLabel htmlFor="regInstitution">Institución</FieldLabel>
+                  <Input
+                    id="regInstitution"
+                    value={institution}
+                    onChange={(e) => setInstitution(e.target.value)}
+                    placeholder="Ej. Universidad"
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="regDedication">Dedicación / Rol</FieldLabel>
+                  <Input
+                    id="regDedication"
+                    value={dedication}
+                    onChange={(e) => setDedication(e.target.value)}
+                    placeholder="Ej. Desarrollador"
+                  />
+                </Field>
+              </div>
+
+              <Field>
+                <FieldLabel htmlFor="regBio">Biografía</FieldLabel>
+                <textarea
+                  id="regBio"
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
+                  placeholder="Acerca del usuario..."
+                  rows={3}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring shadow-xs"
+                />
+              </Field>
+
+              <div className="grid grid-cols-2 gap-4">
+                <Field>
+                  <FieldLabel htmlFor="regGlobalRole">Rol Global</FieldLabel>
+                  <select
+                    id="regGlobalRole"
+                    value={globalRole}
+                    onChange={(e) => setGlobalRole(e.target.value)}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  >
+                    <option value="user">Usuario Regular</option>
+                    <option value="admin">Administrador</option>
+                    <option value="developer">Developer</option>
+                  </select>
+                </Field>
+
+                <Field>
+                  <FieldLabel htmlFor="regAccountType">Plan / Cuenta</FieldLabel>
+                  <select
+                    id="regAccountType"
+                    value={accountType}
+                    onChange={(e) => setAccountType(e.target.value)}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  >
+                    <option value="basic">Gratuito</option>
+                    <option value="premium">Premium</option>
+                    <option value="enterprise">Enterprise</option>
+                  </select>
+                </Field>
+              </div>
+            </FieldGroup>
+
+            {formError && (
+              <p className="text-sm text-destructive font-medium mt-2">{formError}</p>
+            )}
+
+            <SheetFooter className="pt-4 border-t border-border gap-2 sm:gap-0">
+              <Button type="button" variant="outline" onClick={() => setIsSheetOpen(false)} className="w-full sm:w-auto">
+                Cancelar
+              </Button>
+              <Button type="submit" className="w-full sm:w-auto">
+                Registrar Perfil
+              </Button>
+            </SheetFooter>
+          </form>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

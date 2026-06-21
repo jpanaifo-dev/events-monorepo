@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useParams } from "react-router-dom"
 import { z } from "zod"
 import { useEventStore } from "@/store/event.store"
@@ -32,10 +32,12 @@ import { useSEO } from "@/hooks/use-seo"
 
 export function EventAttendeesSection() {
   const { id } = useParams<{ id: string }>()
-  const { events, attendees, addAttendee, toggleAttendeeCheckIn, deleteAttendee } = useEventStore()
+  const { events, editions, attendees, addAttendee, toggleAttendeeCheckIn, deleteAttendee } = useEventStore()
 
   const event = events.find((e) => e.id === id)
   const eventAttendees = attendees.filter((at) => at.eventId === id)
+  const eventEditions = editions.filter((ed) => ed.mainEventId === id)
+  const currentEdition = eventEditions.find((ed) => ed.isCurrent)
 
   useSEO({
     title: event ? `${event.name} - Participantes` : "Participantes de Evento",
@@ -49,12 +51,21 @@ export function EventAttendeesSection() {
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [ticket, setTicket] = useState<"General" | "VIP" | "Speaker">("General")
+  const [selectedEditionId, setSelectedEditionId] = useState<string | null>(null)
+
+  // Initialize edition selection when sheet opens or currentEdition changes
+  useEffect(() => {
+    if (isSheetOpen) {
+      setSelectedEditionId(currentEdition?.id || null)
+    }
+  }, [isSheetOpen, currentEdition])
 
   const closeSheet = () => {
     setIsSheetOpen(false)
     setName("")
     setEmail("")
     setTicket("General")
+    setSelectedEditionId(currentEdition?.id || null)
   }
 
   const attendeeSchema = z.object({
@@ -76,6 +87,7 @@ export function EventAttendeesSection() {
     }
     await addAttendee({
       eventId: id!,
+      editionId: selectedEditionId,
       fullName: name,
       email,
       ticketType: ticket,
@@ -107,6 +119,21 @@ export function EventAttendeesSection() {
           {at.ticketType}
         </span>
       )
+    },
+    {
+      header: "Edición",
+      className: "p-3 text-xs",
+      headerClassName: "p-3",
+      cell: (at) => {
+        const ed = eventEditions.find((e) => e.id === at.editionId)
+        return ed ? (
+          <span className="font-medium text-foreground">
+            {ed.name}
+          </span>
+        ) : (
+          <span className="text-muted-foreground italic text-[11px]">Global (Todas)</span>
+        )
+      }
     },
     {
       header: "Check-In",
@@ -214,6 +241,22 @@ export function EventAttendeesSection() {
                   <option value="General">General</option>
                   <option value="VIP">VIP</option>
                   <option value="Speaker">Ponente</option>
+                </select>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="atEdition">Edición Relacionada</FieldLabel>
+                <select
+                  id="atEdition"
+                  value={selectedEditionId || ""}
+                  onChange={(e) => setSelectedEditionId(e.target.value || null)}
+                  className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm outline-none"
+                >
+                  <option value="">Ninguna (Global - Todas las ediciones)</option>
+                  {eventEditions.map((ed) => (
+                    <option key={ed.id} value={ed.id}>
+                      {ed.name} {ed.isCurrent ? "— [Actual]" : ""}
+                    </option>
+                  ))}
                 </select>
               </Field>
             </FieldGroup>
