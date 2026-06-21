@@ -217,6 +217,8 @@ export const useAdminProfilesStore = create<AdminProfilesState>((set) => ({
       if (updates.avatarUrl !== undefined) dbUpdates.avatar_url = updates.avatarUrl
       if (updates.institution !== undefined) dbUpdates.institution = updates.institution
       if (updates.dedication !== undefined) dbUpdates.dedication = updates.dedication
+      if (updates.identityDocumentType !== undefined) dbUpdates.identity_document_type = updates.identityDocumentType
+      if (updates.identityDocumentNumber !== undefined) dbUpdates.identity_document_number = updates.identityDocumentNumber
       if (updates.isPublic !== undefined) dbUpdates.is_public = updates.isPublic
       if (updates.onboardingCompleted !== undefined) dbUpdates.onboarding_completed = updates.onboardingCompleted
       if (updates.accountType !== undefined) dbUpdates.account_type = updates.accountType

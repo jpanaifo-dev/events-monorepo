@@ -23,6 +23,8 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
   const [institution, setInstitution] = useState("")
   const [dedication, setDedication] = useState("")
   const [avatarUrl, setAvatarUrl] = useState("")
+  const [identityDocumentType, setIdentityDocumentType] = useState("")
+  const [identityDocumentNumber, setIdentityDocumentNumber] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
@@ -45,6 +47,8 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
           setInstitution(data.institution || "")
           setDedication(data.dedication || "")
           setAvatarUrl(data.avatar_url || "")
+          setIdentityDocumentType(data.identity_document_type || "")
+          setIdentityDocumentNumber(data.identity_document_number || "")
         }
       } catch (err) {
         console.error("Error loading user profile:", err)
@@ -62,6 +66,8 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
     firstName: z.string().trim().min(1, "El nombre es requerido."),
     lastName: z.string().trim().min(1, "El apellido es requerido."),
     avatarUrl: z.string().trim().url("El enlace del avatar no es válido.").or(z.literal("")).optional(),
+    identityDocumentType: z.string().trim().optional().nullable(),
+    identityDocumentNumber: z.string().trim().optional().nullable(),
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -72,6 +78,8 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
       firstName,
       lastName,
       avatarUrl,
+      identityDocumentType,
+      identityDocumentNumber,
     })
 
     if (!validation.success) {
@@ -93,6 +101,8 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
           institution,
           dedication,
           avatar_url: avatarUrl,
+          identity_document_type: identityDocumentType || null,
+          identity_document_number: identityDocumentNumber || null,
           updated_at: new Date().toISOString()
         })
 
@@ -106,7 +116,9 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
         last_name: lastName || null,
         phone: phone || null,
         bio: bio || null,
-        specialty: dedication || null
+        specialty: dedication || null,
+        identity_document_type: identityDocumentType || null,
+        identity_document_number: identityDocumentNumber || null,
       })
 
       toast.success("Perfil actualizado con éxito")
@@ -176,6 +188,32 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                   value={avatarUrl}
                   onChange={(e) => setAvatarUrl(e.target.value)}
                   placeholder="https://ejemplo.com/avatar.png"
+                />
+              </Field>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Field>
+                <FieldLabel htmlFor="docType">Tipo de Documento</FieldLabel>
+                <select
+                  id="docType"
+                  value={identityDocumentType}
+                  onChange={(e) => setIdentityDocumentType(e.target.value)}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                >
+                  <option value="">Ninguno</option>
+                  <option value="DNI">DNI</option>
+                  <option value="RUC">RUC</option>
+                  <option value="OTROS">Otros</option>
+                </select>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="docNumber">Número de Documento</FieldLabel>
+                <Input
+                  id="docNumber"
+                  value={identityDocumentNumber}
+                  onChange={(e) => setIdentityDocumentNumber(e.target.value)}
+                  placeholder="Ej. 12345678"
                 />
               </Field>
             </div>

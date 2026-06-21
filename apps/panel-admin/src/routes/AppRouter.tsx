@@ -33,6 +33,7 @@ import {
   EventRolesSection,
   EventThematicLinesSection,
   EventActivityFormPage,
+  EventTicketsSection,
 } from "@/pages/event-detail"
 import {
   ProfilesPage,
@@ -184,6 +185,7 @@ export function AppRouter() {
           <Route path="attendees" element={<EventAttendeesSection />} />
           <Route path="roles" element={<EventRolesSection />} />
           <Route path="thematic-lines" element={<EventThematicLinesSection />} />
+          <Route path="tickets" element={<EventTicketsSection />} />
         </Route>
 
         {/* Profiles Detail - Standalone (no admin layout) */}

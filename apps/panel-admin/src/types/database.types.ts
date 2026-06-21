@@ -157,7 +157,8 @@ export interface EventActivity {
 
 export interface EventTicket {
   id: string
-  event_id: string
+  main_event_id: string
+  edition_id: string | null
   name: string
   description: string | null
   price: number

@@ -106,6 +106,24 @@ export interface ThematicLine {
   updatedAt: string
 }
 
+export interface EventTicket {
+  id: string
+  mainEventId: string
+  editionId: string | null
+  name: string
+  description: string | null
+  price: number
+  currency: string
+  quantityTotal: number
+  quantitySold: number
+  maxPerUser: number | null
+  salesStartAt: string | null
+  salesEndAt: string | null
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
 export interface AddSpeakerInput {
   eventId: string
   editionId: string
@@ -134,6 +152,7 @@ interface EventState {
   attendees: Attendee[]
   roles: ParticipantRole[]
   thematicLines: ThematicLine[]
+  tickets: EventTicket[]
   isLoading: boolean
 
   loadData: (organizationId: string, filters?: EventFilters) => Promise<void>
@@ -147,6 +166,11 @@ interface EventState {
   addThematicLine: (thematicLine: Omit<ThematicLine, "id" | "createdAt" | "updatedAt">) => Promise<void>
   updateThematicLine: (id: string, updates: Partial<Omit<ThematicLine, "id" | "createdAt" | "updatedAt">>) => Promise<void>
   deleteThematicLine: (id: string) => Promise<void>
+
+  loadTickets: (mainEventId: string) => Promise<void>
+  addTicket: (ticket: Omit<EventTicket, "id" | "quantitySold" | "createdAt" | "updatedAt">) => Promise<void>
+  updateTicket: (id: string, updates: Partial<Omit<EventTicket, "id" | "quantitySold" | "createdAt" | "updatedAt">>) => Promise<void>
+  deleteTicket: (id: string) => Promise<void>
 
   addEvent: (event: Omit<Event, "id" | "createdAt" | "updatedAt" | "ownerId" | "slug">) => Promise<string>
   updateEvent: (id: string, updates: Partial<Event>) => Promise<void>
@@ -245,6 +269,26 @@ function mapThematicLine(row: any): ThematicLine {
   }
 }
 
+function mapEventTicket(row: any): EventTicket {
+  return {
+    id: row.id,
+    mainEventId: row.main_event_id,
+    editionId: row.edition_id,
+    name: row.name,
+    description: row.description || null,
+    price: typeof row.price === "number" ? row.price : parseFloat(row.price || "0"),
+    currency: row.currency || "USD",
+    quantityTotal: row.quantity_total || 0,
+    quantitySold: row.quantity_sold || 0,
+    maxPerUser: row.max_per_user,
+    salesStartAt: row.sales_start_at || null,
+    salesEndAt: row.sales_end_at || null,
+    isActive: row.is_active !== false,
+    createdAt: row.created_at || "",
+    updatedAt: row.updated_at || "",
+  }
+}
+
 export const useEventStore = create<EventState>((set, get) => ({
   events: [],
   editions: [],
@@ -253,6 +297,7 @@ export const useEventStore = create<EventState>((set, get) => ({
   attendees: [],
   roles: [],
   thematicLines: [],
+  tickets: [],
   isLoading: false,
 
   loadData: async (organizationId, filters) => {
@@ -415,6 +460,20 @@ export const useEventStore = create<EventState>((set, get) => ({
         }
       }
 
+      // Fetch event tickets
+      let formattedTickets: EventTicket[] = []
+      if (mainEventIds.length > 0) {
+        const { data: ticketsData } = await supabase
+          .from("event_tickets")
+          .select("*")
+          .in("main_event_id", mainEventIds)
+          .order("created_at", { ascending: false })
+
+        if (ticketsData) {
+          formattedTickets = ticketsData.map(mapEventTicket)
+        }
+      }
+
       set({
         events: formattedEvents,
         editions: formattedEditions,
@@ -422,7 +481,8 @@ export const useEventStore = create<EventState>((set, get) => ({
         agendaItems: formattedAgenda,
         attendees: formattedAttendees,
         roles: formattedRoles,
-        thematicLines: formattedThematicLines
+        thematicLines: formattedThematicLines,
+        tickets: formattedTickets
       })
     } catch (e) {
       console.error("Error loading events:", e)
@@ -1303,6 +1363,130 @@ export const useEventStore = create<EventState>((set, get) => ({
       }))
     } catch (e) {
       console.error("Error deleting thematic line:", e)
+      throw e
+    }
+  },
+
+  loadTickets: async (mainEventId) => {
+    try {
+      const { data, error } = await supabase
+        .from("event_tickets")
+        .select("*")
+        .eq("main_event_id", mainEventId)
+        .order("created_at", { ascending: false })
+
+      if (error) throw error
+
+      const mapped = (data || []).map(mapEventTicket)
+      set((state) => {
+        const others = state.tickets.filter((t) => t.mainEventId !== mainEventId)
+        return { tickets: [...others, ...mapped] }
+      })
+    } catch (e) {
+      console.error("Error loading event tickets:", e)
+    }
+  },
+
+  addTicket: async (ticketData) => {
+    try {
+      const id = crypto.randomUUID()
+      const newTicket = {
+        id,
+        main_event_id: ticketData.mainEventId,
+        edition_id: ticketData.editionId,
+        name: ticketData.name,
+        description: ticketData.description,
+        price: ticketData.price,
+        currency: ticketData.currency,
+        quantity_total: ticketData.quantityTotal,
+        quantity_sold: 0,
+        max_per_user: ticketData.maxPerUser,
+        sales_start_at: ticketData.salesStartAt,
+        sales_end_at: ticketData.salesEndAt,
+        is_active: ticketData.isActive,
+      }
+
+      const { error } = await supabase
+        .from("event_tickets")
+        .insert([newTicket])
+
+      if (error) throw error
+
+      const mapped: EventTicket = {
+        id,
+        mainEventId: ticketData.mainEventId,
+        editionId: ticketData.editionId,
+        name: ticketData.name,
+        description: ticketData.description,
+        price: ticketData.price,
+        currency: ticketData.currency,
+        quantityTotal: ticketData.quantityTotal,
+        quantitySold: 0,
+        maxPerUser: ticketData.maxPerUser,
+        salesStartAt: ticketData.salesStartAt,
+        salesEndAt: ticketData.salesEndAt,
+        isActive: ticketData.isActive,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }
+
+      set((state) => ({
+        tickets: [mapped, ...state.tickets]
+      }))
+    } catch (e) {
+      console.error("Error adding ticket:", e)
+      throw e
+    }
+  },
+
+  updateTicket: async (id, updates) => {
+    try {
+      const dbUpdates: any = {}
+      if (updates.mainEventId !== undefined) dbUpdates.main_event_id = updates.mainEventId
+      if (updates.editionId !== undefined) dbUpdates.edition_id = updates.editionId
+      if (updates.name !== undefined) dbUpdates.name = updates.name
+      if (updates.description !== undefined) dbUpdates.description = updates.description
+      if (updates.price !== undefined) dbUpdates.price = updates.price
+      if (updates.currency !== undefined) dbUpdates.currency = updates.currency
+      if (updates.quantityTotal !== undefined) dbUpdates.quantity_total = updates.quantityTotal
+      if (updates.maxPerUser !== undefined) dbUpdates.max_per_user = updates.maxPerUser
+      if (updates.salesStartAt !== undefined) dbUpdates.sales_start_at = updates.salesStartAt
+      if (updates.salesEndAt !== undefined) dbUpdates.sales_end_at = updates.salesEndAt
+      if (updates.isActive !== undefined) dbUpdates.is_active = updates.isActive
+      dbUpdates.updated_at = new Date().toISOString()
+
+      const { error } = await supabase
+        .from("event_tickets")
+        .update(dbUpdates)
+        .eq("id", id)
+
+      if (error) throw error
+
+      set((state) => ({
+        tickets: state.tickets.map((t) =>
+          t.id === id ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t
+        )
+      }))
+    } catch (e) {
+      console.error("Error updating ticket:", e)
+      throw e
+    }
+  },
+
+  deleteTicket: async (id) => {
+    try {
+      const { error } = await supabase
+        .from("event_tickets")
+        .delete()
+        .eq("id", id)
+
+      if (error) throw error
+
+      set((state) => ({
+        tickets: state.tickets.filter((t) => t.id !== id)
+      }))
+    } catch (e) {
+      console.error("Error deleting ticket:", e)
       throw e
     }
   }

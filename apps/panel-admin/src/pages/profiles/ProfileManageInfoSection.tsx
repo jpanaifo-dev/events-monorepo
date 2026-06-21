@@ -31,6 +31,8 @@ export function ProfileManageInfoSection() {
   const [institution, setInstitution] = useState("")
   const [dedication, setDedication] = useState("")
   const [avatarUrl, setAvatarUrl] = useState("")
+  const [identityDocumentType, setIdentityDocumentType] = useState("")
+  const [identityDocumentNumber, setIdentityDocumentNumber] = useState("")
   const [globalRole, setGlobalRole] = useState("user")
   const [accountType, setAccountType] = useState("basic")
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -44,6 +46,8 @@ export function ProfileManageInfoSection() {
       setInstitution(targetProfile.institution || "")
       setDedication(targetProfile.dedication || "")
       setAvatarUrl(targetProfile.avatarUrl || "")
+      setIdentityDocumentType(targetProfile.identityDocumentType || "")
+      setIdentityDocumentNumber(targetProfile.identityDocumentNumber || "")
       setGlobalRole(targetProfile.globalRole || "user")
       setAccountType(targetProfile.accountType || "basic")
     }
@@ -53,6 +57,8 @@ export function ProfileManageInfoSection() {
     firstName: z.string().trim().min(1, "El nombre es requerido."),
     lastName: z.string().trim().min(1, "El apellido es requerido."),
     avatarUrl: z.string().trim().url("El enlace del avatar no es válido.").or(z.literal("")).optional(),
+    identityDocumentType: z.string().trim().optional().nullable(),
+    identityDocumentNumber: z.string().trim().optional().nullable(),
     globalRole: z.string(),
     accountType: z.string(),
   })
@@ -65,6 +71,8 @@ export function ProfileManageInfoSection() {
       firstName,
       lastName,
       avatarUrl,
+      identityDocumentType,
+      identityDocumentNumber,
       globalRole,
       accountType,
     })
@@ -85,6 +93,8 @@ export function ProfileManageInfoSection() {
         institution: institution || null,
         dedication: dedication || null,
         avatarUrl: avatarUrl || null,
+        identityDocumentType: identityDocumentType || null,
+        identityDocumentNumber: identityDocumentNumber || null,
         globalRole,
         accountType,
       })
@@ -174,6 +184,46 @@ export function ProfileManageInfoSection() {
               placeholder="Ej. +51 987654321"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
+              disabled={isSubmitting}
+            />
+          </div>
+        </div>
+
+        {/* Document Type Row */}
+        <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+          <div className="md:w-1/3 space-y-1">
+            <label htmlFor="doc-type" className="text-sm font-medium text-foreground">Tipo de Documento</label>
+            <p className="text-xs text-muted-foreground">Tipo de documento de identidad del usuario.</p>
+          </div>
+          <div className="md:w-2/3 max-w-md w-full">
+            <select
+              id="doc-type"
+              value={identityDocumentType}
+              onChange={(e) => setIdentityDocumentType(e.target.value)}
+              disabled={isSubmitting}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <option value="">Ninguno</option>
+              <option value="DNI">DNI</option>
+              <option value="RUC">RUC</option>
+              <option value="OTROS">Otros</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Document Number Row */}
+        <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+          <div className="md:w-1/3 space-y-1">
+            <label htmlFor="doc-number" className="text-sm font-medium text-foreground">Número de Documento</label>
+            <p className="text-xs text-muted-foreground">Número de identidad del documento correspondiente.</p>
+          </div>
+          <div className="md:w-2/3 max-w-md w-full">
+            <Input
+              id="doc-number"
+              type="text"
+              placeholder="Ej. 12345678"
+              value={identityDocumentNumber}
+              onChange={(e) => setIdentityDocumentNumber(e.target.value)}
               disabled={isSubmitting}
             />
           </div>

@@ -22,6 +22,8 @@ export function ProfileInfoSection() {
   const [institution, setInstitution] = useState("")
   const [dedication, setDedication] = useState("")
   const [avatarUrl, setAvatarUrl] = useState("")
+  const [identityDocumentType, setIdentityDocumentType] = useState("")
+  const [identityDocumentNumber, setIdentityDocumentNumber] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoadingProfile, setIsLoadingProfile] = useState(true)
 
@@ -46,6 +48,8 @@ export function ProfileInfoSection() {
           setInstitution(data.institution || "")
           setDedication(data.dedication || "")
           setAvatarUrl(data.avatar_url || "")
+          setIdentityDocumentType(data.identity_document_type || "")
+          setIdentityDocumentNumber(data.identity_document_number || "")
         }
       } catch (err) {
         console.error("Error loading user profile:", err)
@@ -62,6 +66,8 @@ export function ProfileInfoSection() {
     firstName: z.string().trim().min(1, "El nombre es requerido."),
     lastName: z.string().trim().min(1, "El apellido es requerido."),
     avatarUrl: z.string().trim().url("El enlace del avatar no es válido.").or(z.literal("")).optional(),
+    identityDocumentType: z.string().trim().optional().nullable(),
+    identityDocumentNumber: z.string().trim().optional().nullable(),
   })
 
   const handleSave = async (e: React.FormEvent) => {
@@ -72,6 +78,8 @@ export function ProfileInfoSection() {
       firstName,
       lastName,
       avatarUrl,
+      identityDocumentType,
+      identityDocumentNumber,
     })
 
     if (!validation.success) {
@@ -93,6 +101,8 @@ export function ProfileInfoSection() {
           institution,
           dedication,
           avatar_url: avatarUrl,
+          identity_document_type: identityDocumentType || null,
+          identity_document_number: identityDocumentNumber || null,
           updated_at: new Date().toISOString()
         })
 
@@ -106,7 +116,9 @@ export function ProfileInfoSection() {
         last_name: lastName || null,
         phone: phone || null,
         bio: bio || null,
-        specialty: dedication || null
+        specialty: dedication || null,
+        identity_document_type: identityDocumentType || null,
+        identity_document_number: identityDocumentNumber || null,
       })
 
       toast.success("Perfil actualizado con éxito")
@@ -212,6 +224,46 @@ export function ProfileInfoSection() {
               placeholder="Ej. +51 987654321"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
+              disabled={isSubmitting}
+            />
+          </div>
+        </div>
+
+        {/* Document Type Row */}
+        <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+          <div className="md:w-1/3 space-y-1">
+            <label htmlFor="doc-type" className="text-sm font-medium text-foreground">Tipo de Documento</label>
+            <p className="text-xs text-muted-foreground">Selecciona tu tipo de documento de identidad.</p>
+          </div>
+          <div className="md:w-2/3 max-w-md w-full">
+            <select
+              id="doc-type"
+              value={identityDocumentType}
+              onChange={(e) => setIdentityDocumentType(e.target.value)}
+              disabled={isSubmitting}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <option value="">Ninguno</option>
+              <option value="DNI">DNI</option>
+              <option value="RUC">RUC</option>
+              <option value="OTROS">Otros</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Document Number Row */}
+        <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+          <div className="md:w-1/3 space-y-1">
+            <label htmlFor="doc-number" className="text-sm font-medium text-foreground">Número de Documento</label>
+            <p className="text-xs text-muted-foreground">Número correspondiente al documento seleccionado.</p>
+          </div>
+          <div className="md:w-2/3 max-w-md w-full">
+            <Input
+              id="doc-number"
+              type="text"
+              placeholder="Ej. 12345678"
+              value={identityDocumentNumber}
+              onChange={(e) => setIdentityDocumentNumber(e.target.value)}
               disabled={isSubmitting}
             />
           </div>
