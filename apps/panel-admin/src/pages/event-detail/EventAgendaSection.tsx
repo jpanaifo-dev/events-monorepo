@@ -25,7 +25,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { DataTable, ColumnDef } from "@/components/ui/data-table"
+import { DataTable, type ColumnDef } from "@/components/ui/data-table"
 import {
   Select,
   SelectTrigger,
@@ -1143,15 +1143,20 @@ export function EventAgendaSection() {
                 </div>
               )}
 
-      ) : (
-        <DataTable
-          columns={agendaColumns}
-          data={sortedSelectedActivities}
-          containerClassName="border border-border rounded-xl bg-card overflow-hidden shadow-xs"
-          tbodyClassName="divide-y divide-border/60"
-          onRowClick={(item) => handleOpenEdit(item)}
-        />
-      )}
+              {selectedDate && (
+                <DataTable
+                  columns={agendaColumns}
+                  data={sortedSelectedActivities}
+                  containerClassName="border border-border rounded-xl bg-card overflow-hidden shadow-xs"
+                  tbodyClassName="divide-y divide-border/60"
+                  onRowClick={(item) => handleOpenEdit(item)}
+                  emptyState={
+                    <div className="p-8 text-center text-muted-foreground text-xs font-medium border border-border bg-card rounded-xl">
+                      No hay actividades programadas para este día.
+                    </div>
+                  }
+                />
+              )}
             </div>
           )}
 

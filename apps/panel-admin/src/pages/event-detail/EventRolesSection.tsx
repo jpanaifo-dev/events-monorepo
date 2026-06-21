@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
-import { DataTable, ColumnDef } from "@/components/ui/data-table"
+import { DataTable, type ColumnDef } from "@/components/ui/data-table"
 import {
   Select,
   SelectTrigger,

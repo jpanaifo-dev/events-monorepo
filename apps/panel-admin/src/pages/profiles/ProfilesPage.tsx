@@ -14,7 +14,7 @@ import {
   SelectItem,
 } from "@/components/ui/select"
 import { useSEO } from "@/hooks/use-seo"
-import { DataTable, ColumnDef } from "@/components/ui/data-table"
+import { DataTable, type ColumnDef } from "@/components/ui/data-table"
 
 export function ProfilesPage() {
   const navigate = useNavigate()
