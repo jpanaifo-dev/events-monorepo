@@ -5,7 +5,7 @@ import { useAuthStore } from "@/store/auth.store"
 import { supabase } from "@/utils/supabase"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { X, ArrowLeft, Loader2 } from "lucide-react"
+import { X, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 
 declare global {
@@ -15,6 +15,8 @@ declare global {
 }
 
 import { useSEO } from "@/hooks/use-seo"
+import { PageHeader } from "@/components/page-header"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export function BranchFormPage() {
   const navigate = useNavigate()
@@ -279,34 +281,46 @@ export function BranchFormPage() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 gap-3">
-        <Loader2 className="size-8 text-primary animate-spin" />
-        <span className="text-sm text-muted-foreground">Cargando detalles de la sede...</span>
+      <div className="max-w-4xl mx-auto px-6 py-6 space-y-8 animate-pulse">
+        {/* Header Skeleton */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-1.5 py-1.5 px-3 border border-border rounded-md bg-card w-24 h-8 bg-muted" />
+          <Skeleton className="h-9 w-64 rounded-md" />
+          <Skeleton className="h-4 w-full max-w-xl rounded-md" />
+        </div>
+
+        {/* Form Container Skeleton */}
+        <div className="border border-border rounded-xl bg-card overflow-hidden divide-y divide-border">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4">
+              <div className="md:w-1/3 space-y-2">
+                <Skeleton className="h-4 w-32 rounded-md" />
+                <Skeleton className="h-3 w-48 rounded-md" />
+              </div>
+              <div className="md:w-2/3 max-w-md w-full">
+                <Skeleton className="h-10 w-full rounded-md" />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Buttons Skeleton */}
+        <div className="flex justify-end gap-3">
+          <Skeleton className="h-10 w-24 rounded-md" />
+          <Skeleton className="h-10 w-32 rounded-md" />
+        </div>
       </div>
     )
   }
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-6 space-y-8 animate-in fade-in duration-300">
-      {/* Back to Branches link */}
-      <div className="flex items-center gap-4">
-        <button
-          onClick={() => navigate("/dashboard/settings/branches")}
-          className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors py-1.5 px-3 border border-border rounded-md bg-card cursor-pointer"
-        >
-          <ArrowLeft className="size-3.5" />
-          Volver a Sedes
-        </button>
-      </div>
-
-      <div className="space-y-1">
-        <h1 className="text-3xl font-medium tracking-tight text-foreground font-sans">
-          {branchId ? "Editar Sede" : "Agregar Nueva Sede"}
-        </h1>
-        <p className="text-sm text-muted-foreground font-sans">
-          Configura los detalles geográficos, dirección física e información de contacto de esta sede.
-        </p>
-      </div>
+      <PageHeader
+        title={branchId ? "Editar Sede" : "Agregar Nueva Sede"}
+        description="Configura los detalles geográficos, dirección física e información de contacto de esta sede."
+        showBackButton
+        onBackClick={() => navigate("/dashboard/settings/branches")}
+      />
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="border border-border rounded-xl bg-card overflow-hidden">
