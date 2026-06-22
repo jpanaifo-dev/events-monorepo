@@ -58,7 +58,7 @@ export function ProfileLayout() {
   return (
     <div className="min-h-screen bg-background text-foreground font-sans flex flex-col">
       {/* Top Header Navbar */}
-      <header className="h-16 bg-card border-b border-border flex items-center justify-between px-8 flex-shrink-0">
+      <header className="h-16 bg-card border-b border-border flex items-center justify-between px-8 flex-shrink-0 sticky top-0 z-50">
         <div className="flex items-center gap-4">
           <ZynqroLogo className="h-8 w-auto ml-2" />
         </div>

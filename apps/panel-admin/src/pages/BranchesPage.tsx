@@ -134,7 +134,7 @@ export function BranchesPage() {
 
       {/* Grid List */}
       {isLoading ? (
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-3">
           {[1, 2].map((i) => (
             <div key={i} className="bg-card border border-border rounded-xl p-6 h-[180px] animate-pulse space-y-4">
               <div className="h-4 bg-muted rounded w-1/3" />
@@ -155,7 +155,7 @@ export function BranchesPage() {
           </Button>
         </div>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {filteredBranches.map((branch) => (
             <div
               key={branch.id}

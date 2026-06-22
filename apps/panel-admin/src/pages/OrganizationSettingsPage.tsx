@@ -42,7 +42,7 @@ export function OrganizationSettingsPage() {
 
   useSEO({
     title: "Ajustes de la Organización",
-    description: selectedOrganization 
+    description: selectedOrganization
       ? `Configura la información general, logotipo, portadas y parámetros de visualización para ${selectedOrganization.name}.`
       : "Configuración de la organización."
   })
@@ -561,7 +561,7 @@ export function OrganizationSettingsPage() {
 
   if (isLoading) {
     return (
-      <div className="max-w-4xl mx-auto px-6 py-12 w-full animate-pulse space-y-6">
+      <div className="max-w-4xl mx-auto px-6 w-full animate-pulse space-y-6">
         <div className="space-y-2 mb-10">
           <div className="h-8 w-64 bg-muted rounded" />
           <div className="h-4 w-96 bg-muted rounded" />
