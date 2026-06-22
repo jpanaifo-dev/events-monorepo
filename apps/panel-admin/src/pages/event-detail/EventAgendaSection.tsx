@@ -7,7 +7,7 @@ import type { AgendaItem } from "@/store/event.store"
 import { supabase } from "@/utils/supabase"
 import {
   Plus,
-  Edit2,
+  Edit,
   Trash2,
   Calendar,
   List,
@@ -379,7 +379,7 @@ export function EventAgendaSection() {
       headerClassName: "p-4 border-r border-border",
       cell: (item) => {
         const titleLower = (item.title || "").toLowerCase()
-        const isSpecial = 
+        const isSpecial =
           titleLower.includes("receso") ||
           titleLower.includes("break") ||
           titleLower.includes("refrigerio") ||
@@ -493,7 +493,7 @@ export function EventAgendaSection() {
             variant="outline"
             className="size-8 p-0 cursor-pointer"
           >
-            <Edit2 className="size-3.5" />
+            <Edit className="size-3.5" />
           </Button>
 
           <AlertDialog>
@@ -789,7 +789,7 @@ export function EventAgendaSection() {
             <h3 className="text-lg font-bold text-foreground">Planificador del Cronograma</h3>
             <p className="text-xs text-muted-foreground">Estructura las ponencias, talleres e itinerarios principales.</p>
           </div>
-          
+
           {/* Edition Select Dropdown in header */}
           {currentEdition && (
             <div className="flex items-center gap-2 bg-muted/20 border border-border/60 px-3 py-1 rounded-lg">
@@ -1061,7 +1061,7 @@ export function EventAgendaSection() {
                                           }}
                                           className="p-1 rounded bg-white/20 hover:bg-white/30 text-white cursor-pointer"
                                         >
-                                          <Edit2 className="size-2.5" />
+                                          <Edit className="size-2.5" />
                                         </button>
 
                                         <AlertDialog>
