@@ -3,8 +3,7 @@ import { useNavigate, useParams, NavLink, Outlet } from "react-router-dom"
 import { useAdminProfilesStore } from "@/store/admin-profiles.store"
 import { ThemeSwitch } from "@/components/ui/theme-switch"
 import { ZynqroLogo } from "@/components/zynqro-logo"
-import { ArrowLeft } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
+import { PageHeader } from "@/components/page-header"
 
 export function ProfileManageLayout() {
   const { profileId } = useParams<{ profileId: string }>()
@@ -44,15 +43,8 @@ export function ProfileManageLayout() {
   return (
     <div className="min-h-screen bg-background text-foreground font-sans flex flex-col">
       {/* Top Header Navbar */}
-      <header className="h-16 bg-card border-b border-border flex items-center justify-between px-8 flex-shrink-0">
+      <header className="h-16 bg-card border-b border-border flex items-center justify-between px-8 flex-shrink-0 sticky top-0 z-50">
         <div className="flex items-center gap-4">
-          <button
-            onClick={() => navigate("/dashboard/profiles")}
-            className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors py-1.5 px-3 border border-border rounded-md bg-muted/20 cursor-pointer"
-          >
-            <ArrowLeft className="size-3.5" />
-            Volver a Directorio
-          </button>
           <div className="flex items-center gap-2 ml-2">
             <ZynqroLogo className="h-8 w-auto" />
             <span className="text-[10px] bg-rose-500/10 border border-rose-500/20 text-rose-500 font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider mt-0.5">
@@ -68,17 +60,12 @@ export function ProfileManageLayout() {
       {/* Main Settings Form Container */}
       <main className="max-w-4xl mx-auto px-6 py-12 flex-1 w-full">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2.5">
-              <h1 className="text-3xl font-medium tracking-tight text-foreground">{fullName}</h1>
-              {targetProfile?.globalRole === "admin" && (
-                <Badge className="bg-rose-500/10 text-rose-500 border-rose-500/20 font-bold">Admin</Badge>
-              )}
-            </div>
-            <p className="text-sm text-muted-foreground">
-              {targetProfile?.email || "Sin dirección de correo"}
-            </p>
-          </div>
+          <PageHeader
+            title={fullName}
+            description={targetProfile?.email || "Sin dirección de correo"}
+            showBackButton
+            onBackClick={() => navigate("/dashboard/profiles")}
+          />
         </div>
 
         {/* Tab Navigation */}
