@@ -42,6 +42,7 @@ export function CreateSpeakerPage() {
   const [bio, setBio] = useState("")
   const [avatar, setAvatar] = useState("")
   const [hasSession, setHasSession] = useState(false)
+  const [createAccount, setCreateAccount] = useState(false)
   const [sessionTitle, setSessionTitle] = useState("")
   const [selectedThematicLines, setSelectedThematicLines] = useState<string[]>([])
   const [sessionResources, setSessionResources] = useState<Array<{ name: string; file_url: string }>>([])
@@ -126,7 +127,7 @@ export function CreateSpeakerPage() {
   }
 
   const speakerFormSchema = z.object({
-    email: z.string().trim().min(1, "Por favor, introduce un correo electrónico.").email("Por favor, introduce un correo electrónico válido."),
+    email: z.string().trim().email("Por favor, introduce un correo electrónico válido.").or(z.literal("")).optional(),
     firstName: z.string().trim().min(1, "El nombre es obligatorio."),
     lastName: z.string().trim().min(1, "El apellido es obligatorio."),
     bio: z.string().trim().min(1, "La biografía del ponente es obligatoria."),
@@ -137,6 +138,11 @@ export function CreateSpeakerPage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     setFormError("")
+
+    if (createAccount && !email.trim()) {
+      setFormError("El correo electrónico es obligatorio para crear una cuenta de acceso automáticamente.")
+      return
+    }
 
     const result = speakerFormSchema.safeParse({
       email,
@@ -161,7 +167,7 @@ export function CreateSpeakerPage() {
       roleId: selectedRoleId,
       firstName: firstName.trim(),
       lastName: lastName.trim(),
-      email: email.trim().toLowerCase(),
+      email: email.trim().toLowerCase() || null,
       avatar: avatar.trim() || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(firstName + " " + lastName)}`,
       talkTitle: hasSession ? sessionTitle.trim() : "",
       talkDescription: "",
@@ -263,11 +269,32 @@ export function CreateSpeakerPage() {
           <h2 className="text-lg">Información de Perfil</h2>
           {/* Card: Perfil del Ponente */}
           <div className="border border-border rounded-xl bg-card overflow-hidden shadow-sm">
+            {/* Account Creation Toggle Row */}
+            <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border bg-muted/5">
+              <div className="md:w-1/3 space-y-1">
+                <label htmlFor="createAccountToggle" className="text-sm font-semibold text-foreground">
+                  Crear Cuenta de Acceso
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  Permite al ponente iniciar sesión en la plataforma.
+                </p>
+              </div>
+              <div className="md:w-2/3 max-w-md w-full flex items-center justify-between">
+                <span className="text-xs text-muted-foreground font-medium">Crear cuenta automáticamente:</span>
+                <Switch
+                  id="createAccountToggle"
+                  checked={createAccount}
+                  onCheckedChange={setCreateAccount}
+                  disabled={isSubmitting}
+                />
+              </div>
+            </div>
+
             {/* Email Row */}
             <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
               <div className="md:w-1/3 space-y-1">
                 <label htmlFor="emailInput" className="text-sm font-medium text-foreground">
-                  Correo Electrónico <span className="text-destructive">*</span>
+                  Correo Electrónico {createAccount && <span className="text-destructive">*</span>}
                 </label>
                 <p className="text-xs text-muted-foreground">Comprueba si el usuario ya tiene perfil registrado.</p>
               </div>
@@ -283,7 +310,7 @@ export function CreateSpeakerPage() {
                     }}
                     onBlur={handleEmailBlur}
                     placeholder="ponente@correo.com"
-                    required
+                    required={createAccount}
                     className="pr-10"
                     disabled={isSubmitting}
                   />

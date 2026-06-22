@@ -46,12 +46,14 @@ export interface Speaker {
   firstName: string
   lastName: string
   name: string
-  email: string
+  email: string | null
   avatar: string
   talkTitle: string
   talkDescription: string
   bio: string
   checkedIn?: boolean
+  identityDocumentType?: string | null
+  identityDocumentNumber?: string | null
 }
 
 export interface AgendaItem {
@@ -83,6 +85,9 @@ export interface Attendee {
   ticketType: string
   registrationDate: string
   checkedIn: boolean
+  avatarUrl?: string | null
+  identityDocumentType?: string | null
+  identityDocumentNumber?: string | null
 }
 
 export interface ParticipantRole {
@@ -134,7 +139,7 @@ export interface AddSpeakerInput {
   roleId: string
   firstName: string
   lastName: string
-  email: string
+  email: string | null
   avatar: string
   talkTitle: string
   talkDescription: string
@@ -366,7 +371,7 @@ export const useEventStore = create<EventState>((set, get) => ({
             timeSlot: `${act.start_time ? act.start_time.split("T")[1]?.substring(0, 5) : "09:00"} - ${act.end_time ? act.end_time.split("T")[1]?.substring(0, 5) : "10:00"}`,
             title: act.activity_name,
             stage: act.custom_location || "Escenario Principal",
-            speakerId: act.parent_activity_id || "",
+            speakerId: act.speaker_id || "",
             description: act.description || "",
             startTime: act.start_time || null,
             endTime: act.end_time || null,
@@ -409,7 +414,7 @@ export const useEventStore = create<EventState>((set, get) => ({
             ticket_reference,
             created_at,
             profile:profile_id (
-              id, first_name, last_name, email, avatar_url, bio
+              id, first_name, last_name, email, avatar_url, bio, identity_document_type, identity_document_number
             )
           `)
           .in("main_event_id", mainEventIds)
@@ -439,6 +444,8 @@ export const useEventStore = create<EventState>((set, get) => ({
                 talkDescription: profile.bio || "",
                 bio: profile.bio || "",
                 checkedIn: !!part.check_in_status,
+                identityDocumentType: profile.identity_document_type || null,
+                identityDocumentNumber: profile.identity_document_number || null,
               })
             } else {
               formattedAttendees.push({
@@ -450,7 +457,10 @@ export const useEventStore = create<EventState>((set, get) => ({
                 email: profile.email || "",
                 ticketType: roleSlug === "vip" ? "VIP" : "General",
                 registrationDate: part.created_at ? part.created_at.split("T")[0] : new Date().toISOString().split("T")[0],
-                checkedIn: !!part.check_in_status
+                checkedIn: !!part.check_in_status,
+                avatarUrl: profile.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fullName)}`,
+                identityDocumentType: profile.identity_document_type || null,
+                identityDocumentNumber: profile.identity_document_number || null,
               })
             }
           })
@@ -706,7 +716,7 @@ export const useEventStore = create<EventState>((set, get) => ({
       const profilePayload = {
         first_name: speakerData.firstName,
         last_name: speakerData.lastName,
-        email: speakerData.email,
+        email: speakerData.email || null,
         avatar_url: speakerData.avatar,
         bio: speakerData.bio,
       }
@@ -780,7 +790,7 @@ export const useEventStore = create<EventState>((set, get) => ({
       const profileUpdates: any = {}
       if (updates.firstName !== undefined) profileUpdates.first_name = updates.firstName
       if (updates.lastName !== undefined) profileUpdates.last_name = updates.lastName
-      if (updates.email !== undefined) profileUpdates.email = updates.email
+      if (updates.email !== undefined) profileUpdates.email = updates.email || null
       if (updates.avatar !== undefined) profileUpdates.avatar_url = updates.avatar
       if (updates.bio !== undefined) profileUpdates.bio = updates.bio
 
@@ -860,7 +870,7 @@ export const useEventStore = create<EventState>((set, get) => ({
         activity_name: itemData.title,
         description: itemData.description || null,
         custom_location: itemData.stage,
-        parent_activity_id: itemData.speakerId || null,
+        speaker_id: itemData.speakerId || null,
         start_time: itemData.startTime || null,
         end_time: itemData.endTime || null,
         duration: itemData.duration || null,
@@ -889,7 +899,7 @@ export const useEventStore = create<EventState>((set, get) => ({
       if (updates.title !== undefined) mappedUpdates.activity_name = updates.title
       if (updates.description !== undefined) mappedUpdates.description = updates.description
       if (updates.stage !== undefined) mappedUpdates.custom_location = updates.stage
-      if (updates.speakerId !== undefined) mappedUpdates.parent_activity_id = updates.speakerId || null
+      if (updates.speakerId !== undefined) mappedUpdates.speaker_id = updates.speakerId || null
       if (updates.startTime !== undefined) mappedUpdates.start_time = updates.startTime
       if (updates.endTime !== undefined) mappedUpdates.end_time = updates.endTime
       if (updates.duration !== undefined) mappedUpdates.duration = updates.duration

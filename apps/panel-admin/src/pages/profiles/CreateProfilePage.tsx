@@ -8,6 +8,19 @@ import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/page-header"
 import { ImageUploadWithPreview } from "@/components/ImageUploadWithPreview"
 import { useSEO } from "@/hooks/use-seo"
+import { Switch } from "@/components/ui/switch"
+import { createSessionlessClient } from "@/utils/supabase-sessionless"
+import { CheckCircle2, AlertTriangle, Copy, Check } from "lucide-react"
+
+// Helper to generate a strong random password
+function generateRandomPassword(length = 12) {
+  const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%"
+  let password = ""
+  for (let i = 0; i < length; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  return password
+}
 
 export function CreateProfilePage() {
   const navigate = useNavigate()
@@ -27,6 +40,10 @@ export function CreateProfilePage() {
   const [globalRole, setGlobalRole] = useState("user")
   const [accountType, setAccountType] = useState("basic")
   
+  const [createAccount, setCreateAccount] = useState(false)
+  const [credentialsModal, setCredentialsModal] = useState<{ email: string; password: string } | null>(null)
+  const [copied, setCopied] = useState(false)
+
   const [formError, setFormError] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -76,7 +93,36 @@ export function CreateProfilePage() {
       return
     }
 
+    if (createAccount && !email.trim()) {
+      setFormError("El correo electrónico es obligatorio para crear una cuenta de acceso automáticamente.")
+      setIsSubmitting(false)
+      return
+    }
+
     try {
+      let linkedAuthId: string | null = null
+      let generatedPassword = ""
+
+      if (createAccount) {
+        generatedPassword = generateRandomPassword()
+        const tempClient = createSessionlessClient()
+        const { data: authData, error: authError } = await tempClient.auth.signUp({
+          email: email.trim(),
+          password: generatedPassword,
+          options: {
+            data: {
+              first_name: firstName.trim(),
+              last_name: lastName.trim(),
+            }
+          }
+        })
+
+        if (authError) throw authError
+        if (authData?.user) {
+          linkedAuthId = authData.user.id
+        }
+      }
+
       await createProfile({
         firstName: firstName.trim(),
         lastName: lastName.trim(),
@@ -90,10 +136,45 @@ export function CreateProfilePage() {
         bio: bio.trim() || null,
         globalRole,
         accountType,
+        authId: linkedAuthId,
       })
 
       toast.success("Perfil registrado correctamente")
-      navigate("/dashboard/profiles")
+
+      if (createAccount) {
+        // Simulate sending email
+        const emailSubject = "Tus credenciales de acceso a la plataforma"
+        const emailBody = `
+============================================================
+📧 SIMULACIÓN DE ENVÍO DE CORREO ELECTRÓNICO (CONSOLA)
+============================================================
+Para: ${email.trim()}
+Asunto: ${emailSubject}
+------------------------------------------------------------
+Hola ${firstName.trim()} ${lastName.trim()},
+
+Se ha creado tu cuenta de acceso a la plataforma de forma automática.
+
+Tus credenciales de ingreso son:
+- Usuario: ${email.trim()}
+- Contraseña temporal: ${generatedPassword}
+
+* Por motivos de seguridad, te recomendamos cambiar esta contraseña
+nada más iniciar sesión en tu panel de configuración.
+
+Atentamente,
+El equipo de administración de la plataforma.
+============================================================
+`
+        console.log(emailBody)
+
+        setCredentialsModal({
+          email: email.trim(),
+          password: generatedPassword
+        })
+      } else {
+        navigate("/dashboard/profiles")
+      }
     } catch (err: any) {
       console.error(err)
       if (err?.message?.includes("profiles_email_key")) {
@@ -332,6 +413,33 @@ export function CreateProfilePage() {
               </div>
             </div>
 
+            {/* Create Auth Account Toggle */}
+            <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 border-t border-border/50 pt-6">
+              <div className="md:w-1/3 space-y-1">
+                <label className="text-sm font-normal text-foreground block">
+                  Cuenta de Acceso
+                </label>
+                <p className="text-xs text-muted-foreground">Crear automáticamente un usuario para el inicio de sesión.</p>
+              </div>
+              <div className="md:w-2/3 w-full">
+                <div className="flex items-center gap-3">
+                  <Switch
+                    checked={createAccount}
+                    onCheckedChange={setCreateAccount}
+                    disabled={isSubmitting}
+                  />
+                  <span className="text-sm font-medium text-foreground">
+                    Crear cuenta de acceso automáticamente
+                  </span>
+                </div>
+                {createAccount && (
+                  <p className="text-xs text-amber-500 mt-2">
+                    * Se generará una contraseña aleatoria y se mostrará al guardar para que puedas copiarla. Se requiere un correo electrónico.
+                  </p>
+                )}
+              </div>
+            </div>
+
           </div>
         </div>
 
@@ -354,6 +462,85 @@ export function CreateProfilePage() {
           </Button>
         </div>
       </form>
+
+      {/* Credentials Presentation Modal (Blurred Overlay) */}
+      {credentialsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="bg-card border border-border/80 rounded-2xl max-w-md w-full shadow-2xl p-6 space-y-6 transform scale-95 animate-in zoom-in-95 duration-200">
+            
+            {/* Modal Header */}
+            <div className="flex items-center gap-3 border-b border-border pb-4">
+              <div className="p-2 bg-emerald-500/10 rounded-lg text-emerald-500">
+                <CheckCircle2 className="size-6" />
+              </div>
+              <div>
+                <h4 className="font-bold text-foreground text-base">¡Cuenta Creada con Éxito!</h4>
+                <p className="text-xs text-muted-foreground">Copia estas credenciales para entregarlas al usuario.</p>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="space-y-4">
+              <div className="rounded-xl bg-muted/30 p-4 border border-border/50 space-y-3">
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground block tracking-wider mb-1">
+                    Usuario (Correo)
+                  </span>
+                  <p className="text-sm font-medium select-all text-foreground truncate break-all">
+                    {credentialsModal.email}
+                  </p>
+                </div>
+                
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground block tracking-wider mb-1">
+                    Contraseña Temporal
+                  </span>
+                  <div className="flex items-center justify-between gap-2 bg-background border border-border/50 rounded-lg px-3 py-2">
+                    <code className="text-sm font-mono font-bold select-all text-foreground">
+                      {credentialsModal.password}
+                    </code>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const text = `Usuario: ${credentialsModal.email}\nContraseña: ${credentialsModal.password}`
+                        navigator.clipboard.writeText(text)
+                        setCopied(true)
+                        toast.success("Credenciales copiadas al portapapeles")
+                        setTimeout(() => setCopied(false), 2000)
+                      }}
+                      className="p-1.5 hover:bg-muted text-muted-foreground hover:text-foreground rounded transition-colors"
+                      title="Copiar contraseña"
+                    >
+                      {copied ? <Check className="size-4 text-emerald-500" /> : <Copy className="size-4" />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3 text-xs text-amber-600 dark:text-amber-500 flex gap-2">
+                <AlertTriangle className="size-4 shrink-0 mt-0.5" />
+                <span>
+                  El usuario debe cambiar esta contraseña temporal a la mayor brevedad posible para asegurar su acceso.
+                </span>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex justify-end pt-2">
+              <Button
+                type="button"
+                onClick={() => {
+                  setCredentialsModal(null)
+                  navigate("/dashboard/profiles")
+                }}
+                className="w-full font-semibold text-sm transition-all"
+              >
+                Entendido y Continuar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   )

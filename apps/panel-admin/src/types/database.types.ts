@@ -139,6 +139,7 @@ export interface EventActivity {
   id: string
   event_id: string
   parent_activity_id: string | null
+  speaker_id: string | null
   activity_name: string
   description: string | null
   start_time: string

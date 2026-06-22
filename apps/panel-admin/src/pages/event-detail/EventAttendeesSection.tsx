@@ -33,16 +33,45 @@ export function EventAttendeesSection() {
 
   const columns: ColumnDef<any>[] = [
     {
-      header: "Nombre",
-      className: "p-3 font-semibold",
+      header: "Participante",
+      className: "p-3",
       headerClassName: "p-3",
-      cell: (at) => at.fullName
-    },
-    {
-      header: "Correo",
-      className: "p-3 text-xs text-muted-foreground",
-      headerClassName: "p-3",
-      cell: (at) => at.email
+      cell: (at) => {
+        const avatarUrl = at.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(at.fullName || "User")}`
+        return (
+          <div className="flex items-center gap-3">
+            <div className="relative shrink-0">
+              <img
+                src={avatarUrl}
+                alt={at.fullName}
+                className="size-9 rounded-full border border-border/80 object-cover bg-muted shadow-xs"
+              />
+              {(!at.email || !at.identityDocumentNumber) && (
+                <span
+                  className="absolute -top-0.5 -right-0.5 size-3.5 bg-amber-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center border border-background shadow-xs select-none cursor-help animate-pulse"
+                  title={
+                    !at.email && !at.identityDocumentNumber
+                      ? "Falta registrar correo electrónico y número de documento"
+                      : !at.email
+                      ? "Falta registrar correo electrónico"
+                      : "Falta registrar número de documento"
+                  }
+                >
+                  !
+                </span>
+              )}
+            </div>
+            <div className="min-w-0">
+              <h4 className="font-bold text-sm text-foreground truncate">{at.fullName || "Participante"}</h4>
+              {at.email ? (
+                <p className="text-xs text-muted-foreground truncate">{at.email}</p>
+              ) : (
+                <p className="text-xs text-amber-500 italic truncate">Sin correo registrado</p>
+              )}
+            </div>
+          </div>
+        )
+      }
     },
     {
       header: "Ticket",

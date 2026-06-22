@@ -224,6 +224,7 @@ export const useAdminProfilesStore = create<AdminProfilesState>((set) => ({
       if (updates.onboardingCompleted !== undefined) dbUpdates.onboarding_completed = updates.onboardingCompleted
       if (updates.accountType !== undefined) dbUpdates.account_type = updates.accountType
       if (updates.globalRole !== undefined) dbUpdates.global_role = updates.globalRole
+      if (updates.authId !== undefined) dbUpdates.auth_id = updates.authId
       dbUpdates.updated_at = new Date().toISOString()
 
       const { error } = await supabase.from("profiles").update(dbUpdates).eq("id", profileId)
@@ -265,7 +266,7 @@ export const useAdminProfilesStore = create<AdminProfilesState>((set) => ({
       const id = crypto.randomUUID()
       const newProfile = {
         id,
-        auth_id: null,
+        auth_id: profileData.authId || null,
         first_name: profileData.firstName,
         last_name: profileData.lastName,
         email: profileData.email || null,

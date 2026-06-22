@@ -43,15 +43,6 @@ export function ImageUploadWithPreview({
     }
   }
 
-  const convertToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.readAsDataURL(file)
-      reader.onload = () => resolve(reader.result as string)
-      reader.onerror = (error) => reject(error)
-    })
-  }
-
   const uploadFile = async (file: File) => {
     setIsUploading(true)
     const localUrl = URL.createObjectURL(file)
@@ -89,10 +80,9 @@ export function ImageUploadWithPreview({
         onChange(publicUrl)
         toast.success("Imagen subida exitosamente")
       } catch (uploadErr: any) {
-        console.warn("R2 upload failed, falling back to Base64:", uploadErr)
-        const base64String = await convertToBase64(file)
-        onChange(base64String)
-        toast.info("Imagen cargada localmente (Base64)")
+        console.error("R2 upload failed:", uploadErr)
+        toast.error(`Error al subir la imagen a Cloudflare R2. Verifica que las credenciales y las reglas CORS estén configuradas en R2. Detalle: ${uploadErr.message || uploadErr}`)
+        setPreviewUrl(value || "")
       }
     } catch (err: any) {
       console.error("Error processing image upload:", err)
@@ -128,7 +118,7 @@ export function ImageUploadWithPreview({
     if (fileInputRef.current) {
       fileInputRef.current.value = ""
     }
-    
+
     if (oldUrl) {
       try {
         await deleteFromR2(oldUrl)

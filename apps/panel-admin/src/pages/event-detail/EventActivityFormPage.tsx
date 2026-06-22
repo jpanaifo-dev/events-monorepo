@@ -54,6 +54,61 @@ export function EventActivityFormPage() {
   const [orderIndex, setOrderIndex] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [branches, setBranches] = useState<any[]>([])
+  const [speakerSessions, setSpeakerSessions] = useState<any[]>([])
+  const [isLoadingSessions, setIsLoadingSessions] = useState(false)
+  const [timeError, setTimeError] = useState("")
+
+  useEffect(() => {
+    async function loadSpeakerSessions() {
+      if (!speakerId) {
+        setSpeakerSessions([])
+        return
+      }
+      setIsLoadingSessions(true)
+      try {
+        const { data: pivots, error: pivotErr } = await supabase
+          .from("session_speakers")
+          .select("session_id")
+          .eq("participant_id", speakerId)
+        
+        if (!pivotErr && pivots && pivots.length > 0) {
+          const sessionIds = pivots.map((p) => p.session_id)
+          const { data: sessions, error: sessionsErr } = await supabase
+            .from("event_sessions")
+            .select("*")
+            .in("id", sessionIds)
+          
+          if (!sessionsErr && sessions) {
+            setSpeakerSessions(sessions)
+          } else {
+            setSpeakerSessions([])
+          }
+        } else {
+          setSpeakerSessions([])
+        }
+      } catch (err) {
+        console.error("Error loading speaker sessions:", err)
+        setSpeakerSessions([])
+      } finally {
+        setIsLoadingSessions(false)
+      }
+    }
+    loadSpeakerSessions()
+  }, [speakerId])
+
+  useEffect(() => {
+    if (startDate && startTime && endDate && endTime) {
+      const start = new Date(`${startDate}T${startTime}`)
+      const end = new Date(`${endDate}T${endTime}`)
+      if (end <= start) {
+        setTimeError("La hora/fecha de finalización debe ser posterior a la de inicio.")
+      } else {
+        setTimeError("")
+      }
+    } else {
+      setTimeError("")
+    }
+  }, [startDate, startTime, endDate, endTime])
 
   // Initialize dates from current/first edition or today
   useEffect(() => {
@@ -170,6 +225,11 @@ export function EventActivityFormPage() {
     e.preventDefault()
     if (!eventId) return
 
+    if (timeError) {
+      toast.error(timeError)
+      return
+    }
+
     const validation = eventActivitySchema.safeParse({
       activityName,
       description,
@@ -267,6 +327,63 @@ export function EventActivityFormPage() {
           
           <div className="p-6 space-y-6">
             
+            {/* Expositor / Ponente */}
+            <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 border-b border-border/50 pb-6">
+              <div className="md:w-1/3 space-y-1">
+                <label htmlFor="speakerSelect" className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                  <User className="size-4 text-muted-foreground" />
+                  <span>Expositor / Ponente</span>
+                </label>
+                <p className="text-xs text-muted-foreground">Ponente a cargo de la actividad (Opcional).</p>
+              </div>
+              <div className="md:w-2/3 w-full space-y-3">
+                <Select
+                  value={speakerId}
+                  onValueChange={setSpeakerId}
+                >
+                  <SelectTrigger id="speakerSelect" disabled={isSubmitting}>
+                    <SelectValue placeholder="Sin expositor asignado" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Sin expositor asignado</SelectItem>
+                    {eventSpeakers.map((sp) => (
+                      <SelectItem key={sp.id} value={sp.id}>
+                        {sp.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* Speaker Topics Suggestions */}
+                {isLoadingSessions ? (
+                  <p className="text-xs text-muted-foreground italic">Cargando temas sugeridos...</p>
+                ) : speakerSessions.length > 0 ? (
+                  <div className="space-y-1.5 mt-2">
+                    <span className="text-[11px] font-semibold text-muted-foreground block">
+                      Temas sugeridos del ponente (Haz clic para usar como título):
+                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      {speakerSessions.map((session) => (
+                        <button
+                          key={session.id}
+                          type="button"
+                          onClick={() => {
+                            setActivityName(session.title)
+                            toast.info(`Título establecido: "${session.title}"`)
+                          }}
+                          className="inline-flex items-center text-left gap-1 px-3 py-1.5 text-xs font-medium rounded-md border border-primary/20 bg-primary/5 hover:bg-primary/10 text-primary transition-colors cursor-pointer"
+                        >
+                          {session.title}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : speakerId && (
+                  <p className="text-xs text-muted-foreground italic">El ponente no tiene temas de ponencia registrados en este evento.</p>
+                )}
+              </div>
+            </div>
+
             {/* Title / Name */}
             <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 border-b border-border/50 pb-6">
               <div className="md:w-1/3 space-y-1">
@@ -371,6 +488,11 @@ export function EventActivityFormPage() {
                     disabled={isSubmitting}
                   />
                 </div>
+                {timeError && (
+                  <p className="text-xs text-destructive font-medium mt-1.5 w-full">
+                    {timeError}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -421,19 +543,17 @@ export function EventActivityFormPage() {
               </div>
             </div>
 
-            {/* Mode & Speaker */}
+            {/* Mode & Status */}
             <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 border-b border-border/50 pb-6">
               <div className="md:w-1/3 space-y-1">
                 <label className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-                  <User className="size-4 text-muted-foreground" />
-                  <span>Modalidad y Expositor</span>
+                  <Sliders className="size-4 text-muted-foreground" />
+                  <span>Configuración de la Actividad</span>
                 </label>
-                <p className="text-xs text-muted-foreground">Detalles de la sesión y ponente a cargo.</p>
+                <p className="text-xs text-muted-foreground">Modalidad y estado de publicación.</p>
               </div>
               <div className="md:w-2/3 w-full space-y-4">
-                
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  
                   {/* Mode */}
                   <div className="space-y-1">
                     <span className="text-xs text-muted-foreground font-medium">Modalidad:</span>
@@ -452,35 +572,30 @@ export function EventActivityFormPage() {
                     </Select>
                   </div>
 
-                  {/* Speaker */}
+                  {/* Status */}
                   <div className="space-y-1">
-                    <span className="text-xs text-muted-foreground font-medium">Expositor / Ponente:</span>
+                    <span className="text-xs text-muted-foreground font-medium">Estado:</span>
                     <Select
-                      value={speakerId}
-                      onValueChange={setSpeakerId}
+                      value={status}
+                      onValueChange={(val: any) => setStatus(val)}
                     >
                       <SelectTrigger disabled={isSubmitting}>
-                        <SelectValue placeholder="Sin expositor asignado" />
+                        <SelectValue placeholder="Seleccione estado" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Sin expositor asignado</SelectItem>
-                        {eventSpeakers.map((sp) => (
-                          <SelectItem key={sp.id} value={sp.id}>
-                            {sp.name}
-                          </SelectItem>
-                        ))}
+                        <SelectItem value="PUBLIC">Público</SelectItem>
+                        <SelectItem value="DRAFT">Borrador</SelectItem>
+                        <SelectItem value="ARCHIVED">Archivado</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-
                 </div>
-
               </div>
             </div>
 
             {/* Meeting URL (Conditional) */}
             {activityMode !== "PRESENCIAL" && (
-              <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 border-b border-border/50 pb-6 animate-in slide-in-from-top-1 duration-200">
+              <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 pb-2 animate-in slide-in-from-top-1 duration-200">
                 <div className="md:w-1/3 space-y-1">
                   <label htmlFor="meetingUrl" className="text-sm font-semibold text-foreground flex items-center gap-1.5">
                     <Link2 className="size-4 text-muted-foreground" />
@@ -501,38 +616,6 @@ export function EventActivityFormPage() {
                 </div>
               </div>
             )}
-
-            {/* Status */}
-            <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 pb-2">
-              <div className="md:w-1/3 space-y-1">
-                <label className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-                  <Sliders className="size-4 text-muted-foreground" />
-                  <span>Configuración Adicional</span>
-                </label>
-                <p className="text-xs text-muted-foreground">Estado de publicación de la actividad.</p>
-              </div>
-              <div className="md:w-2/3 w-full">
-                
-                {/* Publication Status */}
-                <div className="space-y-1 max-w-xs">
-                  <span className="text-xs text-muted-foreground font-medium">Estado:</span>
-                  <Select
-                    value={status}
-                    onValueChange={(val: any) => setStatus(val)}
-                  >
-                    <SelectTrigger disabled={isSubmitting}>
-                      <SelectValue placeholder="Seleccione estado" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="PUBLIC">Público</SelectItem>
-                      <SelectItem value="DRAFT">Borrador</SelectItem>
-                      <SelectItem value="ARCHIVED">Archivado</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-              </div>
-            </div>
 
           </div>
 
