@@ -546,6 +546,62 @@ export function EventAgendaSection() {
   const [orderIndex, setOrderIndex] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [branches, setBranches] = useState<any[]>([])
+  const [speakerSessions, setSpeakerSessions] = useState<any[]>([])
+  const [isLoadingSessions, setIsLoadingSessions] = useState(false)
+  const [timeError, setTimeError] = useState("")
+
+  useEffect(() => {
+    async function loadSpeakerSessions() {
+      if (!speakerId) {
+        setSpeakerSessions([])
+        return
+      }
+      setIsLoadingSessions(true)
+      try {
+        const { data: pivots, error: pivotErr } = await supabase
+          .from("session_speakers")
+          .select("session_id")
+          .eq("participant_id", speakerId)
+        
+        if (!pivotErr && pivots && pivots.length > 0) {
+          const sessionIds = pivots.map((p) => p.session_id)
+          const { data: sessions, error: sessionsErr } = await supabase
+            .from("event_sessions")
+            .select("*")
+            .in("id", sessionIds)
+          
+          if (!sessionsErr && sessions) {
+            setSpeakerSessions(sessions)
+          } else {
+            setSpeakerSessions([])
+          }
+        } else {
+          setSpeakerSessions([])
+        }
+      } catch (err) {
+        console.error("Error loading speaker sessions:", err)
+        setSpeakerSessions([])
+      } finally {
+        setIsLoadingSessions(false)
+      }
+    }
+    loadSpeakerSessions()
+  }, [speakerId])
+
+  useEffect(() => {
+    if (startDate && startTime && endDate && endTime) {
+      const start = new Date(`${startDate}T${startTime}`)
+      const end = new Date(`${endDate}T${endTime}`)
+      if (end <= start) {
+        setTimeError("La hora/fecha de finalización debe ser posterior a la de inicio.")
+      } else {
+        setTimeError("")
+      }
+    } else {
+      setTimeError("")
+    }
+  }, [startDate, startTime, endDate, endTime])
+
 
   useEffect(() => {
     async function loadBranches() {
@@ -669,6 +725,11 @@ export function EventAgendaSection() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!eventId) return
+
+    if (timeError) {
+      toast.error(timeError)
+      return
+    }
 
     const validation = eventActivitySchema.safeParse({
       activityName,
@@ -1193,7 +1254,59 @@ export function EventAgendaSection() {
         <form onSubmit={handleSave} className="space-y-5">
           <div className="space-y-4">
 
-            {/* Name input */}
+            {/* 1. Expositor Asignado (Full Width) */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground flex items-center gap-1">
+                <User className="size-3.5 text-muted-foreground" />
+                <span>Expositor Asignado (Opcional)</span>
+              </label>
+              <Select
+                value={speakerId}
+                onValueChange={setSpeakerId}
+              >
+                <SelectTrigger disabled={isSubmitting}>
+                  <SelectValue placeholder="Sin expositor" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Sin expositor</SelectItem>
+                  {eventSpeakers.map((sp) => (
+                    <SelectItem key={sp.id} value={sp.id}>
+                      {sp.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Speaker Topics Suggestions */}
+              {isLoadingSessions ? (
+                <p className="text-[10px] text-muted-foreground italic">Cargando temas sugeridos...</p>
+              ) : speakerSessions.length > 0 ? (
+                <div className="space-y-1 mt-1.5">
+                  <span className="text-[10px] font-semibold text-muted-foreground block">
+                    Temas sugeridos del ponente (Haz clic para usar como título):
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {speakerSessions.map((session) => (
+                      <button
+                        key={session.id}
+                        type="button"
+                        onClick={() => {
+                          setActivityName(session.title)
+                          toast.info(`Título establecido: "${session.title}"`)
+                        }}
+                        className="inline-flex items-center text-left gap-1.5 px-2.5 py-1 text-[10px] font-medium rounded-md border border-primary/20 bg-primary/5 hover:bg-primary/10 text-primary transition-colors cursor-pointer"
+                      >
+                        {session.title}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : speakerId && (
+                <p className="text-[10px] text-muted-foreground italic">El ponente no tiene temas de ponencia registrados en este evento.</p>
+              )}
+            </div>
+
+            {/* 2. Título de la Actividad */}
             <div className="space-y-1.5">
               <label htmlFor="modalActivityName" className="text-xs font-semibold text-foreground">
                 Título de la Actividad <span className="text-destructive">*</span>
@@ -1208,7 +1321,7 @@ export function EventAgendaSection() {
               />
             </div>
 
-            {/* Description */}
+            {/* 3. Descripción */}
             <div className="space-y-1.5">
               <label htmlFor="modalDescription" className="text-xs font-semibold text-foreground">
                 Descripción
@@ -1224,9 +1337,8 @@ export function EventAgendaSection() {
               />
             </div>
 
-            {/* Grid of Dates & Location */}
+            {/* 4. Fechas y Horas */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-
               {/* Start date & time */}
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-foreground flex items-center gap-1">
@@ -1285,77 +1397,53 @@ export function EventAgendaSection() {
                     />
                   </div>
                 </div>
-              </div>
-
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-
-              {/* Custom location */}
-              <div className="space-y-1.5">
-                <label htmlFor="modalLocation" className="text-xs font-semibold text-foreground flex items-center gap-1">
-                  <MapPin className="size-3.5 text-muted-foreground" />
-                  <span>Escenario / Sala</span>
-                </label>
-                <Input
-                  id="modalLocation"
-                  placeholder="Ej. Escenario Principal o Sala A"
-                  value={customLocation}
-                  onChange={(e) => setCustomLocation(e.target.value)}
-                  required
-                  disabled={isSubmitting}
-                />
-                {branches.length > 0 && (
-                  <div className="flex flex-col gap-1 mt-1">
-                    <span className="text-[10px] font-medium text-muted-foreground">Sugerencias de sedes:</span>
-                    <div className="flex flex-wrap gap-1">
-                      {branches.map((branch) => {
-                        const val = branch.address ? `${branch.name} - ${branch.address}` : branch.name
-                        return (
-                          <button
-                            key={branch.id}
-                            type="button"
-                            onClick={() => setCustomLocation(val)}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded-md border border-border bg-muted/40 hover:bg-muted text-foreground transition-colors cursor-pointer"
-                          >
-                            <MapPin className="size-2.5 text-muted-foreground" />
-                            <span>{branch.name}</span>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
+                {timeError && (
+                  <p className="text-[10px] text-destructive font-medium mt-1">
+                    {timeError}
+                  </p>
                 )}
               </div>
-
-              {/* Speaker Select */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground flex items-center gap-1">
-                  <User className="size-3.5 text-muted-foreground" />
-                  <span>Expositor Asignado</span>
-                </label>
-                <Select
-                  value={speakerId}
-                  onValueChange={setSpeakerId}
-                >
-                  <SelectTrigger disabled={isSubmitting}>
-                    <SelectValue placeholder="Sin expositor" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Sin expositor</SelectItem>
-                    {eventSpeakers.map((sp) => (
-                      <SelectItem key={sp.id} value={sp.id}>
-                        {sp.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* 5. Custom location (Escenario / Sala) (Full Width) */}
+            <div className="space-y-1.5">
+              <label htmlFor="modalLocation" className="text-xs font-semibold text-foreground flex items-center gap-1">
+                <MapPin className="size-3.5 text-muted-foreground" />
+                <span>Escenario / Sala</span>
+              </label>
+              <Input
+                id="modalLocation"
+                placeholder="Ej. Escenario Principal o Sala A"
+                value={customLocation}
+                onChange={(e) => setCustomLocation(e.target.value)}
+                required
+                disabled={isSubmitting}
+              />
+              {branches.length > 0 && (
+                <div className="flex flex-col gap-1 mt-1">
+                  <span className="text-[10px] font-medium text-muted-foreground">Sugerencias de sedes:</span>
+                  <div className="flex flex-wrap gap-1">
+                    {branches.map((branch) => {
+                      const val = branch.address ? `${branch.name} - ${branch.address}` : branch.name
+                      return (
+                        <button
+                          key={branch.id}
+                          type="button"
+                          onClick={() => setCustomLocation(val)}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded-md border border-border bg-muted/40 hover:bg-muted text-foreground transition-colors cursor-pointer"
+                        >
+                          <MapPin className="size-2.5 text-muted-foreground" />
+                          <span>{branch.name}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
 
+            {/* 6. Modalidad y Estado */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Activity Mode */}
               <div className="space-y-1.5">
                 <span className="text-xs font-semibold text-foreground">Modalidad:</span>
@@ -1391,7 +1479,6 @@ export function EventAgendaSection() {
                   </SelectContent>
                 </Select>
               </div>
-
             </div>
 
             {/* Conditionally rendered Zoom/Meet link */}
