@@ -46,7 +46,7 @@ export interface Speaker {
   firstName: string
   lastName: string
   name: string
-  email: string
+  email: string | null
   avatar: string
   talkTitle: string
   talkDescription: string
@@ -139,7 +139,7 @@ export interface AddSpeakerInput {
   roleId: string
   firstName: string
   lastName: string
-  email: string
+  email: string | null
   avatar: string
   talkTitle: string
   talkDescription: string
