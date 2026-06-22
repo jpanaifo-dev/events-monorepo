@@ -183,7 +183,7 @@ interface EventState {
   updateEdition: (id: string, updates: Partial<Edition>) => Promise<void>
   deleteEdition: (id: string) => Promise<void>
 
-  addSpeaker: (speaker: AddSpeakerInput) => Promise<void>
+  addSpeaker: (speaker: AddSpeakerInput) => Promise<string>
   updateSpeaker: (id: string, updates: Partial<AddSpeakerInput>) => Promise<void>
   deleteSpeaker: (id: string) => Promise<void>
   toggleSpeakerCheckIn: (id: string) => Promise<void>
@@ -763,6 +763,8 @@ export const useEventStore = create<EventState>((set, get) => ({
       set((state) => ({
         speakers: [...state.speakers, newSpeaker]
       }))
+
+      return participantId
     } catch (e) {
       console.error("Error adding speaker:", e)
       throw e
