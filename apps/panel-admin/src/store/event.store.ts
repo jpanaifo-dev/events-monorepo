@@ -706,7 +706,7 @@ export const useEventStore = create<EventState>((set, get) => ({
       const profilePayload = {
         first_name: speakerData.firstName,
         last_name: speakerData.lastName,
-        email: speakerData.email,
+        email: speakerData.email || null,
         avatar_url: speakerData.avatar,
         bio: speakerData.bio,
       }
@@ -780,7 +780,7 @@ export const useEventStore = create<EventState>((set, get) => ({
       const profileUpdates: any = {}
       if (updates.firstName !== undefined) profileUpdates.first_name = updates.firstName
       if (updates.lastName !== undefined) profileUpdates.last_name = updates.lastName
-      if (updates.email !== undefined) profileUpdates.email = updates.email
+      if (updates.email !== undefined) profileUpdates.email = updates.email || null
       if (updates.avatar !== undefined) profileUpdates.avatar_url = updates.avatar
       if (updates.bio !== undefined) profileUpdates.bio = updates.bio
 
