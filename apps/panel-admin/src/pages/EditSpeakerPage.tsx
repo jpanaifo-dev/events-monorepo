@@ -13,7 +13,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select"
-import { AlertTriangle, Trash2, Plus, Loader2 } from "lucide-react"
+import { AlertTriangle, Trash2, Plus, Loader2, Edit } from "lucide-react"
 import { ImageUploadWithPreview } from "@/components/ImageUploadWithPreview"
 import { useSEO } from "@/hooks/use-seo"
 import { Label } from "@/components/ui/label"
@@ -27,6 +27,16 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog"
 
 export function EditSpeakerPage() {
   const { eventId, speakerId } = useParams<{ eventId: string; speakerId: string }>()
@@ -51,20 +61,29 @@ export function EditSpeakerPage() {
   const [lastName, setLastName] = useState("")
   const [bio, setBio] = useState("")
   const [avatar, setAvatar] = useState("")
-  const [sessionId, setSessionId] = useState<string | null>(null)
-  const [sessionTitle, setSessionTitle] = useState("")
-  const [selectedThematicLines, setSelectedThematicLines] = useState<string[]>([])
-  const [sessionResources, setSessionResources] = useState<Array<{ id?: string; name: string; file_url: string }>>([])
   const [selectedRoleId, setSelectedRoleId] = useState("")
   const [selectedEditionId, setSelectedEditionId] = useState("")
 
+  // Sessions List State
+  const [sessionsList, setSessionsList] = useState<Array<{
+    id: string
+    title: string
+    thematicLines: string[]
+    resources: Array<{ id: string; name: string; file_url: string }>
+  }>>([])
+
   // Modal / Dialog States
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingSession, setEditingSession] = useState<any | null>(null)
   const [isSavingModal, setIsSavingModal] = useState(false)
   const [modalError, setModalError] = useState("")
   const [tempSessionTitle, setTempSessionTitle] = useState("")
   const [tempSelectedThematicLines, setTempSelectedThematicLines] = useState<string[]>([])
   const [tempSessionResources, setTempSessionResources] = useState<Array<{ name: string; file_url: string }>>([])
+
+  // Alert Dialog State for Deleting
+  const [sessionToDelete, setSessionToDelete] = useState<any | null>(null)
+  const [isDeletingSession, setIsDeletingSession] = useState(false)
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formError, setFormError] = useState("")
@@ -92,84 +111,80 @@ export function EditSpeakerPage() {
 
   // Load session details for the speaker
   useEffect(() => {
-    async function fetchSessionInfo() {
+    async function fetchSessionsInfo() {
       if (!speakerId) return
       setIsLoadingSession(true)
       try {
-        // 1. Find session_speakers pivot
-        const { data: speakerPivot, error: pivotErr } = await supabase
+        // 1. Find all session_speakers pivots
+        const { data: speakerPivots, error: pivotErr } = await supabase
           .from("session_speakers")
           .select("session_id")
           .eq("participant_id", speakerId)
-          .maybeSingle()
 
         if (pivotErr) throw pivotErr
 
-        if (speakerPivot?.session_id) {
-          const sId = speakerPivot.session_id
-          setSessionId(sId)
+        if (speakerPivots && speakerPivots.length > 0) {
+          const sessionIds = speakerPivots.map((p) => p.session_id)
 
           // 2. Fetch session details
-          const { data: sessionData, error: sessionErr } = await supabase
+          const { data: sessionsData, error: sessionsErr } = await supabase
             .from("event_sessions")
             .select("*")
-            .eq("id", sId)
-            .maybeSingle()
+            .in("id", sessionIds)
 
-          if (sessionErr) throw sessionErr
-          if (sessionData) {
-            setSessionTitle(sessionData.title || "")
+          if (sessionsErr) throw sessionsErr
+
+          // Fetch thematic lines and resources for each session
+          const loadedSessions = []
+          for (const sess of sessionsData || []) {
+            const { data: thematicData } = await supabase
+              .from("session_thematic_lines")
+              .select("thematic_line_id")
+              .eq("session_id", sess.id)
+
+            const { data: resourceData } = await supabase
+              .from("session_resources")
+              .select("id, name, file_url, mime_type")
+              .eq("session_id", sess.id)
+
+            loadedSessions.push({
+              id: sess.id,
+              title: sess.title || "",
+              thematicLines: (thematicData || []).map((d) => d.thematic_line_id),
+              resources: resourceData || []
+            })
           }
-
-          // 3. Fetch thematic lines pivots
-          const { data: thematicData, error: thematicErr } = await supabase
-            .from("session_thematic_lines")
-            .select("thematic_line_id")
-            .eq("session_id", sId)
-
-          if (thematicErr) throw thematicErr
-          if (thematicData) {
-            setSelectedThematicLines(thematicData.map((d) => d.thematic_line_id))
-          }
-
-          // 4. Fetch session resources
-          const { data: resourceData, error: resourceErr } = await supabase
-            .from("session_resources")
-            .select("id, name, file_url, mime_type")
-            .eq("session_id", sId)
-
-          if (resourceErr) throw resourceErr
-          if (resourceData) {
-            setSessionResources(resourceData)
-          }
+          setSessionsList(loadedSessions)
         } else {
-          // Reset states in case speaker doesn't have a session
-          setSessionId(null)
-          setSessionTitle("")
-          setSelectedThematicLines([])
-          setSessionResources([])
+          setSessionsList([])
         }
       } catch (err) {
-        console.error("Error loading speaker session info:", err)
+        console.error("Error loading speaker sessions info:", err)
       } finally {
         setIsLoadingSession(false)
       }
     }
 
     if (speaker) {
-      fetchSessionInfo()
+      fetchSessionsInfo()
     }
   }, [speaker, speakerId])
 
-  // Sync temporary states when modal opens
+  // Sync temporary states when modal opens/changes
   useEffect(() => {
     if (isModalOpen) {
-      setTempSessionTitle(sessionTitle)
-      setTempSelectedThematicLines(selectedThematicLines)
-      setTempSessionResources(sessionResources.map((r) => ({ name: r.name, file_url: r.file_url })))
+      if (editingSession) {
+        setTempSessionTitle(editingSession.title)
+        setTempSelectedThematicLines(editingSession.thematicLines)
+        setTempSessionResources(editingSession.resources.map((r: any) => ({ name: r.name, file_url: r.file_url })))
+      } else {
+        setTempSessionTitle("")
+        setTempSelectedThematicLines([])
+        setTempSessionResources([])
+      }
       setModalError("")
     }
-  }, [isModalOpen, sessionTitle, selectedThematicLines, sessionResources])
+  }, [isModalOpen, editingSession])
 
   const handleSaveSession = async () => {
     setModalError("")
@@ -180,13 +195,15 @@ export function EditSpeakerPage() {
 
     setIsSavingModal(true)
     try {
-      if (sessionId) {
+      if (editingSession) {
         // A. Update existing session
+        const sId = editingSession.id
+
         // 1. Update session title
         const { error: sessionErr } = await supabase
           .from("event_sessions")
           .update({ title: tempSessionTitle.trim() })
-          .eq("id", sessionId)
+          .eq("id", sId)
 
         if (sessionErr) throw sessionErr
 
@@ -194,13 +211,13 @@ export function EditSpeakerPage() {
         const { error: deleteLinesErr } = await supabase
           .from("session_thematic_lines")
           .delete()
-          .eq("session_id", sessionId)
+          .eq("session_id", sId)
 
         if (deleteLinesErr) throw deleteLinesErr
 
         if (tempSelectedThematicLines.length > 0) {
           const thematicPivots = tempSelectedThematicLines.map((lineId) => ({
-            session_id: sessionId,
+            session_id: sId,
             thematic_line_id: lineId,
           }))
 
@@ -215,7 +232,7 @@ export function EditSpeakerPage() {
         const { error: deleteResErr } = await supabase
           .from("session_resources")
           .delete()
-          .eq("session_id", sessionId)
+          .eq("session_id", sId)
 
         if (deleteResErr) throw deleteResErr
 
@@ -224,7 +241,7 @@ export function EditSpeakerPage() {
             .filter((r) => r.name.trim() && r.file_url.trim())
             .map((r) => ({
               id: crypto.randomUUID(),
-              session_id: sessionId,
+              session_id: sId,
               name: r.name.trim(),
               file_url: r.file_url.trim(),
               mime_type: r.file_url.split('.').pop() || 'application/octet-stream',
@@ -239,17 +256,19 @@ export function EditSpeakerPage() {
           }
         }
 
-        // Update local states
-        setSessionTitle(tempSessionTitle.trim())
-        setSelectedThematicLines(tempSelectedThematicLines)
-
-        // Retrieve fresh resources with IDs from DB to avoid state sync issues
+        // Fetch fresh resources with IDs from DB to avoid state sync issues
         const { data: freshResources } = await supabase
           .from("session_resources")
           .select("id, name, file_url, mime_type")
-          .eq("session_id", sessionId)
+          .eq("session_id", sId)
 
-        setSessionResources(freshResources || [])
+        // Update local state list
+        setSessionsList(sessionsList.map((s) => s.id === sId ? {
+          id: sId,
+          title: tempSessionTitle.trim(),
+          thematicLines: tempSelectedThematicLines,
+          resources: freshResources || []
+        } : s))
       } else {
         // B. Creating a new session during edit
         const newSessionId = crypto.randomUUID()
@@ -311,21 +330,24 @@ export function EditSpeakerPage() {
           }
         }
 
-        // Update local states
-        setSessionId(newSessionId)
-        setSessionTitle(tempSessionTitle.trim())
-        setSelectedThematicLines(tempSelectedThematicLines)
-
         // Fetch fresh resources with IDs
         const { data: freshResources } = await supabase
           .from("session_resources")
           .select("id, name, file_url, mime_type")
           .eq("session_id", newSessionId)
 
-        setSessionResources(freshResources || [])
+        // Update local state list
+        const newSession = {
+          id: newSessionId,
+          title: tempSessionTitle.trim(),
+          thematicLines: tempSelectedThematicLines,
+          resources: freshResources || []
+        }
+        setSessionsList([...sessionsList, newSession])
       }
 
       setIsModalOpen(false)
+      setEditingSession(null)
     } catch (err: any) {
       console.error(err)
       setModalError(err?.message || "Ocurrió un error al guardar la sesión.")
@@ -334,32 +356,25 @@ export function EditSpeakerPage() {
     }
   }
 
-  const handleDeleteSession = async () => {
-    if (!sessionId) return
-    if (!window.confirm("¿Estás seguro de que deseas eliminar este tema de ponencia? Se borrarán permanentemente sus recursos y líneas temáticas vinculadas.")) {
-      return
-    }
-
-    setIsSavingModal(true)
+  const handleConfirmDeleteSession = async () => {
+    if (!sessionToDelete) return
+    setIsDeletingSession(true)
     try {
       const { error } = await supabase
         .from("event_sessions")
         .delete()
-        .eq("id", sessionId)
+        .eq("id", sessionToDelete.id)
 
       if (error) throw error
 
-      // Reset local states
-      setSessionId(null)
-      setSessionTitle("")
-      setSelectedThematicLines([])
-      setSessionResources([])
-      setIsModalOpen(false)
+      // Remove from local state list
+      setSessionsList(sessionsList.filter((s) => s.id !== sessionToDelete.id))
+      setSessionToDelete(null)
     } catch (err: any) {
-      console.error(err)
-      setModalError(err?.message || "Ocurrió un error al eliminar la sesión.")
+      console.error("Error deleting session:", err)
+      alert(err?.message || "Ocurrió un error al eliminar la sesión.")
     } finally {
-      setIsSavingModal(false)
+      setIsDeletingSession(false)
     }
   }
 
@@ -403,7 +418,7 @@ export function EditSpeakerPage() {
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       avatar: avatar.trim() || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(firstName + " " + lastName)}`,
-      talkTitle: sessionTitle.trim(),
+      talkTitle: sessionsList[0]?.title || "",
       talkDescription: "",
       bio: bio.trim(),
     }
@@ -619,98 +634,131 @@ export function EditSpeakerPage() {
             </div>
           </div>
 
-          <h2 className="text-lg">Tema de Ponencia</h2>
-          {/* Card: Tema de Ponencia */}
+          <h2 className="text-lg">Tema(s) de Ponencia</h2>
+          {/* Card: Temas de Ponencia */}
           <div className="border border-border rounded-xl bg-card overflow-hidden shadow-sm">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between p-6 gap-4 border-b border-border">
               <div className="space-y-1">
-                <h3 className="text-sm font-bold text-foreground">Acceso a Tema de Ponencia</h3>
+                <h3 className="text-sm font-bold text-foreground">Acceso a Temas de Ponencia</h3>
                 <p className="text-xs text-muted-foreground">
-                  Administra la charla magistral, las líneas temáticas asociadas y el material de descarga del ponente.
+                  Administra las charlas magistrales, las líneas temáticas asociadas y el material de descarga del ponente.
                 </p>
               </div>
               <div>
                 <Button
                   type="button"
-                  onClick={() => setIsModalOpen(true)}
+                  onClick={() => {
+                    setEditingSession(null)
+                    setIsModalOpen(true)
+                  }}
                   variant="outline"
                   className="cursor-pointer text-xs h-9"
                 >
-                  {sessionId ? "Gestionar tema" : "Asociar tema"}
+                  <Plus className="size-3.5 mr-1" />
+                  Asociar tema
                 </Button>
               </div>
             </div>
 
-            <div className="p-6 bg-card">
+            <div className="p-6 bg-card divide-y divide-border/60">
               {isLoadingSession ? (
                 <div className="flex items-center gap-2 py-4 justify-center">
                   <Loader2 className="size-4 animate-spin text-primary" />
-                  <span className="text-xs text-muted-foreground">Cargando detalles del tema...</span>
+                  <span className="text-xs text-muted-foreground">Cargando detalles de los temas...</span>
                 </div>
-              ) : !sessionId ? (
+              ) : sessionsList.length === 0 ? (
                 <p className="text-xs text-muted-foreground italic py-2">
-                  Este ponente no tiene ningún tema de ponencia o sesión asociada actualmente.
+                  Este ponente no tiene ningún tema de ponencia o sesión asociada actualmente en este evento.
                 </p>
               ) : (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* Title */}
-                    <div className="space-y-1 md:col-span-2">
-                      <span className="text-[10px] font-bold uppercase text-muted-foreground">Charla / Sesión</span>
-                      <p className="text-sm font-semibold text-foreground leading-snug">{sessionTitle}</p>
+                sessionsList.map((sess, idx) => (
+                  <div key={sess.id} className="py-4 first:pt-0 last:pb-0 space-y-3">
+                    <div className="flex items-start justify-between gap-4">
+                      {/* Title */}
+                      <div className="space-y-1 flex-1">
+                        <span className="text-[9px] font-bold uppercase text-muted-foreground block">Charla / Sesión #{idx + 1}</span>
+                        <p className="text-sm font-semibold text-foreground leading-snug">{sess.title}</p>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => {
+                            setEditingSession(sess)
+                            setIsModalOpen(true)
+                          }}
+                          className="size-8 p-0 hover:bg-muted text-muted-foreground hover:text-foreground"
+                          title="Editar sesión"
+                        >
+                          <Edit className="size-3.5" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => setSessionToDelete(sess)}
+                          className="size-8 p-0 text-destructive hover:bg-destructive/10"
+                          title="Eliminar sesión"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      </div>
                     </div>
 
-                    {/* Lines */}
-                    <div className="space-y-1">
-                      <span className="text-[10px] font-bold uppercase text-muted-foreground block">Líneas Temáticas</span>
-                      {selectedThematicLines.length === 0 ? (
-                        <span className="text-xs text-muted-foreground italic">Ninguna seleccionada</span>
-                      ) : (
-                        <div className="flex flex-wrap gap-1.5 mt-1">
-                          {selectedThematicLines.map((lineId) => {
-                            const line = thematicLines.find((tl) => tl.id === lineId)
-                            if (!line) return null
-                            return (
-                              <Badge
-                                key={lineId}
-                                variant="outline"
-                                className="text-[10px] font-medium px-2 py-0.5"
-                                style={{
-                                  backgroundColor: `${line.colorHex || '#3b82f6'}15`,
-                                  color: line.colorHex || '#3b82f6',
-                                  borderColor: `${line.colorHex || '#3b82f6'}30`
-                                }}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Lines */}
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-bold uppercase text-muted-foreground block">Líneas Temáticas</span>
+                        {sess.thematicLines.length === 0 ? (
+                          <span className="text-xs text-muted-foreground italic text-[11px]">Ninguna seleccionada</span>
+                        ) : (
+                          <div className="flex flex-wrap gap-1.5 mt-1">
+                            {sess.thematicLines.map((lineId) => {
+                              const line = thematicLines.find((tl) => tl.id === lineId)
+                              if (!line) return null
+                              return (
+                                <Badge
+                                  key={lineId}
+                                  variant="outline"
+                                  className="text-[9px] font-semibold px-2 py-0.5"
+                                  style={{
+                                    backgroundColor: `${line.colorHex || '#3b82f6'}15`,
+                                    color: line.colorHex || '#3b82f6',
+                                    borderColor: `${line.colorHex || '#3b82f6'}30`
+                                  }}
+                                >
+                                  {line.name}
+                                </Badge>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Resources list */}
+                      {sess.resources.length > 0 && (
+                        <div className="space-y-1.5">
+                          <span className="text-[10px] font-bold uppercase text-muted-foreground block">Material Descargable</span>
+                          <div className="flex flex-col gap-1">
+                            {sess.resources.map((res) => (
+                              <a
+                                key={res.id}
+                                href={res.file_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline truncate"
                               >
-                                {line.name}
-                              </Badge>
-                            )
-                          })}
+                                <span className="size-1.5 bg-emerald-500 rounded-full shrink-0" />
+                                <span className="truncate">{res.name}</span>
+                              </a>
+                            ))}
+                          </div>
                         </div>
                       )}
                     </div>
                   </div>
-
-                  {/* Resources */}
-                  {sessionResources.length > 0 && (
-                    <div className="border-t border-border pt-4 mt-4 space-y-2">
-                      <span className="text-[10px] font-bold uppercase text-muted-foreground block">Material Descargable</span>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
-                        {sessionResources.map((res) => (
-                          <a
-                            key={res.id}
-                            href={res.file_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2 p-2 rounded-lg border border-border bg-muted/20 hover:bg-muted/50 transition-colors text-xs text-primary font-medium truncate"
-                          >
-                            <span className="shrink-0 size-2 bg-emerald-500 rounded-full" />
-                            <span className="truncate flex-1">{res.name}</span>
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                ))
               )}
             </div>
           </div>
@@ -736,13 +784,16 @@ export function EditSpeakerPage() {
         </form>
       </main>
 
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+      <Dialog open={isModalOpen} onOpenChange={(open) => {
+        setIsModalOpen(open)
+        if (!open) setEditingSession(null)
+      }}>
         <DialogContent className="max-w-xl sm:rounded-xl">
           <DialogHeader>
-            <DialogTitle>{sessionId ? "Gestionar Tema de Ponencia" : "Asociar Tema de Ponencia"}</DialogTitle>
+            <DialogTitle>{editingSession ? "Editar Tema de Ponencia" : "Asociar Tema de Ponencia"}</DialogTitle>
             <DialogDescription>
-              {sessionId
-                ? "Modifica el título de la charla, las líneas temáticas asociadas y los recursos disponibles."
+              {editingSession 
+                ? "Modifica el título de la charla, las líneas temáticas asociadas y los recursos disponibles." 
                 : "Crea una nueva sesión para este ponente en la edición actual."}
             </DialogDescription>
           </DialogHeader>
@@ -878,21 +929,13 @@ export function EditSpeakerPage() {
           </div>
 
           <DialogFooter className="flex-col sm:flex-row gap-2 border-t border-border pt-4">
-            {sessionId && (
-              <Button
-                type="button"
-                variant="destructive"
-                onClick={handleDeleteSession}
-                disabled={isSavingModal}
-                className="cursor-pointer mr-auto text-xs"
-              >
-                Eliminar Tema
-              </Button>
-            )}
             <Button
               type="button"
               variant="outline"
-              onClick={() => setIsModalOpen(false)}
+              onClick={() => {
+                setIsModalOpen(false)
+                setEditingSession(null)
+              }}
               disabled={isSavingModal}
               className="cursor-pointer text-xs"
             >
@@ -904,11 +947,35 @@ export function EditSpeakerPage() {
               disabled={isSavingModal}
               className="cursor-pointer font-semibold text-xs px-4"
             >
-              {isSavingModal ? "Guardando..." : sessionId ? "Guardar Cambios" : "Crear y Asociar Tema"}
+              {isSavingModal ? "Guardando..." : editingSession ? "Guardar Cambios" : "Crear y Asociar Tema"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* AlertDialog for Confirming Session Deletion */}
+      <AlertDialog open={!!sessionToDelete} onOpenChange={(open) => {
+        if (!open) setSessionToDelete(null)
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar tema de ponencia?</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de que deseas eliminar la sesión "{sessionToDelete?.title}"? Se borrarán permanentemente sus recursos y líneas temáticas vinculadas. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingSession}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDeleteSession}
+              disabled={isDeletingSession}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 cursor-pointer"
+            >
+              {isDeletingSession ? "Eliminando..." : "Sí, eliminar tema"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
