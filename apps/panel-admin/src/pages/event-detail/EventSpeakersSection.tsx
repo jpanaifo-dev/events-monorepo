@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { useParams, useNavigate, useSearchParams } from "react-router-dom"
 import { useEventStore } from "@/store/event.store"
-import { Plus, Edit, Trash2, Globe, Layers, BookOpen, Search, Loader2 } from "lucide-react"
+import { Plus, Edit, Trash2, Globe, Layers, BookOpen, Search, Loader2, UserCheck, Check } from "lucide-react"
 import { DataTable, type ColumnDef } from "@/components/ui/data-table"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -41,6 +41,7 @@ export function EventSpeakersSection() {
     deleteSpeaker,
     loadFilteredSpeakers,
     isLoading,
+    toggleSpeakerCheckIn,
   } = useEventStore()
 
   const event = events.find((e) => e.id === id)
@@ -157,6 +158,16 @@ export function EventSpeakersSection() {
       }
     },
     {
+      header: "Tema / Charla",
+      className: "p-3 max-w-[200px]",
+      headerClassName: "p-3",
+      cell: (sp) => (
+        <span className={sp.talkTitle ? "text-xs font-semibold text-foreground" : "text-xs text-muted-foreground italic"}>
+          {sp.talkTitle || "Sin tema registrado"}
+        </span>
+      )
+    },
+    {
       header: "Biografía",
       className: "p-3 max-w-[320px]",
       headerClassName: "p-3",
@@ -187,6 +198,20 @@ export function EventSpeakersSection() {
           </Badge>
         )
       }
+    },
+    {
+      header: "Check-In",
+      className: "p-3 text-center",
+      headerClassName: "p-3 text-center",
+      cell: (sp) => (
+        <button
+          onClick={() => toggleSpeakerCheckIn(sp.id)}
+          className={`p-1.5 rounded-full border transition-colors inline-flex ${sp.checkedIn ? "bg-primary/10 border-primary/30 text-primary" : "bg-muted/40 border-border/80 text-muted-foreground/60 hover:text-foreground"}`}
+          title={sp.checkedIn ? "Acreditado (Haga clic para desmarcar)" : "Sin Acreditar (Haga clic para marcar)"}
+        >
+          {sp.checkedIn ? <UserCheck className="size-4" /> : <Check className="size-4" />}
+        </button>
+      )
     },
     {
       header: "Acciones",

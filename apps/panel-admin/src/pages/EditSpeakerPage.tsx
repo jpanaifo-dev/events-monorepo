@@ -108,7 +108,7 @@ export function EditSpeakerPage() {
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       avatar: avatar.trim() || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(firstName + " " + lastName)}`,
-      talkTitle: talkTitle.trim() || "Charla Especial",
+      talkTitle: talkTitle.trim(),
       talkDescription: "",
       bio: bio.trim(),
     }
@@ -230,7 +230,7 @@ export function EditSpeakerPage() {
             </div>
 
             {/* Bio Row */}
-            <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4">
+            <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
               <div className="md:w-1/3 space-y-1">
                 <label htmlFor="bioInput" className="text-sm font-medium text-foreground">
                   Biografía del Ponente <span className="text-destructive">*</span>
@@ -246,6 +246,25 @@ export function EditSpeakerPage() {
                   required
                   rows={4}
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-1 focus-visible:ring-ring text-foreground"
+                  disabled={isSubmitting}
+                />
+              </div>
+            </div>
+
+            {/* Talk Title Row */}
+            <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4">
+              <div className="md:w-1/3 space-y-1">
+                <label htmlFor="talkTitleInput" className="text-sm font-medium text-foreground">
+                  Tema de la Ponencia / Charla
+                </label>
+                <p className="text-xs text-muted-foreground">Título del tema o ponencia que expondrá el ponente (opcional).</p>
+              </div>
+              <div className="md:w-2/3 max-w-md w-full">
+                <Input
+                  id="talkTitleInput"
+                  value={talkTitle}
+                  onChange={(e) => setTalkTitle(e.target.value)}
+                  placeholder="Ej. Innovación con Inteligencia Artificial"
                   disabled={isSubmitting}
                 />
               </div>

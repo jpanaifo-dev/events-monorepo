@@ -51,6 +51,7 @@ export interface Speaker {
   talkTitle: string
   talkDescription: string
   bio: string
+  checkedIn?: boolean
 }
 
 export interface AgendaItem {
@@ -185,7 +186,7 @@ interface EventState {
   addSpeaker: (speaker: AddSpeakerInput) => Promise<void>
   updateSpeaker: (id: string, updates: Partial<AddSpeakerInput>) => Promise<void>
   deleteSpeaker: (id: string) => Promise<void>
-
+  toggleSpeakerCheckIn: (id: string) => Promise<void>
   addAgendaItem: (item: Omit<AgendaItem, "id">) => Promise<void>
   updateAgendaItem: (id: string, updates: Partial<AgendaItem>) => Promise<void>
   deleteAgendaItem: (id: string) => Promise<void>
@@ -434,9 +435,10 @@ export const useEventStore = create<EventState>((set, get) => ({
                 name: fullName,
                 email: profile.email || "",
                 avatar: profile.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fullName)}`,
-                talkTitle: part.ticket_reference || "Presentación Especial",
+                talkTitle: part.ticket_reference || "",
                 talkDescription: profile.bio || "",
-                bio: profile.bio || ""
+                bio: profile.bio || "",
+                checkedIn: !!part.check_in_status,
               })
             } else {
               formattedAttendees.push({
@@ -755,6 +757,7 @@ export const useEventStore = create<EventState>((set, get) => ({
         talkTitle: speakerData.talkTitle,
         talkDescription: speakerData.talkDescription,
         bio: speakerData.bio,
+        checkedIn: false,
       }
 
       set((state) => ({
@@ -1186,9 +1189,10 @@ export const useEventStore = create<EventState>((set, get) => ({
             name: fullName,
             email: profile.email || "",
             avatar: profile.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fullName)}`,
-            talkTitle: part.ticket_reference || "Presentación Especial",
+            talkTitle: part.ticket_reference || "",
             talkDescription: profile.bio || "",
-            bio: profile.bio || ""
+            bio: profile.bio || "",
+            checkedIn: !!part.check_in_status,
           })
         })
       }
@@ -1521,6 +1525,28 @@ export const useEventStore = create<EventState>((set, get) => ({
     } catch (e) {
       console.error("Error deleting ticket:", e)
       throw e
+    }
+  },
+
+  toggleSpeakerCheckIn: async (id) => {
+    try {
+      const speaker = get().speakers.find((s) => s.id === id)
+      if (!speaker) return
+
+      const { error } = await supabase
+        .from("event_participants")
+        .update({
+          check_in_status: !speaker.checkedIn
+        })
+        .eq("id", id)
+
+      if (error) throw error
+
+      set((state) => ({
+        speakers: state.speakers.map((sp) => sp.id === id ? { ...sp, checkedIn: !sp.checkedIn } : sp)
+      }))
+    } catch (e) {
+      console.error("Error toggling speaker check-in:", e)
     }
   }
 }))
