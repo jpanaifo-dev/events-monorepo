@@ -366,7 +366,7 @@ export const useEventStore = create<EventState>((set, get) => ({
             timeSlot: `${act.start_time ? act.start_time.split("T")[1]?.substring(0, 5) : "09:00"} - ${act.end_time ? act.end_time.split("T")[1]?.substring(0, 5) : "10:00"}`,
             title: act.activity_name,
             stage: act.custom_location || "Escenario Principal",
-            speakerId: act.parent_activity_id || "",
+            speakerId: act.speaker_id || "",
             description: act.description || "",
             startTime: act.start_time || null,
             endTime: act.end_time || null,
@@ -860,7 +860,7 @@ export const useEventStore = create<EventState>((set, get) => ({
         activity_name: itemData.title,
         description: itemData.description || null,
         custom_location: itemData.stage,
-        parent_activity_id: itemData.speakerId || null,
+        speaker_id: itemData.speakerId || null,
         start_time: itemData.startTime || null,
         end_time: itemData.endTime || null,
         duration: itemData.duration || null,
@@ -889,7 +889,7 @@ export const useEventStore = create<EventState>((set, get) => ({
       if (updates.title !== undefined) mappedUpdates.activity_name = updates.title
       if (updates.description !== undefined) mappedUpdates.description = updates.description
       if (updates.stage !== undefined) mappedUpdates.custom_location = updates.stage
-      if (updates.speakerId !== undefined) mappedUpdates.parent_activity_id = updates.speakerId || null
+      if (updates.speakerId !== undefined) mappedUpdates.speaker_id = updates.speakerId || null
       if (updates.startTime !== undefined) mappedUpdates.start_time = updates.startTime
       if (updates.endTime !== undefined) mappedUpdates.end_time = updates.endTime
       if (updates.duration !== undefined) mappedUpdates.duration = updates.duration
