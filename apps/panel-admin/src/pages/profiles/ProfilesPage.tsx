@@ -87,14 +87,34 @@ export function ProfilesPage() {
         const avatarSeed = encodeURIComponent(fullName || p.email || "User")
         return (
           <div className="flex items-center gap-3">
-            <img
-              src={p.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${avatarSeed}`}
-              alt={fullName}
-              className="size-9 rounded-lg object-cover border border-border/80"
-            />
-            <div className="space-y-0.5">
+            <div className="relative shrink-0">
+              <img
+                src={p.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${avatarSeed}`}
+                alt={fullName}
+                className="size-9 rounded-lg object-cover border border-border/80"
+              />
+              {(!p.email || !p.identityDocumentNumber) && (
+                <span
+                  className="absolute -top-1 -right-1 size-3.5 bg-amber-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center border border-background shadow-xs select-none cursor-help animate-pulse"
+                  title={
+                    !p.email && !p.identityDocumentNumber
+                      ? "Falta registrar correo electrónico y número de documento"
+                      : !p.email
+                      ? "Falta registrar correo electrónico"
+                      : "Falta registrar número de documento"
+                  }
+                >
+                  !
+                </span>
+              )}
+            </div>
+            <div className="space-y-0.5 min-w-0">
               <p className="font-bold text-sm text-foreground">{fullName}</p>
-              <p className="text-xs text-muted-foreground">{p.email || "Sin correo"}</p>
+              {p.email ? (
+                <p className="text-xs text-muted-foreground truncate">{p.email}</p>
+              ) : (
+                <p className="text-xs text-amber-500 italic truncate">Sin correo registrado</p>
+              )}
             </div>
           </div>
         )

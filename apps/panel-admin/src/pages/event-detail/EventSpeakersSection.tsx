@@ -120,15 +120,33 @@ export function EventSpeakersSection() {
       headerClassName: "p-3",
       cell: (sp) => sp ? (
         <div className="flex items-center gap-3">
-          <img
-            src={sp.avatar}
-            alt={sp.name}
-            className="size-10 rounded-full border border-border/80 object-cover bg-muted shrink-0 shadow-xs"
-          />
+          <div className="relative shrink-0">
+            <img
+              src={sp.avatar}
+              alt={sp.name}
+              className="size-10 rounded-full border border-border/80 object-cover bg-muted shadow-xs"
+            />
+            {(!sp.email || !sp.identityDocumentNumber) && (
+              <span
+                className="absolute -top-0.5 -right-0.5 size-4 bg-amber-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border border-background shadow-xs select-none cursor-help animate-pulse"
+                title={
+                  !sp.email && !sp.identityDocumentNumber
+                    ? "Falta registrar correo electrónico y número de documento"
+                    : !sp.email
+                    ? "Falta registrar correo electrónico"
+                    : "Falta registrar número de documento"
+                }
+              >
+                !
+              </span>
+            )}
+          </div>
           <div className="min-w-0">
             <h4 className="font-bold text-sm text-foreground truncate">{sp.name}</h4>
-            {sp.email && (
+            {sp.email ? (
               <p className="text-xs text-muted-foreground truncate">{sp.email}</p>
+            ) : (
+              <p className="text-xs text-amber-500 italic truncate">Sin correo registrado</p>
             )}
           </div>
         </div>

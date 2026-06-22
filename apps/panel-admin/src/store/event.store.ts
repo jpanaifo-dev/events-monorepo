@@ -52,6 +52,8 @@ export interface Speaker {
   talkDescription: string
   bio: string
   checkedIn?: boolean
+  identityDocumentType?: string | null
+  identityDocumentNumber?: string | null
 }
 
 export interface AgendaItem {
@@ -83,6 +85,9 @@ export interface Attendee {
   ticketType: string
   registrationDate: string
   checkedIn: boolean
+  avatarUrl?: string | null
+  identityDocumentType?: string | null
+  identityDocumentNumber?: string | null
 }
 
 export interface ParticipantRole {
@@ -409,7 +414,7 @@ export const useEventStore = create<EventState>((set, get) => ({
             ticket_reference,
             created_at,
             profile:profile_id (
-              id, first_name, last_name, email, avatar_url, bio
+              id, first_name, last_name, email, avatar_url, bio, identity_document_type, identity_document_number
             )
           `)
           .in("main_event_id", mainEventIds)
@@ -439,6 +444,8 @@ export const useEventStore = create<EventState>((set, get) => ({
                 talkDescription: profile.bio || "",
                 bio: profile.bio || "",
                 checkedIn: !!part.check_in_status,
+                identityDocumentType: profile.identity_document_type || null,
+                identityDocumentNumber: profile.identity_document_number || null,
               })
             } else {
               formattedAttendees.push({
@@ -450,7 +457,10 @@ export const useEventStore = create<EventState>((set, get) => ({
                 email: profile.email || "",
                 ticketType: roleSlug === "vip" ? "VIP" : "General",
                 registrationDate: part.created_at ? part.created_at.split("T")[0] : new Date().toISOString().split("T")[0],
-                checkedIn: !!part.check_in_status
+                checkedIn: !!part.check_in_status,
+                avatarUrl: profile.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fullName)}`,
+                identityDocumentType: profile.identity_document_type || null,
+                identityDocumentNumber: profile.identity_document_number || null,
               })
             }
           })
