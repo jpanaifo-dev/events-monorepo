@@ -43,15 +43,6 @@ export function ImageUploadWithPreview({
     }
   }
 
-  const convertToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.readAsDataURL(file)
-      reader.onload = () => resolve(reader.result as string)
-      reader.onerror = (error) => reject(error)
-    })
-  }
-
   const uploadFile = async (file: File) => {
     setIsUploading(true)
     const localUrl = URL.createObjectURL(file)
@@ -127,7 +118,7 @@ export function ImageUploadWithPreview({
     if (fileInputRef.current) {
       fileInputRef.current.value = ""
     }
-    
+
     if (oldUrl) {
       try {
         await deleteFromR2(oldUrl)
