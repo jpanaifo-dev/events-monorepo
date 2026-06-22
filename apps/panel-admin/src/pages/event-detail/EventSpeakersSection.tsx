@@ -133,8 +133,8 @@ export function EventSpeakersSection() {
                   !sp.email && !sp.identityDocumentNumber
                     ? "Falta registrar correo electrónico y número de documento"
                     : !sp.email
-                    ? "Falta registrar correo electrónico"
-                    : "Falta registrar número de documento"
+                      ? "Falta registrar correo electrónico"
+                      : "Falta registrar número de documento"
                 }
               >
                 !
@@ -174,16 +174,6 @@ export function EventSpeakersSection() {
           </div>
         )
       }
-    },
-    {
-      header: "Tema / Charla",
-      className: "p-3 max-w-[200px]",
-      headerClassName: "p-3",
-      cell: (sp) => (
-        <span className={sp.talkTitle ? "text-xs font-semibold text-foreground" : "text-xs text-muted-foreground italic"}>
-          {sp.talkTitle || "Sin tema registrado"}
-        </span>
-      )
     },
     {
       header: "Biografía",
