@@ -1,0 +1,10 @@
+{
+  "cleanUrls": true,
+  "outputDirectory": "apps/panel-admin/dist",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
