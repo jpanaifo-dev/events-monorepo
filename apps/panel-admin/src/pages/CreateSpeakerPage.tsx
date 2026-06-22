@@ -606,6 +606,7 @@ export function CreateSpeakerPage() {
                 </div>
               </div>
             )}
+          </div>
 
           <FormFooter>
             <Button
