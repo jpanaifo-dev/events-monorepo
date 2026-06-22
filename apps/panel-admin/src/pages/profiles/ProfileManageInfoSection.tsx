@@ -5,14 +5,8 @@ import { useAdminProfilesStore } from "@/store/admin-profiles.store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select"
 import { useSEO } from "@/hooks/use-seo"
+import { ImageUploadWithPreview } from "@/components/ImageUploadWithPreview"
 
 export function ProfileManageInfoSection() {
   const { profileId } = useParams<{ profileId: string }>()
@@ -33,8 +27,6 @@ export function ProfileManageInfoSection() {
   const [avatarUrl, setAvatarUrl] = useState("")
   const [identityDocumentType, setIdentityDocumentType] = useState("")
   const [identityDocumentNumber, setIdentityDocumentNumber] = useState("")
-  const [globalRole, setGlobalRole] = useState("user")
-  const [accountType, setAccountType] = useState("basic")
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
@@ -48,8 +40,6 @@ export function ProfileManageInfoSection() {
       setAvatarUrl(targetProfile.avatarUrl || "")
       setIdentityDocumentType(targetProfile.identityDocumentType || "")
       setIdentityDocumentNumber(targetProfile.identityDocumentNumber || "")
-      setGlobalRole(targetProfile.globalRole || "user")
-      setAccountType(targetProfile.accountType || "basic")
     }
   }, [targetProfile])
 
@@ -59,8 +49,6 @@ export function ProfileManageInfoSection() {
     avatarUrl: z.string().trim().url("El enlace del avatar no es válido.").or(z.literal("")).optional(),
     identityDocumentType: z.string().trim().optional().nullable(),
     identityDocumentNumber: z.string().trim().optional().nullable(),
-    globalRole: z.string(),
-    accountType: z.string(),
   })
 
   const handleSave = async (e: React.FormEvent) => {
@@ -73,8 +61,6 @@ export function ProfileManageInfoSection() {
       avatarUrl,
       identityDocumentType,
       identityDocumentNumber,
-      globalRole,
-      accountType,
     })
 
     if (!validation.success) {
@@ -95,8 +81,6 @@ export function ProfileManageInfoSection() {
         avatarUrl: avatarUrl || null,
         identityDocumentType: identityDocumentType || null,
         identityDocumentNumber: identityDocumentNumber || null,
-        globalRole,
-        accountType,
       })
 
       toast.success("Perfil actualizado con éxito")
@@ -229,19 +213,19 @@ export function ProfileManageInfoSection() {
           </div>
         </div>
 
-        {/* Avatar URL Row */}
+        {/* Avatar Upload Row */}
         <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
           <div className="md:w-1/3 space-y-1">
-            <label htmlFor="avatar-url" className="text-sm font-medium text-foreground">Enlace del Avatar (URL)</label>
+            <label className="text-sm font-medium text-foreground">Foto de Perfil</label>
+            <p className="text-xs text-muted-foreground">Sube una imagen o proporciona una URL directa.</p>
           </div>
           <div className="md:w-2/3 max-w-md w-full">
-            <Input
-              id="avatar-url"
-              type="url"
-              placeholder="https://ejemplo.com/foto.png"
+            <ImageUploadWithPreview
               value={avatarUrl}
-              onChange={(e) => setAvatarUrl(e.target.value)}
-              disabled={isSubmitting}
+              onChange={setAvatarUrl}
+              label=""
+              folder="avatars"
+              identifier={`profile-${firstName}-${lastName}`}
             />
           </div>
         </div>
@@ -295,46 +279,6 @@ export function ProfileManageInfoSection() {
               className="w-full px-3 py-2 text-sm bg-background border border-input rounded-md outline-none focus:ring-2 focus:ring-ring/50 text-foreground"
               disabled={isSubmitting}
             />
-          </div>
-        </div>
-
-        {/* Global Role Row (Admin Specific) */}
-        <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border bg-rose-500/[0.02]">
-          <div className="md:w-1/3 space-y-1">
-            <label htmlFor="globalRole" className="text-sm font-medium text-rose-500">Rol Global del Sistema</label>
-            <p className="text-xs text-muted-foreground">Configura el acceso administrativo de este usuario.</p>
-          </div>
-          <div className="md:w-2/3 max-w-md w-full">
-            <Select value={globalRole} onValueChange={setGlobalRole}>
-              <SelectTrigger id="globalRole" disabled={isSubmitting}>
-                <SelectValue placeholder="Selecciona un rol" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="user">Usuario Regular</SelectItem>
-                <SelectItem value="admin">Administrador del Sistema</SelectItem>
-                <SelectItem value="developer">Developer</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        {/* Account Type Row (Admin Specific) */}
-        <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border bg-blue-500/[0.02]">
-          <div className="md:w-1/3 space-y-1">
-            <label htmlFor="accountType" className="text-sm font-medium text-blue-500">Tipo de Plan / Cuenta</label>
-            <p className="text-xs text-muted-foreground">Determina el nivel de suscripción y límites del usuario.</p>
-          </div>
-          <div className="md:w-2/3 max-w-md w-full">
-            <Select value={accountType} onValueChange={setAccountType}>
-              <SelectTrigger id="accountType" disabled={isSubmitting}>
-                <SelectValue placeholder="Selecciona un tipo de cuenta" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="basic">Gratuito</SelectItem>
-                <SelectItem value="premium">Premium</SelectItem>
-                <SelectItem value="enterprise">Enterprise</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
         </div>
 

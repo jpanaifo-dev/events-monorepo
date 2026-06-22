@@ -6,3 +6,5 @@ export { ProfileManageEducationSection } from "./ProfileManageEducationSection"
 export { ProfileManageCertificationsSection } from "./ProfileManageCertificationsSection"
 export { ProfileManageDangerSection } from "./ProfileManageDangerSection"
 export { CreateProfilePage } from "./CreateProfilePage"
+export { ProfileManageAccountSection } from "./ProfileManageAccountSection"
+

@@ -26,6 +26,7 @@ export function ProfileManageLayout() {
 
   const navItems = [
     { to: "info", label: "Datos Generales" },
+    { to: "account", label: "Cuenta" },
     { to: "experience", label: "Experiencia Profesional" },
     { to: "education", label: "Estudios" },
     { to: "certifications", label: "Certificaciones" },

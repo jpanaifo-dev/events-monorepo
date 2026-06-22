@@ -47,6 +47,7 @@ import {
   ProfileManageCertificationsSection,
   ProfileManageDangerSection,
   CreateProfilePage,
+  ProfileManageAccountSection,
 } from "@/pages/profiles"
 
 function HashHandler() {
@@ -232,6 +233,7 @@ export function AppRouter() {
         >
           <Route index element={<Navigate to="info" replace />} />
           <Route path="info" element={<ProfileManageInfoSection />} />
+          <Route path="account" element={<ProfileManageAccountSection />} />
           <Route path="experience" element={<ProfileManageExperienceSection />} />
           <Route path="education" element={<ProfileManageEducationSection />} />
           <Route path="certifications" element={<ProfileManageCertificationsSection />} />
