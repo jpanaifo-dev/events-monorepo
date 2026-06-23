@@ -60,14 +60,85 @@ export function EventDetailPage() {
 
   if (isLoading && !event) {
     return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <main className="container mx-auto px-6 py-12 flex-1 w-full">
-          <div className="space-y-6">
-            <Skeleton className="h-10 w-48" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-64 w-full rounded-xl" />
+      <div className="min-h-screen bg-background text-foreground font-sans flex flex-col lg:flex-row">
+        {/* Sidebar / Aside Navigation (Desktop) - Fixed to the left */}
+        <aside className="hidden lg:flex flex-col w-60 fixed left-0 top-0 bottom-0 border-r border-border bg-card p-6 z-20 overflow-y-auto">
+          {/* Volver Link Skeleton */}
+          <div className="flex items-center gap-2 mb-5">
+            <Skeleton className="size-4 rounded-full" />
+            <Skeleton className="h-4 w-28" />
           </div>
-        </main>
+
+          {/* Event Title Header Skeleton */}
+          <div className="mb-6 pb-4 border-b border-border/60">
+            <Skeleton className="h-5 w-40 mb-2" />
+            <Skeleton className="h-3 w-20" />
+          </div>
+
+          <nav className="flex flex-col gap-3">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="flex justify-between items-center py-1">
+                <Skeleton className="h-4 w-24" />
+                {i % 3 === 0 && <Skeleton className="h-4 w-6 rounded-full" />}
+              </div>
+            ))}
+          </nav>
+        </aside>
+
+        {/* Main Content Area - Shifted to the right by the fixed sidebar width on lg screens */}
+        <div className="flex-1 lg:pl-60 flex flex-col min-w-0">
+          <main className="container mx-auto py-12 px-6 flex-1 w-full">
+            {/* Sheet / Drawer Navigation (Mobile & Tablet) */}
+            <div className="lg:hidden w-full mb-6">
+              <Skeleton className="h-10 w-full rounded-lg" />
+            </div>
+
+            {/* Content Area Skeleton */}
+            <div className="max-w-7xl w-full space-y-6">
+              {/* Specific Subpage PageHeader Skeleton */}
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div className="space-y-2">
+                  <Skeleton className="h-7 w-48" />
+                  <Skeleton className="h-4 w-[280px] md:w-[450px]" />
+                </div>
+                <Skeleton className="h-8 w-28 rounded-lg self-start md:self-auto shrink-0" />
+              </div>
+
+              {/* Simulated DataTable / Form Skeleton */}
+              <div className="border border-border rounded-xl bg-card p-6 space-y-5 shadow-xs">
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Skeleton className="h-9 w-full sm:max-w-xs rounded-xl" />
+                  <Skeleton className="h-9 w-full sm:max-w-xs rounded-xl" />
+                </div>
+                <div className="space-y-3">
+                  <div className="flex gap-4 border-b border-border/40 pb-2">
+                    <Skeleton className="h-4 w-1/3" />
+                    <Skeleton className="h-4 w-1/4" />
+                    <Skeleton className="h-4 w-1/4" />
+                    <Skeleton className="h-4 w-1/12 ml-auto" />
+                  </div>
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="flex gap-4 items-center py-2 border-b border-border/20 last:border-none">
+                      <div className="flex items-center gap-3 w-1/3">
+                        <Skeleton className="size-8 rounded-lg shrink-0" />
+                        <div className="space-y-1.5 w-full">
+                          <Skeleton className="h-3.5 w-3/4" />
+                          <Skeleton className="h-3 w-1/2" />
+                        </div>
+                      </div>
+                      <Skeleton className="h-4 w-1/4" />
+                      <Skeleton className="h-4 w-1/4" />
+                      <div className="w-1/12 ml-auto flex justify-end gap-2">
+                        <Skeleton className="size-7 rounded-lg animate-pulse" />
+                        <Skeleton className="size-7 rounded-lg animate-pulse" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </main>
+        </div>
       </div>
     )
   }
