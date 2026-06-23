@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { z } from "zod"
 import { useEventStore } from "@/store/event.store"
+import { supabase } from "@/utils/supabase"
+import { uploadToR2 } from "@/utils/r2-storage"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
@@ -30,7 +32,6 @@ export function EditEventPage() {
   const [about, setAbout] = useState("")
   const [coverUrl, setCoverUrl] = useState("")
   const [logoUrl, setLogoUrl] = useState("")
-  // No se necesita coverFile/logoFile en edición, la subida es automática al seleccionar
   const [status, setStatus] = useState<"draft" | "published" | "archived">("draft")
   const [isActive, setIsActive] = useState(true)
   const [websiteUrl, setWebsiteUrl] = useState("")
@@ -68,6 +69,92 @@ export function EditEventPage() {
     }
   }, [event, navigate])
 
+  // ──────────────────────────────────────────────────────────
+  // Subida DIRECTA: archivo → R2 → Supabase main_events
+  // Se invoca cuando el usuario selecciona/arrastra un archivo
+  // ──────────────────────────────────────────────────────────
+  const handleCoverFileSelect = async (file: File) => {
+    if (!id) return
+    setIsAutoSavingCover(true)
+    try {
+      // 1. Subir a Cloudflare R2
+      console.log("[EditEvent] Subiendo portada a R2...")
+      const publicUrl = await uploadToR2(file, `events/${id}`, "cover")
+      console.log("[EditEvent] Portada subida a R2:", publicUrl)
+
+      // 2. Guardar URL en tabla main_events de Supabase
+      console.log("[EditEvent] Guardando cover_url en main_events...")
+      const { error } = await supabase
+        .from("main_events")
+        .update({ cover_url: publicUrl, updated_at: new Date().toISOString() })
+        .eq("id", id)
+
+      if (error) {
+        console.error("[EditEvent] Error Supabase cover_url:", error)
+        toast.error("Error al guardar la portada en la base de datos: " + error.message)
+        return
+      }
+
+      console.log("[EditEvent] cover_url guardado exitosamente en main_events")
+
+      // 3. Actualizar estado local + zustand store
+      setCoverUrl(publicUrl)
+      useEventStore.setState((state) => ({
+        events: state.events.map((e) =>
+          e.id === id ? { ...e, coverUrl: publicUrl, updatedAt: new Date().toISOString() } : e
+        ),
+      }))
+
+      toast.success("Portada subida y guardada automáticamente")
+    } catch (err: any) {
+      console.error("[EditEvent] Error en subida de portada:", err)
+      toast.error("Error al subir la portada: " + (err.message || err))
+    } finally {
+      setIsAutoSavingCover(false)
+    }
+  }
+
+  const handleLogoFileSelect = async (file: File) => {
+    if (!id) return
+    setIsAutoSavingLogo(true)
+    try {
+      // 1. Subir a Cloudflare R2
+      console.log("[EditEvent] Subiendo logo a R2...")
+      const publicUrl = await uploadToR2(file, `events/${id}`, "logo")
+      console.log("[EditEvent] Logo subido a R2:", publicUrl)
+
+      // 2. Guardar URL en tabla main_events de Supabase
+      console.log("[EditEvent] Guardando logo_url en main_events...")
+      const { error } = await supabase
+        .from("main_events")
+        .update({ logo_url: publicUrl, updated_at: new Date().toISOString() })
+        .eq("id", id)
+
+      if (error) {
+        console.error("[EditEvent] Error Supabase logo_url:", error)
+        toast.error("Error al guardar el logo en la base de datos: " + error.message)
+        return
+      }
+
+      console.log("[EditEvent] logo_url guardado exitosamente en main_events")
+
+      // 3. Actualizar estado local + zustand store
+      setLogoUrl(publicUrl)
+      useEventStore.setState((state) => ({
+        events: state.events.map((e) =>
+          e.id === id ? { ...e, logoUrl: publicUrl, updatedAt: new Date().toISOString() } : e
+        ),
+      }))
+
+      toast.success("Logo subido y guardado automáticamente")
+    } catch (err: any) {
+      console.error("[EditEvent] Error en subida de logo:", err)
+      toast.error("Error al subir el logo: " + (err.message || err))
+    } finally {
+      setIsAutoSavingLogo(false)
+    }
+  }
+
   const editEventSchema = z.object({
     name: z.string().trim().min(1, "El nombre del evento es obligatorio."),
     shortDescription: z.string().trim().min(1, "La descripcion corta es obligatoria."),
@@ -101,8 +188,6 @@ export function EditEventPage() {
 
     setIsSubmitting(true)
     try {
-      // Images are already saved to R2 and DB automatically when changed.
-      // We only need to persist the text fields here.
       await updateEvent(id, {
         name: name.trim(),
         shortDescription: shortDescription.trim(),
@@ -235,31 +320,20 @@ export function EditEventPage() {
               </div>
             </div>
 
+            {/* ═══ PORTADA DEL EVENTO ═══ */}
             <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
               <div className="md:w-1/3 space-y-1">
                 <label className="text-sm font-medium text-foreground">Portada del Evento</label>
                 <p className="text-xs text-muted-foreground">Sube la portada oficial o pega un enlace directo.</p>
                 {isAutoSavingCover && (
-                  <p className="text-[10px] text-primary animate-pulse">Guardando portada automáticamente...</p>
+                  <p className="text-[10px] text-primary animate-pulse font-medium">⏳ Subiendo y guardando portada...</p>
                 )}
               </div>
               <div className="md:w-2/3 max-w-md w-full">
                 <ImageUploadWithPreview
                   value={coverUrl}
                   onChange={setCoverUrl}
-                  onR2UploadComplete={async (publicUrl) => {
-                    if (!id) return
-                    setIsAutoSavingCover(true)
-                    try {
-                      await updateEvent(id, { coverUrl: publicUrl })
-                      toast.success("Portada guardada automáticamente")
-                    } catch (err) {
-                      console.error("Auto-save cover failed:", err)
-                      toast.error("Error al guardar la portada en la base de datos")
-                    } finally {
-                      setIsAutoSavingCover(false)
-                    }
-                  }}
+                  onFileSelect={handleCoverFileSelect}
                   label=""
                   aspectRatio="banner"
                   folder={`events/${id}`}
@@ -268,31 +342,20 @@ export function EditEventPage() {
               </div>
             </div>
 
+            {/* ═══ LOGO DEL EVENTO ═══ */}
             <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
               <div className="md:w-1/3 space-y-1">
                 <label className="text-sm font-medium text-foreground">Logo del Evento</label>
                 <p className="text-xs text-muted-foreground">Sube el logo de la marca o pega un enlace directo.</p>
                 {isAutoSavingLogo && (
-                  <p className="text-[10px] text-primary animate-pulse">Guardando logo automáticamente...</p>
+                  <p className="text-[10px] text-primary animate-pulse font-medium">⏳ Subiendo y guardando logo...</p>
                 )}
               </div>
               <div className="md:w-2/3 max-w-md w-full">
                 <ImageUploadWithPreview
                   value={logoUrl}
                   onChange={setLogoUrl}
-                  onR2UploadComplete={async (publicUrl) => {
-                    if (!id) return
-                    setIsAutoSavingLogo(true)
-                    try {
-                      await updateEvent(id, { logoUrl: publicUrl })
-                      toast.success("Logo guardado automáticamente")
-                    } catch (err) {
-                      console.error("Auto-save logo failed:", err)
-                      toast.error("Error al guardar el logo en la base de datos")
-                    } finally {
-                      setIsAutoSavingLogo(false)
-                    }
-                  }}
+                  onFileSelect={handleLogoFileSelect}
                   label=""
                   aspectRatio="square"
                   folder={`events/${id}`}
