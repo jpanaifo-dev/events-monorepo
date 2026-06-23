@@ -11,6 +11,7 @@ import { useSEO } from "@/hooks/use-seo"
 import { Switch } from "@/components/ui/switch"
 import { createSessionlessClient } from "@/utils/supabase-sessionless"
 import { CheckCircle2, AlertTriangle, Copy, Check } from "lucide-react"
+import { uploadToR2 } from "@/utils/r2-storage"
 
 // Helper to generate a strong random password
 function generateRandomPassword(length = 12) {
@@ -24,7 +25,7 @@ function generateRandomPassword(length = 12) {
 
 export function CreateProfilePage() {
   const navigate = useNavigate()
-  const { createProfile } = useAdminProfilesStore()
+  const { createProfile, updateProfile } = useAdminProfilesStore()
 
   // Form states
   const [firstName, setFirstName] = useState("")
@@ -34,6 +35,7 @@ export function CreateProfilePage() {
   const [identityDocumentType, setIdentityDocumentType] = useState("")
   const [identityDocumentNumber, setIdentityDocumentNumber] = useState("")
   const [avatarUrl, setAvatarUrl] = useState("")
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [institution, setInstitution] = useState("")
   const [dedication, setDedication] = useState("")
   const [bio, setBio] = useState("")
@@ -123,11 +125,11 @@ export function CreateProfilePage() {
         }
       }
 
-      await createProfile({
+      const newProfileId = await createProfile({
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         email: email.trim() || null,
-        avatarUrl: avatarUrl.trim() || null,
+        avatarUrl: null, // Initially null, we will upload it after creation
         phone: phone.trim() || null,
         identityDocumentType: identityDocumentType || null,
         identityDocumentNumber: identityDocumentNumber.trim() || null,
@@ -138,6 +140,22 @@ export function CreateProfilePage() {
         accountType,
         authId: linkedAuthId,
       })
+
+      // If they selected a file to upload, upload it now
+      if (avatarFile) {
+        try {
+          const publicUrl = await uploadToR2(avatarFile, "avatars", newProfileId)
+          await updateProfile(newProfileId, { avatarUrl: publicUrl })
+        } catch (uploadErr) {
+          console.error("Delayed avatar upload failed:", uploadErr)
+          toast.error("El perfil se creó, pero no se pudo subir la foto de perfil.")
+        }
+      } else if (avatarUrl) {
+        // If they pasted a manual web URL (not a local blob URL)
+        if (!avatarUrl.startsWith("blob:")) {
+          await updateProfile(newProfileId, { avatarUrl })
+        }
+      }
 
       toast.success("Perfil registrado correctamente")
 
@@ -316,7 +334,13 @@ El equipo de administración de la plataforma.
               <div className="md:w-2/3 w-full">
                 <ImageUploadWithPreview
                   value={avatarUrl}
-                  onChange={setAvatarUrl}
+                  onChange={(newVal) => {
+                    setAvatarUrl(newVal)
+                    if (!newVal) {
+                      setAvatarFile(null)
+                    }
+                  }}
+                  onFileSelect={setAvatarFile}
                   label=""
                   folder="avatars"
                   identifier={`profile-${firstName}-${lastName}`}

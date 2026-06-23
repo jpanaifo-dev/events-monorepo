@@ -1,6 +1,7 @@
 import { create } from "zustand"
 import { supabase } from "@/utils/supabase"
 import { useAuthStore } from "./auth.store"
+import { uploadToR2 } from "@/utils/r2-storage"
 
 export interface Event {
   id: string
@@ -144,6 +145,7 @@ export interface AddSpeakerInput {
   talkTitle: string
   talkDescription: string
   bio: string
+  avatarFile?: File | null
 }
 
 export interface EventFilters {
@@ -710,23 +712,31 @@ export const useEventStore = create<EventState>((set, get) => ({
 
   addSpeaker: async (speakerData) => {
     try {
-      let profileId = speakerData.profileId
+      let profileId = speakerData.profileId || crypto.randomUUID()
+      let avatarUrl = speakerData.avatar
+
+      if (speakerData.avatarFile) {
+        try {
+          avatarUrl = await uploadToR2(speakerData.avatarFile, "avatars", profileId)
+        } catch (uploadErr) {
+          console.error("Failed to upload speaker avatar to R2:", uploadErr)
+        }
+      }
 
       // 1. Profile handling (Insert or Update)
       const profilePayload = {
         first_name: speakerData.firstName,
         last_name: speakerData.lastName,
         email: speakerData.email || null,
-        avatar_url: speakerData.avatar,
+        avatar_url: avatarUrl,
         bio: speakerData.bio,
       }
 
-      if (profileId) {
+      if (speakerData.profileId) {
         // Update existing profile
         await supabase.from("profiles").update(profilePayload).eq("id", profileId)
       } else {
         // Create new profile
-        profileId = crypto.randomUUID()
         await supabase.from("profiles").insert([{ id: profileId, ...profilePayload }])
       }
 

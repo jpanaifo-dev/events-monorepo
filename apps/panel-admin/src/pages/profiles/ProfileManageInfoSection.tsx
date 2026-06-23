@@ -222,7 +222,18 @@ export function ProfileManageInfoSection() {
           <div className="md:w-2/3 max-w-md w-full">
             <ImageUploadWithPreview
               value={avatarUrl}
-              onChange={setAvatarUrl}
+              onChange={async (newUrl) => {
+                setAvatarUrl(newUrl)
+                if (profileId) {
+                  try {
+                    await updateProfile(profileId, { avatarUrl: newUrl || null })
+                    toast.success("Foto de perfil actualizada en la base de datos")
+                  } catch (err: any) {
+                    console.error("Failed to auto-update avatar in DB:", err)
+                    toast.error("No se pudo actualizar la foto de perfil en la base de datos.")
+                  }
+                }
+              }}
               label=""
               folder="avatars"
               identifier={`profile-${firstName}-${lastName}`}

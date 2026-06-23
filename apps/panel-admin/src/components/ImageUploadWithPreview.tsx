@@ -12,6 +12,7 @@ interface ImageUploadWithPreviewProps {
   placeholder?: string
   folder?: string
   identifier?: string
+  onFileSelect?: (file: File) => void
 }
 
 export function ImageUploadWithPreview({
@@ -21,7 +22,8 @@ export function ImageUploadWithPreview({
   aspectRatio = "square",
   placeholder = "Arrastra y suelta una imagen aquí, o pega un enlace abajo",
   folder = "general",
-  identifier = "file"
+  identifier = "file",
+  onFileSelect
 }: ImageUploadWithPreviewProps) {
   const [dragActive, setDragActive] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
@@ -44,27 +46,31 @@ export function ImageUploadWithPreview({
   }
 
   const uploadFile = async (file: File) => {
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      toast.error("El archivo seleccionado no es una imagen válida.")
+      return
+    }
+
+    // Validate size limit (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("La imagen excede el límite de tamaño de 5MB.")
+      return
+    }
+
+    if (onFileSelect) {
+      const localUrl = URL.createObjectURL(file)
+      setPreviewUrl(localUrl)
+      onChange(localUrl)
+      onFileSelect(file)
+      return
+    }
+
     setIsUploading(true)
     const localUrl = URL.createObjectURL(file)
     setPreviewUrl(localUrl) // Show local preview instantly
 
     try {
-      // Validate file type
-      if (!file.type.startsWith("image/")) {
-        toast.error("El archivo seleccionado no es una imagen válida.")
-        setPreviewUrl(value || "")
-        setIsUploading(false)
-        return
-      }
-
-      // Validate size limit (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error("La imagen excede el límite de tamaño de 5MB.")
-        setPreviewUrl(value || "")
-        setIsUploading(false)
-        return
-      }
-
       // Attempt to delete old image from R2 if one was present
       if (value) {
         try {
@@ -117,6 +123,12 @@ export function ImageUploadWithPreview({
     setPreviewUrl("")
     if (fileInputRef.current) {
       fileInputRef.current.value = ""
+    }
+
+    if (onFileSelect) {
+      // If we are in lazy upload mode, notify parent that file is removed
+      toast.success("Imagen removida")
+      return
     }
 
     if (oldUrl) {
