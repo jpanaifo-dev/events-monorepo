@@ -55,6 +55,8 @@ interface ParsedRow {
   firstName: string
   lastName: string
   email: string | null
+  identityDocumentType?: string | null
+  identityDocumentNumber?: string | null
   talkTitle: string
   bio: string
   roleName: string
@@ -101,6 +103,8 @@ export function EventSpeakersImportPage() {
       "Nombre",
       "Apellido",
       "Correo",
+      "Tipo Documento",
+      "Nro Documento",
       "Charla",
       "Bio",
       "Rol",
@@ -128,6 +132,8 @@ export function EventSpeakersImportPage() {
         sp.firstName,
         sp.lastName,
         sp.email || "",
+        sp.identityDocumentType || "",
+        sp.identityDocumentNumber || "",
         sp.talkTitle || "",
         sp.bio || "",
         roleName || "",
@@ -142,6 +148,8 @@ export function EventSpeakersImportPage() {
         "Juan",
         "Pérez",
         "juan.perez@ejemplo.com",
+        "DNI", // Tipo Documento
+        "12345678", // Nro Documento
         "Charla Magistral sobre IA",
         "Experto en aprendizaje profundo y desarrollo de agentes.",
         "Ponente",
@@ -186,6 +194,16 @@ export function EventSpeakersImportPage() {
         const idxNombre = headerRow.findIndex(h => h.includes("nombre") || h.includes("first"))
         const idxApellido = headerRow.findIndex(h => h.includes("apellido") || h.includes("last"))
         const idxCorreo = headerRow.findIndex(h => h.includes("correo") || h.includes("email"))
+        const idxTipoDoc = headerRow.findIndex(h => h.includes("tipo") || h.includes("type"))
+        const idxNroDoc = headerRow.findIndex(h =>
+          h.includes("nro") ||
+          h.includes("numero") ||
+          h.includes("número") ||
+          h.includes("dni") ||
+          h.includes("ruc") ||
+          h.includes("number") ||
+          (h.includes("documento") && !h.includes("tipo"))
+        )
         const idxCharla = headerRow.findIndex(h => h.includes("charla") || h.includes("titulo") || h.includes("título") || h.includes("ticket") || h.includes("charla"))
         const idxBio = headerRow.findIndex(h => h.includes("bio") || h.includes("biografía") || h.includes("biografia"))
         const idxRol = headerRow.findIndex(h => h.includes("rol") || h.includes("role"))
@@ -209,14 +227,30 @@ export function EventSpeakersImportPage() {
 
           const idVal = idxId !== -1 ? row[idxId]?.trim() : ""
           const correoVal = idxCorreo !== -1 ? row[idxCorreo]?.trim() : ""
+          const tipoDocVal = idxTipoDoc !== -1 ? row[idxTipoDoc]?.trim()?.toUpperCase() : ""
+          const nroDocVal = idxNroDoc !== -1 ? row[idxNroDoc]?.trim() : ""
           const charlaVal = idxCharla !== -1 ? row[idxCharla]?.trim() : ""
           const bioVal = idxBio !== -1 ? row[idxBio]?.trim() : ""
           const rolVal = idxRol !== -1 ? row[idxRol]?.trim() : ""
           const edicionVal = idxEdicion !== -1 ? row[idxEdicion]?.trim() : ""
 
           // Determine validation
-          const isValid = !!nombreVal && !!apellidoVal
-          const errorReason = isValid ? undefined : "Nombre y Apellido son obligatorios"
+          let rowIsValid = !!nombreVal && !!apellidoVal
+          let rowError = rowIsValid ? undefined : "Nombre y Apellido son obligatorios"
+
+          if (rowIsValid && tipoDocVal) {
+            const allowedTypes = ["DNI", "RUC", "OTRO"]
+            if (!allowedTypes.includes(tipoDocVal)) {
+              rowIsValid = false
+              rowError = "El tipo de documento debe ser DNI, RUC u OTRO"
+            } else if (!nroDocVal) {
+              rowIsValid = false
+              rowError = "El número de documento es requerido si se especifica el tipo"
+            }
+          } else if (rowIsValid && nroDocVal && !tipoDocVal) {
+            rowIsValid = false
+            rowError = "El tipo de documento es requerido si se especifica el número"
+          }
 
           // Check if exists
           let existingSpeaker = null
@@ -232,14 +266,16 @@ export function EventSpeakersImportPage() {
             firstName: nombreVal,
             lastName: apellidoVal,
             email: correoVal || null,
+            identityDocumentType: tipoDocVal || null,
+            identityDocumentNumber: nroDocVal || null,
             talkTitle: charlaVal,
             bio: bioVal,
             roleName: rolVal,
             editionName: edicionVal,
             isUpdate: !!existingSpeaker,
             matchedSpeakerName: existingSpeaker ? existingSpeaker.name : undefined,
-            isValid,
-            errorReason
+            isValid: rowIsValid,
+            errorReason: rowError
           })
         }
 
@@ -304,7 +340,9 @@ export function EventSpeakersImportPage() {
         talkTitle: r.talkTitle,
         bio: r.bio,
         roleName: r.roleName,
-        editionName: r.editionName
+        editionName: r.editionName,
+        identityDocumentType: r.identityDocumentType,
+        identityDocumentNumber: r.identityDocumentNumber
       }))
 
       const result = await bulkUpsertSpeakers(id, rowsToImport)
@@ -341,16 +379,17 @@ export function EventSpeakersImportPage() {
     <div className="space-y-6 animate-in fade-in duration-200">
       <PageHeader
         title="Importar Ponentes en Bloque"
+        description={event?.name || ""}
         showBackButton
         onBackClick={() => navigate(`/dashboard/events/${id}/speakers`)}
       />
 
       {!file ? (
         // Paso 1: Subir Archivo
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="flex flex-col gap-6">
 
           {/* Instrucciones */}
-          <div className="md:col-span-1 space-y-4 border border-border rounded-xl bg-card/10 p-6">
+          <div className="space-y-4 border border-border rounded-xl bg-card/10 p-6">
             <h4 className="text-sm font-bold flex items-center gap-2">
               <AlertCircle className="size-4 text-primary shrink-0" />
               <span>Instrucciones de Carga</span>
@@ -367,7 +406,7 @@ export function EventSpeakersImportPage() {
                 variant="outline"
                 size="sm"
                 onClick={handleExportTemplate}
-                className="w-full text-xs font-semibold flex items-center gap-1.5 justify-center"
+                className="w-full sm:w-auto text-xs font-semibold flex items-center gap-1.5 justify-center"
               >
                 <Download className="size-4" />
                 Descargar Plantilla CSV
@@ -376,14 +415,14 @@ export function EventSpeakersImportPage() {
           </div>
 
           {/* Area de Arrastre/Seleccion de Archivo */}
-          <div className="md:col-span-2">
+          <div className="w-full">
             <form
               onDragEnter={handleDrag}
               onSubmit={(e) => e.preventDefault()}
-              className="h-full"
+              className="w-full"
             >
               <div
-                className={`h-full border-2 border-dashed rounded-2xl flex flex-col items-center justify-center p-8 text-center transition-all ${dragActive
+                className={`min-h-[220px] border-2 border-dashed rounded-2xl flex flex-col items-center justify-center p-8 text-center transition-all ${dragActive
                   ? "border-primary bg-primary/[0.02]"
                   : "border-border hover:border-primary/50 bg-card/5"
                   }`}
@@ -458,6 +497,8 @@ export function EventSpeakersImportPage() {
                     <th className="p-3">Estado</th>
                     <th className="p-3">Nombre</th>
                     <th className="p-3">Correo</th>
+                    <th className="p-3">Tipo Doc</th>
+                    <th className="p-3">Nro Doc</th>
                     <th className="p-3">Charla</th>
                     <th className="p-3">Bio</th>
                     <th className="p-3">Rol</th>
@@ -472,7 +513,10 @@ export function EventSpeakersImportPage() {
                     >
                       <td className="p-3 whitespace-nowrap">
                         {!row.isValid ? (
-                          <span className="inline-flex items-center gap-1 text-destructive font-bold">
+                          <span
+                            className="inline-flex items-center gap-1 text-destructive font-bold cursor-help"
+                            title={row.errorReason}
+                          >
                             <AlertCircle className="size-3" />
                             Inválido
                           </span>
@@ -492,10 +536,19 @@ export function EventSpeakersImportPage() {
                         )}
                       </td>
                       <td className="p-3 font-semibold text-foreground">
-                        {row.firstName} {row.lastName}
+                        <div>{row.firstName} {row.lastName}</div>
+                        {!row.isValid && row.errorReason && (
+                          <div className="text-[10px] text-destructive font-normal mt-0.5 leading-tight">{row.errorReason}</div>
+                        )}
                       </td>
                       <td className="p-3 text-muted-foreground truncate max-w-[150px]">
                         {row.email || "-"}
+                      </td>
+                      <td className="p-3 text-muted-foreground whitespace-nowrap">
+                        {row.identityDocumentType || "-"}
+                      </td>
+                      <td className="p-3 text-muted-foreground whitespace-nowrap">
+                        {row.identityDocumentNumber || "-"}
                       </td>
                       <td className="p-3 text-muted-foreground truncate max-w-[150px]">
                         {row.talkTitle || "-"}
