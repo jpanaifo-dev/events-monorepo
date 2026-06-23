@@ -158,6 +158,7 @@ interface EventState {
   events: Event[]
   editions: Edition[]
   speakers: Speaker[]
+  speakersTotalCount: number
   agendaItems: AgendaItem[]
   attendees: Attendee[]
   roles: ParticipantRole[]
@@ -167,7 +168,8 @@ interface EventState {
 
   loadData: (organizationId: string, filters?: EventFilters) => Promise<void>
   loadRoles: (mainEventId: string) => Promise<void>
-  loadFilteredSpeakers: (eventId: string, filters?: { search?: string; editionId?: string }) => Promise<void>
+  loadFilteredSpeakers: (eventId: string, filters?: { search?: string; editionId?: string; page?: number; pageSize?: number }) => Promise<void>
+  fetchAllSpeakersForExport: (eventId: string, filters?: { search?: string; editionId?: string }) => Promise<Speaker[]>
   addRole: (role: Omit<ParticipantRole, "id" | "createdAt">) => Promise<void>
   updateRole: (id: string, updates: Partial<Omit<ParticipantRole, "id" | "createdAt">>) => Promise<void>
   deleteRole: (id: string) => Promise<void>
@@ -318,6 +320,7 @@ export const useEventStore = create<EventState>((set, get) => ({
   events: [],
   editions: [],
   speakers: [],
+  speakersTotalCount: 0,
   agendaItems: [],
   attendees: [],
   roles: [],
@@ -1120,7 +1123,6 @@ export const useEventStore = create<EventState>((set, get) => ({
   loadFilteredSpeakers: async (eventId, filters) => {
     set({ isLoading: true })
     try {
-      // Load event participant roles first to check slugs
       const { data: rolesData, error: rolesError } = await supabase
         .from("participant_roles")
         .select("*")
@@ -1145,18 +1147,48 @@ export const useEventStore = create<EventState>((set, get) => ({
         profileIds = (profiles || []).map((p) => p.id)
       }
 
-      // If search query is specified but yielded no matching profiles, we can return empty speakers for this event
       if (profileIds !== null && profileIds.length === 0) {
         set((state) => {
           const otherSpeakers = state.speakers.filter((s) => s.eventId !== eventId)
           return {
             speakers: otherSpeakers,
+            speakersTotalCount: 0,
             roles: formattedRoles,
             isLoading: false
           }
         })
         return
       }
+
+      if (speakerRoleIds.length === 0) {
+        set((state) => {
+          const otherSpeakers = state.speakers.filter((s) => s.eventId !== eventId)
+          return {
+            speakers: otherSpeakers,
+            speakersTotalCount: 0,
+            roles: formattedRoles,
+            isLoading: false
+          }
+        })
+        return
+      }
+
+      let countQuery = supabase
+        .from("event_participants")
+        .select("id", { count: "exact", head: true })
+        .eq("main_event_id", eventId)
+        .in("role_id", speakerRoleIds)
+
+      if (filters?.editionId && filters.editionId !== "all") {
+        countQuery = countQuery.eq("edition_id", filters.editionId)
+      }
+      if (profileIds !== null) {
+        countQuery = countQuery.in("profile_id", profileIds)
+      }
+
+      const { count, error: countError } = await countQuery
+      if (countError) throw countError
+      const totalCount = count || 0
 
       let query = supabase
         .from("event_participants")
@@ -1173,29 +1205,20 @@ export const useEventStore = create<EventState>((set, get) => ({
           )
         `)
         .eq("main_event_id", eventId)
-
-      if (speakerRoleIds.length > 0) {
-        query = query.in("role_id", speakerRoleIds)
-      } else {
-        // No speaker roles defined at all for this event, so return empty
-        set((state) => {
-          const otherSpeakers = state.speakers.filter((s) => s.eventId !== eventId)
-          return {
-            speakers: otherSpeakers,
-            roles: formattedRoles,
-            isLoading: false
-          }
-        })
-        return
-      }
+        .in("role_id", speakerRoleIds)
 
       if (filters?.editionId && filters.editionId !== "all") {
         query = query.eq("edition_id", filters.editionId)
       }
-
       if (profileIds !== null) {
         query = query.in("profile_id", profileIds)
       }
+
+      const page = filters?.page || 1
+      const pageSize = filters?.pageSize || 20
+      const from = (page - 1) * pageSize
+      const to = from + pageSize - 1
+      query = query.range(from, to)
 
       const { data: participantsData, error: participantsError } = await query
       if (participantsError) throw participantsError
@@ -1233,6 +1256,7 @@ export const useEventStore = create<EventState>((set, get) => ({
         const otherSpeakers = state.speakers.filter((s) => s.eventId !== eventId)
         return {
           speakers: [...otherSpeakers, ...formattedSpeakers],
+          speakersTotalCount: totalCount,
           roles: formattedRoles
         }
       })
@@ -1240,6 +1264,98 @@ export const useEventStore = create<EventState>((set, get) => ({
       console.error("Error loading filtered speakers:", e)
     } finally {
       set({ isLoading: false })
+    }
+  },
+
+  fetchAllSpeakersForExport: async (eventId, filters) => {
+    try {
+      const { data: rolesData, error: rolesError } = await supabase
+        .from("participant_roles")
+        .select("*")
+        .eq("main_event_id", eventId)
+
+      if (rolesError) throw rolesError
+
+      const formattedRoles = (rolesData || []).map(mapParticipantRole)
+      const speakerRoleIds = formattedRoles
+        .filter((r) => r.slug === "speaker" || r.slug === "keynote-speaker")
+        .map((r) => r.id)
+
+      let profileIds: string[] | null = null
+      if (filters?.search && filters.search.trim()) {
+        const searchVal = `%${filters.search.trim()}%`
+        const { data: profiles, error: profileError } = await supabase
+          .from("profiles")
+          .select("id")
+          .or(`first_name.ilike.${searchVal},last_name.ilike.${searchVal},email.ilike.${searchVal}`)
+
+        if (profileError) throw profileError
+        profileIds = (profiles || []).map((p) => p.id)
+      }
+
+      if (profileIds !== null && profileIds.length === 0) return []
+      if (speakerRoleIds.length === 0) return []
+
+      let query = supabase
+        .from("event_participants")
+        .select(`
+          id,
+          main_event_id,
+          edition_id,
+          role_id,
+          check_in_status,
+          ticket_reference,
+          created_at,
+          profile:profile_id (
+            id, first_name, last_name, email, avatar_url, bio
+          )
+        `)
+        .eq("main_event_id", eventId)
+        .in("role_id", speakerRoleIds)
+
+      if (filters?.editionId && filters.editionId !== "all") {
+        query = query.eq("edition_id", filters.editionId)
+      }
+      if (profileIds !== null) {
+        query = query.in("profile_id", profileIds)
+      }
+
+      const { data: participantsData, error: participantsError } = await query
+      if (participantsError) throw participantsError
+
+      const formattedSpeakers: Speaker[] = []
+      if (participantsData) {
+        participantsData.forEach((part: any) => {
+          const profile = part.profile || {}
+          const matchedRole = formattedRoles.find((r) => r.id === part.role_id)
+          const roleSlug = matchedRole?.slug || "attendee"
+          const roleId = part.role_id || ""
+          const fullName = `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || "Participante"
+
+          formattedSpeakers.push({
+            id: part.id,
+            eventId: part.main_event_id,
+            editionId: part.edition_id,
+            profileId: profile.id || "",
+            roleId: roleId,
+            roleSlug: roleSlug,
+            firstName: profile.first_name || "",
+            lastName: profile.last_name || "",
+            name: fullName,
+            email: profile.email || "",
+            avatar: profile.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fullName)}`,
+            talkTitle: part.ticket_reference || "",
+            talkDescription: profile.bio || "",
+            bio: profile.bio || "",
+            checkedIn: !!part.check_in_status,
+          })
+        })
+      }
+
+      return formattedSpeakers
+    } catch (e) {
+      console.error("Error fetching all speakers for export:", e)
+      return []
     }
   },
 

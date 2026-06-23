@@ -6,39 +6,6 @@ import { DataTable, type ColumnDef } from "@/components/ui/data-table"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 
-function parseCSV(text: string) {
-  const lines: string[][] = []
-  let row: string[] = [""]
-  let inQuotes = false
-
-  for (let i = 0; i < text.length; i++) {
-    const char = text[i]
-    const nextChar = text[i + 1]
-
-    if (char === '"') {
-      if (inQuotes && nextChar === '"') {
-        row[row.length - 1] += '"'
-        i++ // skip next quote
-      } else {
-        inQuotes = !inQuotes
-      }
-    } else if (char === ',' && !inQuotes) {
-      row.push("")
-    } else if ((char === '\r' || char === '\n') && !inQuotes) {
-      if (char === '\r' && nextChar === '\n') {
-        i++ // skip \n
-      }
-      lines.push(row)
-      row = [""]
-    } else {
-      row[row.length - 1] += char
-    }
-  }
-  if (row.length > 1 || row[0] !== "") {
-    lines.push(row)
-  }
-  return lines
-}
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import {
@@ -71,13 +38,14 @@ export function EventSpeakersSection() {
   const {
     events,
     speakers,
+    speakersTotalCount,
     roles,
     editions,
     deleteSpeaker,
     loadFilteredSpeakers,
     isLoading,
     toggleSpeakerCheckIn,
-    bulkUpsertSpeakers,
+    fetchAllSpeakersForExport,
   } = useEventStore()
 
   const event = events.find((e) => e.id === id)
@@ -87,6 +55,11 @@ export function EventSpeakersSection() {
   const searchQuery = searchParams.get("search") || ""
   const currentEdition = eventEditions.find((ed) => ed.isCurrent)
   const editionFilter = searchParams.get("edition") || currentEdition?.id || "all"
+
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize] = useState(20)
+  const [selectedSpeakerIds, setSelectedSpeakerIds] = useState<string[]>([])
+  const [selectAllDB, setSelectAllDB] = useState(false)
 
   const [localSearch, setLocalSearch] = useState(searchQuery)
 
@@ -99,6 +72,13 @@ export function EventSpeakersSection() {
   useEffect(() => {
     setLocalSearch(searchQuery)
   }, [searchQuery])
+
+  // Reset page and selection when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+    setSelectedSpeakerIds([])
+    setSelectAllDB(false)
+  }, [searchQuery, editionFilter])
 
   // Debounced search params updater
   const debouncedSearchUpdate = useDebouncedCallback((val: string) => {
@@ -131,15 +111,17 @@ export function EventSpeakersSection() {
     })
   }
 
-  // Load/fetch speakers from the backend whenever search params change
+  // Load/fetch speakers from the backend whenever search params or page changes
   useEffect(() => {
     if (id) {
       loadFilteredSpeakers(id, {
         search: searchQuery,
         editionId: editionFilter,
+        page: currentPage,
+        pageSize,
       })
     }
-  }, [id, searchQuery, editionFilter, loadFilteredSpeakers])
+  }, [id, searchQuery, editionFilter, currentPage, pageSize, loadFilteredSpeakers])
 
   const handleAddClick = () => {
     navigate(`/dashboard/events/${id}/speakers/new`)
@@ -149,9 +131,24 @@ export function EventSpeakersSection() {
     navigate(`/dashboard/events/${id}/speakers/${speakerId}/edit`)
   }
 
-  const [isImporting, setIsImporting] = useState(false)
+  const handleExportSelected = async () => {
+    let speakersToExport: any[] = []
 
-  const handleExportTemplate = () => {
+    if (selectAllDB) {
+      toast.info("Descargando la lista completa de ponentes de la base de datos...")
+      speakersToExport = await fetchAllSpeakersForExport(id!, {
+        search: searchQuery,
+        editionId: editionFilter,
+      })
+    } else {
+      speakersToExport = eventSpeakers.filter(sp => selectedSpeakerIds.includes(sp.id))
+    }
+
+    if (speakersToExport.length === 0) {
+      toast.error("No hay ponentes seleccionados para exportar.")
+      return
+    }
+
     const headers = [
       "ID",
       "Nombre",
@@ -174,7 +171,7 @@ export function EventSpeakersSection() {
 
     const csvRows = [headers.join(",")]
 
-    eventSpeakers.forEach((sp) => {
+    speakersToExport.forEach((sp) => {
       const roleObj = roles.find((r) => r.id === sp.roleId)
       const roleName = roleObj?.name.es || sp.roleSlug
       const editionName = editions.find((ed) => ed.id === sp.editionId)?.name || ""
@@ -192,134 +189,54 @@ export function EventSpeakersSection() {
       csvRows.push(row.map(escapeCSVField).join(","))
     })
 
-    if (eventSpeakers.length === 0) {
-      const sampleRow = [
-        "", // Leave blank for creation
-        "Juan",
-        "Pérez",
-        "juan.perez@ejemplo.com",
-        "Charla Magistral sobre IA",
-        "Experto en aprendizaje profundo y desarrollo de agentes.",
-        "Ponente",
-        currentEdition?.name || ""
-      ]
-      csvRows.push(sampleRow.map(escapeCSVField).join(","))
-    }
-
     const csvContent = "\uFEFF" + csvRows.join("\n")
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
     const url = URL.createObjectURL(blob)
     const link = document.createElement("a")
     link.setAttribute("href", url)
-    link.setAttribute("download", `plantilla_ponentes_${event?.slug || "evento"}.csv`)
+    link.setAttribute("download", `ponentes_seleccionados_${event?.slug || "evento"}.csv`)
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
-    toast.success("Plantilla de ponentes exportada con éxito")
-  }
-
-  const handleImportCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file || !id) return
-
-    setIsImporting(true)
-    const reader = new FileReader()
-
-    reader.onload = async (event) => {
-      const text = event.target?.result as string
-      if (!text) {
-        toast.error("El archivo está vacío o no se pudo leer.")
-        setIsImporting(false)
-        return
-      }
-
-      try {
-        const parsed = parseCSV(text)
-        if (parsed.length <= 1) {
-          toast.error("El archivo CSV no contiene registros de datos.")
-          setIsImporting(false)
-          return
-        }
-
-        const headerRow = parsed[0].map(h => h.trim().toLowerCase())
-        const idxId = headerRow.findIndex(h => h.includes("id"))
-        const idxNombre = headerRow.findIndex(h => h.includes("nombre") || h.includes("first"))
-        const idxApellido = headerRow.findIndex(h => h.includes("apellido") || h.includes("last"))
-        const idxCorreo = headerRow.findIndex(h => h.includes("correo") || h.includes("email"))
-        const idxCharla = headerRow.findIndex(h => h.includes("charla") || h.includes("titulo") || h.includes("título") || h.includes("ticket") || h.includes("charla"))
-        const idxBio = headerRow.findIndex(h => h.includes("bio") || h.includes("biografía") || h.includes("biografia"))
-        const idxRol = headerRow.findIndex(h => h.includes("rol") || h.includes("role"))
-        const idxEdicion = headerRow.findIndex(h => h.includes("edicion") || h.includes("edición") || h.includes("edition"))
-
-        if (idxNombre === -1 || idxApellido === -1) {
-          toast.error("No se encontraron las columnas requeridas 'Nombre' y/o 'Apellido'.")
-          setIsImporting(false)
-          return
-        }
-
-        const rowsToImport = []
-        for (let i = 1; i < parsed.length; i++) {
-          const row = parsed[i]
-          if (row.length === 0 || (row.length === 1 && row[0] === "")) continue
-
-          const nombreVal = idxNombre !== -1 ? row[idxNombre]?.trim() : ""
-          const apellidoVal = idxApellido !== -1 ? row[idxApellido]?.trim() : ""
-
-          if (!nombreVal && !apellidoVal) continue
-
-          const idVal = idxId !== -1 ? row[idxId]?.trim() : ""
-          const correoVal = idxCorreo !== -1 ? row[idxCorreo]?.trim() : ""
-          const charlaVal = idxCharla !== -1 ? row[idxCharla]?.trim() : ""
-          const bioVal = idxBio !== -1 ? row[idxBio]?.trim() : ""
-          const rolVal = idxRol !== -1 ? row[idxRol]?.trim() : ""
-          const edicionVal = idxEdicion !== -1 ? row[idxEdicion]?.trim() : ""
-
-          rowsToImport.push({
-            id: idVal || undefined,
-            firstName: nombreVal,
-            lastName: apellidoVal,
-            email: correoVal || null,
-            talkTitle: charlaVal,
-            bio: bioVal,
-            roleName: rolVal,
-            editionName: edicionVal
-          })
-        }
-
-        if (rowsToImport.length === 0) {
-          toast.error("No hay registros válidos para importar.")
-          setIsImporting(false)
-          return
-        }
-
-        toast.info(`Procesando la importación de ${rowsToImport.length} registros...`)
-
-        const result = await bulkUpsertSpeakers(id, rowsToImport)
-
-        if (result.errors.length > 0) {
-          console.error("Errors during bulk import:", result.errors)
-          toast.warning(
-            `Importación completada con observaciones. Creados: ${result.createdCount}, Actualizados: ${result.updatedCount}. Hubo ${result.errors.length} errores. Revisa la consola.`
-          )
-        } else {
-          toast.success(
-            `Importación completada con éxito. Creados: ${result.createdCount}, Actualizados: ${result.updatedCount}.`
-          )
-        }
-      } catch (err: any) {
-        console.error("Failed to parse or import CSV:", err)
-        toast.error(`Error al procesar el archivo: ${err.message || err}`)
-      } finally {
-        setIsImporting(false)
-        e.target.value = ""
-      }
-    }
-
-    reader.readAsText(file, "UTF-8")
+    toast.success(`Se han exportado ${speakersToExport.length} ponentes con éxito.`)
   }
 
   const columns: ColumnDef<any>[] = [
+    {
+      header: (
+        <input
+          type="checkbox"
+          checked={eventSpeakers.length > 0 && eventSpeakers.every(sp => selectedSpeakerIds.includes(sp.id))}
+          onChange={(e) => {
+            if (e.target.checked) {
+              setSelectedSpeakerIds(eventSpeakers.map(sp => sp.id))
+            } else {
+              setSelectedSpeakerIds([])
+              setSelectAllDB(false)
+            }
+          }}
+          className="rounded border-border text-primary focus:ring-primary size-4 cursor-pointer"
+        />
+      ),
+      className: "p-3 w-10 text-center",
+      headerClassName: "p-3 w-10 text-center",
+      cell: (sp) => (
+        <input
+          type="checkbox"
+          checked={selectedSpeakerIds.includes(sp.id)}
+          onChange={(e) => {
+            setSelectAllDB(false)
+            if (e.target.checked) {
+              setSelectedSpeakerIds(prev => [...prev, sp.id])
+            } else {
+              setSelectedSpeakerIds(prev => prev.filter(id => id !== sp.id))
+            }
+          }}
+          className="rounded border-border text-primary focus:ring-primary size-4 cursor-pointer"
+        />
+      )
+    },
     {
       header: "Ponente",
       className: "p-3",
@@ -486,33 +403,14 @@ export function EventSpeakersSection() {
         </div>
         <div className="flex items-center gap-2">
           <Button
-            onClick={handleExportTemplate}
+            onClick={() => navigate(`/dashboard/events/${id}/speakers/import`)}
             variant="outline"
             className="text-xs px-3 py-1.5 h-8 flex items-center gap-1.5 transition-all hover:bg-muted"
-            title="Exportar plantilla CSV con los ponentes actuales"
-          >
-            <Download className="size-4" />
-            <span className="hidden md:inline">Exportar Plantilla</span>
-          </Button>
-
-          <label
-            className={`cursor-pointer inline-flex items-center justify-center rounded-lg border border-input bg-background hover:bg-accent hover:text-accent-foreground text-xs font-semibold px-3 py-1.5 h-8 gap-1.5 transition-colors shadow-xs ${isImporting ? "opacity-50 pointer-events-none" : ""}`}
             title="Importar ponentes desde archivo CSV"
           >
-            {isImporting ? (
-              <Loader2 className="size-4 animate-spin text-primary" />
-            ) : (
-              <Upload className="size-4" />
-            )}
-            <span className="hidden md:inline">{isImporting ? "Importando..." : "Importar CSV"}</span>
-            <input
-              type="file"
-              accept=".csv"
-              onChange={handleImportCSV}
-              className="hidden"
-              disabled={isImporting}
-            />
-          </label>
+            <Upload className="size-4" />
+            <span className="hidden md:inline">Importar CSV</span>
+          </Button>
 
           <Button onClick={handleAddClick} className="text-xs px-3 py-1.5 h-8">
             <Plus className="size-4 mr-1.5" />
@@ -560,6 +458,55 @@ export function EventSpeakersSection() {
         )}
       </div>
 
+      {/* Selection Info Banner */}
+      {selectedSpeakerIds.length > 0 && (
+        <div className="bg-primary/[0.03] border border-primary/20 rounded-xl px-4 py-3 text-xs flex flex-col sm:flex-row items-center justify-between gap-3 animate-in fade-in duration-200">
+          <div className="text-muted-foreground text-center sm:text-left">
+            {selectAllDB ? (
+              <span>
+                Todos los <strong className="text-foreground">{speakersTotalCount}</strong> ponentes de este evento han sido seleccionados.
+              </span>
+            ) : (
+              <span>
+                Has seleccionado los <strong className="text-foreground">{selectedSpeakerIds.length}</strong> ponentes de esta página.
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            {!selectAllDB && speakersTotalCount > eventSpeakers.length && (
+              <Button
+                variant="link"
+                onClick={() => setSelectAllDB(true)}
+                className="h-auto p-0 font-bold text-primary hover:text-primary/80 text-xs"
+              >
+                Seleccionar los {speakersTotalCount} ponentes de este evento
+              </Button>
+            )}
+            {selectAllDB && (
+              <Button
+                variant="link"
+                onClick={() => {
+                  setSelectedSpeakerIds([])
+                  setSelectAllDB(false)
+                }}
+                className="h-auto p-0 font-bold text-destructive hover:text-destructive/80 text-xs"
+              >
+                Limpiar selección
+              </Button>
+            )}
+
+            <Button
+              onClick={handleExportSelected}
+              className="text-xs h-8 px-3 flex items-center gap-1.5 transition-all bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg shadow-sm"
+              title="Exportar ponentes seleccionados a un archivo CSV"
+            >
+              <Download className="size-3.5" />
+              <span>Exportar Seleccionados</span>
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Speakers List */}
       {eventSpeakers.length === 0 ? (
         <div className="p-12 text-center text-muted-foreground text-sm border border-dashed border-border rounded-xl bg-card/10 space-y-3">
@@ -578,7 +525,50 @@ export function EventSpeakersSection() {
           </div>
         </div>
       ) : (
-        <DataTable columns={columns} data={eventSpeakers} />
+        <div className="space-y-4">
+          <DataTable columns={columns} data={eventSpeakers} />
+
+          {/* Pagination Controls */}
+          {speakersTotalCount > pageSize && (
+            <div className="flex items-center justify-between border-t border-border pt-4 text-xs text-muted-foreground">
+              <div>
+                Mostrando <strong className="text-foreground">{eventSpeakers.length}</strong> de{" "}
+                <strong className="text-foreground">{speakersTotalCount}</strong> ponentes
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage <= 1}
+                  onClick={() => {
+                    setCurrentPage(prev => prev - 1)
+                    setSelectedSpeakerIds([])
+                    setSelectAllDB(false)
+                  }}
+                  className="text-xs h-8 px-2.5"
+                >
+                  Anterior
+                </Button>
+                <span className="px-2 font-medium">
+                  Página {currentPage} de {Math.ceil(speakersTotalCount / pageSize)}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage >= Math.ceil(speakersTotalCount / pageSize)}
+                  onClick={() => {
+                    setCurrentPage(prev => prev + 1)
+                    setSelectedSpeakerIds([])
+                    setSelectAllDB(false)
+                  }}
+                  className="text-xs h-8 px-2.5"
+                >
+                  Siguiente
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </div>
   )
