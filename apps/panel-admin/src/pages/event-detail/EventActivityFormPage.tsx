@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select"
 import { toast } from "sonner"
 import { useSEO } from "@/hooks/use-seo"
-import { Calendar, Clock, MapPin, Link2, User, Sliders, ArrowLeft } from "lucide-react"
+import { Calendar, Clock, MapPin, Link2, User, Sliders } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
 
 export function EventActivityFormPage() {
@@ -71,14 +71,14 @@ export function EventActivityFormPage() {
           .from("session_speakers")
           .select("session_id")
           .eq("participant_id", speakerId)
-        
+
         if (!pivotErr && pivots && pivots.length > 0) {
           const sessionIds = pivots.map((p) => p.session_id)
           const { data: sessions, error: sessionsErr } = await supabase
             .from("event_sessions")
             .select("*")
             .in("id", sessionIds)
-          
+
           if (!sessionsErr && sessions) {
             setSpeakerSessions(sessions)
           } else {
@@ -301,7 +301,7 @@ export function EventActivityFormPage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-200">
-      
+
       <PageHeader
         title={isEditMode ? "Editar Sesión" : "Nueva Sesión"}
         description="Define el cronograma, ubicación y modalidad de la actividad."
@@ -311,9 +311,9 @@ export function EventActivityFormPage() {
 
       <form onSubmit={handleSave} className="space-y-6">
         <div className="border border-border rounded-xl bg-card overflow-hidden">
-          
+
           <div className="p-6 space-y-6">
-            
+
             {/* Expositor / Ponente */}
             <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 border-b border-border/50 pb-6">
               <div className="md:w-1/3 space-y-1">
