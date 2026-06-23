@@ -181,11 +181,11 @@ export function CreateProfilePage() {
             <p style="font-size: 0.8em; color: #94a3b8; text-align: center;">Zynqro Events Platform</p>
           </div>
         `
-        try {
-          await sendEmailWithResend(email.trim(), emailSubject, emailHtml)
-        } catch (emailErr) {
-          console.error("Failed to send welcome email:", emailErr)
-          toast.error("El perfil y la cuenta se crearon, pero falló el envío del correo de credenciales.")
+        const emailResult = await sendEmailWithResend(email.trim(), emailSubject, emailHtml)
+        if (!emailResult.success) {
+          toast.warning(`Perfil y cuenta creados, pero el correo no se pudo enviar: ${emailResult.error || "API Key no configurada"}`)
+        } else {
+          toast.success("Perfil y cuenta creados con éxito, correo enviado.")
         }
 
         setCredentialsModal({

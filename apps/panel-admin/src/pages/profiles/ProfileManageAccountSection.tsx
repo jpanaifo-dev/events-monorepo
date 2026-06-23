@@ -132,7 +132,7 @@ export function ProfileManageAccountSection() {
           <p style="font-size: 0.8em; color: #94a3b8; text-align: center;">Zynqro Events Platform</p>
         </div>
       `
-      await sendEmailWithResend(originalEmail, emailSubject, emailHtml)
+      const emailResult = await sendEmailWithResend(originalEmail, emailSubject, emailHtml)
 
       // 6. Open UI Modal overlay so the administrator can copy details
       setCredentialsModal({
@@ -140,7 +140,11 @@ export function ProfileManageAccountSection() {
         password: generatedPassword,
       })
 
-      toast.success("Cuenta de autenticación creada con éxito")
+      if (!emailResult.success) {
+        toast.warning(`Cuenta de autenticación creada, pero el correo no se pudo enviar: ${emailResult.error || "API Key no configurada"}`)
+      } else {
+        toast.success("Cuenta de autenticación creada con éxito y correo enviado.")
+      }
     } catch (err: any) {
       console.error("Error creating auth account:", err)
       toast.error(err.message || "Ocurrió un error al registrar la cuenta en Supabase Auth.")
