@@ -37,6 +37,7 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog"
+import { toast } from "sonner"
 
 export function EditSpeakerPage() {
   const { eventId, speakerId } = useParams<{ eventId: string; speakerId: string }>()
@@ -531,7 +532,18 @@ export function EditSpeakerPage() {
               <div className="md:w-2/3 max-w-md w-full">
                 <ImageUploadWithPreview
                   value={avatar}
-                  onChange={setAvatar}
+                  onChange={async (newUrl) => {
+                    setAvatar(newUrl)
+                    if (speakerId) {
+                      try {
+                        await updateSpeaker(speakerId, { avatar: newUrl || "" })
+                        toast.success("Foto del ponente actualizada en la base de datos")
+                      } catch (err: any) {
+                        console.error("Failed to auto-update speaker avatar in DB:", err)
+                        toast.error("No se pudo actualizar la foto en la base de datos.")
+                      }
+                    }
+                  }}
                   label=""
                   folder={`events/${eventId}/speakers`}
                   identifier="avatar"
@@ -792,8 +804,8 @@ export function EditSpeakerPage() {
           <DialogHeader>
             <DialogTitle>{editingSession ? "Editar Tema de Ponencia" : "Asociar Tema de Ponencia"}</DialogTitle>
             <DialogDescription>
-              {editingSession 
-                ? "Modifica el título de la charla, las líneas temáticas asociadas y los recursos disponibles." 
+              {editingSession
+                ? "Modifica el título de la charla, las líneas temáticas asociadas y los recursos disponibles."
                 : "Crea una nueva sesión para este ponente en la edición actual."}
             </DialogDescription>
           </DialogHeader>

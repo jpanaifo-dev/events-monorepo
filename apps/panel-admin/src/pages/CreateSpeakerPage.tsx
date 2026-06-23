@@ -41,6 +41,7 @@ export function CreateSpeakerPage() {
   const [lastName, setLastName] = useState("")
   const [bio, setBio] = useState("")
   const [avatar, setAvatar] = useState("")
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [hasSession, setHasSession] = useState(false)
   const [createAccount, setCreateAccount] = useState(false)
   const [sessionTitle, setSessionTitle] = useState("")
@@ -172,6 +173,7 @@ export function CreateSpeakerPage() {
       talkTitle: hasSession ? sessionTitle.trim() : "",
       talkDescription: "",
       bio: bio.trim(),
+      avatarFile,
     }
 
     try {
@@ -377,7 +379,13 @@ export function CreateSpeakerPage() {
               <div className="md:w-2/3 max-w-md w-full">
                 <ImageUploadWithPreview
                   value={avatar}
-                  onChange={setAvatar}
+                  onChange={(newVal) => {
+                    setAvatar(newVal)
+                    if (!newVal) {
+                      setAvatarFile(null)
+                    }
+                  }}
+                  onFileSelect={setAvatarFile}
                   label=""
                   folder={`events/${eventId}/speakers`}
                   identifier="avatar"

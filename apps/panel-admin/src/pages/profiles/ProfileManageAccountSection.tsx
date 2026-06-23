@@ -13,6 +13,8 @@ import {
 import { useSEO } from "@/hooks/use-seo"
 import { Shield, Key, AlertTriangle, CheckCircle2, Copy, Check } from "lucide-react"
 import { createSessionlessClient } from "@/utils/supabase-sessionless"
+import { sendEmailWithResend } from "@/utils/resend"
+import { supabase } from "@/utils/supabase"
 
 // Helper to generate a strong random password
 function generateRandomPassword(length = 12) {
@@ -68,22 +70,21 @@ export function ProfileManageAccountSection() {
       setIsSubmitting(false)
     }
   }
-
   const handleCreateAuthAccount = async () => {
-    if (!profileId || !targetProfile) return
-    if (!targetProfile.email) {
-      toast.error("El perfil debe tener un correo electrónico asignado para crear una cuenta de acceso.")
-      return
-    }
+    if (!profileId || !targetProfile || !targetProfile.email) return
 
     setIsCreatingAccount(true)
     const generatedPassword = generateRandomPassword()
+    const originalEmail = targetProfile.email
 
     try {
-      // 1. Create Supabase Auth user session-lessly to avoid logging out the administrator
+      // 1. Temporarily clear the email in the public profiles table to bypass trigger unique constraint
+      await updateProfile(profileId, { email: null })
+
+      // 2. Create Supabase Auth user session-lessly to avoid logging out the administrator
       const tempClient = createSessionlessClient()
       const { data, error } = await tempClient.auth.signUp({
-        email: targetProfile.email,
+        email: originalEmail,
         password: generatedPassword,
         options: {
           data: {
@@ -93,47 +94,57 @@ export function ProfileManageAccountSection() {
         }
       })
 
-      if (error) throw error
-      if (!data.user) throw new Error("No se pudo obtener el usuario registrado en el sistema de autenticación.")
+      if (error) {
+        // Restore email if auth signup fails
+        await updateProfile(profileId, { email: originalEmail })
+        throw error
+      }
 
-      // 2. Link the authId (Supabase Auth UID) in the public.profiles database table
+      if (!data.user) {
+        await updateProfile(profileId, { email: originalEmail })
+        throw new Error("No se pudo obtener el usuario registrado en el sistema de autenticación.")
+      }
+
+      const newAuthId = data.user.id
+
+      // 3. Delete the profile automatically created by the Supabase Auth database trigger
+      await supabase.from("profiles").delete().eq("id", newAuthId)
+
+      // 4. Link the authId and restore the email in the original profile record
       await updateProfile(profileId, {
-        authId: data.user.id
+        authId: newAuthId,
+        email: originalEmail
       })
 
-      // 3. Simulate sending email by logging message contents to console
-      const emailSubject = "Tus credenciales de acceso a la plataforma"
-      const emailBody = `
-============================================================
-📧 SIMULACIÓN DE ENVÍO DE CORREO ELECTRÓNICO (CONSOLA)
-============================================================
-Para: ${targetProfile.email}
-Asunto: ${emailSubject}
-------------------------------------------------------------
-Hola ${targetProfile.firstName} ${targetProfile.lastName},
+      // 5. Send credentials email with Resend
+      const emailSubject = "Tus credenciales de acceso a la plataforma Zynqro"
+      const emailHtml = `
+        <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+          <h2 style="color: #e11d48;">¡Tu cuenta de Zynqro ha sido creada!</h2>
+          <p>Hola <strong>${targetProfile.firstName} ${targetProfile.lastName}</strong>,</p>
+          <p>Se ha configurado una cuenta de acceso para tu perfil en la plataforma.</p>
+          <div style="background-color: #f9f9f9; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #ddd;">
+            <p style="margin: 5px 0;"><strong>Usuario (Correo):</strong> ${originalEmail}</p>
+            <p style="margin: 5px 0;"><strong>Contraseña temporal:</strong> <code style="font-size: 1.1em; color: #1e293b; font-weight: bold; background: #e2e8f0; padding: 2px 6px; border-radius: 4px;">${generatedPassword}</code></p>
+          </div>
+          <p style="color: #64748b; font-size: 0.9em;">* Por razones de seguridad, te sugerimos ingresar a la plataforma y cambiar esta contraseña temporal a la mayor brevedad posible.</p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+          <p style="font-size: 0.8em; color: #94a3b8; text-align: center;">Zynqro Events Platform</p>
+        </div>
+      `
+      const emailResult = await sendEmailWithResend(originalEmail, emailSubject, emailHtml)
 
-Se ha creado tu cuenta de acceso a la plataforma de forma automática.
-
-Tus credenciales de ingreso son:
-- Usuario: ${targetProfile.email}
-- Contraseña temporal: ${generatedPassword}
-
-* Por motivos de seguridad, te recomendamos cambiar esta contraseña
-nada más iniciar sesión en tu panel de configuración.
-
-Atentamente,
-El equipo de administración de la plataforma.
-============================================================
-`
-      console.log(emailBody)
-
-      // 4. Open UI Modal overlay so the administrator can copy details
+      // 6. Open UI Modal overlay so the administrator can copy details
       setCredentialsModal({
-        email: targetProfile.email,
+        email: originalEmail,
         password: generatedPassword,
       })
 
-      toast.success("Cuenta de autenticación creada con éxito")
+      if (!emailResult.success) {
+        toast.warning(`Cuenta de autenticación creada, pero el correo no se pudo enviar: ${emailResult.error || "API Key no configurada"}`)
+      } else {
+        toast.success("Cuenta de autenticación creada con éxito y correo enviado.")
+      }
     } catch (err: any) {
       console.error("Error creating auth account:", err)
       toast.error(err.message || "Ocurrió un error al registrar la cuenta en Supabase Auth.")

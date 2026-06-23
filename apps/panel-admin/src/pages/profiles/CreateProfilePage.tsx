@@ -11,6 +11,9 @@ import { useSEO } from "@/hooks/use-seo"
 import { Switch } from "@/components/ui/switch"
 import { createSessionlessClient } from "@/utils/supabase-sessionless"
 import { CheckCircle2, AlertTriangle, Copy, Check } from "lucide-react"
+import { uploadToR2 } from "@/utils/r2-storage"
+import { supabase } from "@/utils/supabase"
+import { sendEmailWithResend } from "@/utils/resend"
 
 // Helper to generate a strong random password
 function generateRandomPassword(length = 12) {
@@ -24,7 +27,7 @@ function generateRandomPassword(length = 12) {
 
 export function CreateProfilePage() {
   const navigate = useNavigate()
-  const { createProfile } = useAdminProfilesStore()
+  const { createProfile, updateProfile } = useAdminProfilesStore()
 
   // Form states
   const [firstName, setFirstName] = useState("")
@@ -34,6 +37,7 @@ export function CreateProfilePage() {
   const [identityDocumentType, setIdentityDocumentType] = useState("")
   const [identityDocumentNumber, setIdentityDocumentNumber] = useState("")
   const [avatarUrl, setAvatarUrl] = useState("")
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [institution, setInstitution] = useState("")
   const [dedication, setDedication] = useState("")
   const [bio, setBio] = useState("")
@@ -120,14 +124,17 @@ export function CreateProfilePage() {
         if (authError) throw authError
         if (authData?.user) {
           linkedAuthId = authData.user.id
+          
+          // Delete the profile automatically created by the Supabase Auth database trigger
+          await supabase.from("profiles").delete().eq("id", linkedAuthId)
         }
       }
 
-      await createProfile({
+      const newProfileId = await createProfile({
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         email: email.trim() || null,
-        avatarUrl: avatarUrl.trim() || null,
+        avatarUrl: null, // Initially null, we will upload it after creation
         phone: phone.trim() || null,
         identityDocumentType: identityDocumentType || null,
         identityDocumentNumber: identityDocumentNumber.trim() || null,
@@ -139,34 +146,47 @@ export function CreateProfilePage() {
         authId: linkedAuthId,
       })
 
+      // If they selected a file to upload, upload it now
+      if (avatarFile) {
+        try {
+          const publicUrl = await uploadToR2(avatarFile, "avatars", newProfileId)
+          await updateProfile(newProfileId, { avatarUrl: publicUrl })
+        } catch (uploadErr) {
+          console.error("Delayed avatar upload failed:", uploadErr)
+          toast.error("El perfil se creó, pero no se pudo subir la foto de perfil.")
+        }
+      } else if (avatarUrl) {
+        // If they pasted a manual web URL (not a local blob URL)
+        if (!avatarUrl.startsWith("blob:")) {
+          await updateProfile(newProfileId, { avatarUrl })
+        }
+      }
+
       toast.success("Perfil registrado correctamente")
 
       if (createAccount) {
-        // Simulate sending email
-        const emailSubject = "Tus credenciales de acceso a la plataforma"
-        const emailBody = `
-============================================================
-📧 SIMULACIÓN DE ENVÍO DE CORREO ELECTRÓNICO (CONSOLA)
-============================================================
-Para: ${email.trim()}
-Asunto: ${emailSubject}
-------------------------------------------------------------
-Hola ${firstName.trim()} ${lastName.trim()},
-
-Se ha creado tu cuenta de acceso a la plataforma de forma automática.
-
-Tus credenciales de ingreso son:
-- Usuario: ${email.trim()}
-- Contraseña temporal: ${generatedPassword}
-
-* Por motivos de seguridad, te recomendamos cambiar esta contraseña
-nada más iniciar sesión en tu panel de configuración.
-
-Atentamente,
-El equipo de administración de la plataforma.
-============================================================
-`
-        console.log(emailBody)
+        // Send email with Resend
+        const emailSubject = "Tus credenciales de acceso a la plataforma Zynqro"
+        const emailHtml = `
+          <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+            <h2 style="color: #e11d48;">¡Tu cuenta de Zynqro ha sido creada!</h2>
+            <p>Hola <strong>${firstName.trim()} ${lastName.trim()}</strong>,</p>
+            <p>Se ha configurado una cuenta de acceso para tu perfil en la plataforma de forma automática.</p>
+            <div style="background-color: #f9f9f9; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #ddd;">
+              <p style="margin: 5px 0;"><strong>Usuario (Correo):</strong> ${email.trim()}</p>
+              <p style="margin: 5px 0;"><strong>Contraseña temporal:</strong> <code style="font-size: 1.1em; color: #1e293b; font-weight: bold; background: #e2e8f0; padding: 2px 6px; border-radius: 4px;">${generatedPassword}</code></p>
+            </div>
+            <p style="color: #64748b; font-size: 0.9em;">* Por razones de seguridad, te sugerimos ingresar a la plataforma y cambiar esta contraseña temporal a la mayor brevedad posible.</p>
+            <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+            <p style="font-size: 0.8em; color: #94a3b8; text-align: center;">Zynqro Events Platform</p>
+          </div>
+        `
+        const emailResult = await sendEmailWithResend(email.trim(), emailSubject, emailHtml)
+        if (!emailResult.success) {
+          toast.warning(`Perfil y cuenta creados, pero el correo no se pudo enviar: ${emailResult.error || "API Key no configurada"}`)
+        } else {
+          toast.success("Perfil y cuenta creados con éxito, correo enviado.")
+        }
 
         setCredentialsModal({
           email: email.trim(),
@@ -316,7 +336,13 @@ El equipo de administración de la plataforma.
               <div className="md:w-2/3 w-full">
                 <ImageUploadWithPreview
                   value={avatarUrl}
-                  onChange={setAvatarUrl}
+                  onChange={(newVal) => {
+                    setAvatarUrl(newVal)
+                    if (!newVal) {
+                      setAvatarFile(null)
+                    }
+                  }}
+                  onFileSelect={setAvatarFile}
                   label=""
                   folder="avatars"
                   identifier={`profile-${firstName}-${lastName}`}

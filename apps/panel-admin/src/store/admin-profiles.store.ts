@@ -225,6 +225,7 @@ export const useAdminProfilesStore = create<AdminProfilesState>((set) => ({
       if (updates.accountType !== undefined) dbUpdates.account_type = updates.accountType
       if (updates.globalRole !== undefined) dbUpdates.global_role = updates.globalRole
       if (updates.authId !== undefined) dbUpdates.auth_id = updates.authId
+      if (updates.email !== undefined) dbUpdates.email = updates.email
       dbUpdates.updated_at = new Date().toISOString()
 
       const { error } = await supabase.from("profiles").update(dbUpdates).eq("id", profileId)
