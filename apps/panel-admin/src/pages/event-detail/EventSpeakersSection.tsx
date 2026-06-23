@@ -6,6 +6,9 @@ import { DataTable, type ColumnDef } from "@/components/ui/data-table"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 
+// @ts-ignore
+import ExcelJS from "exceljs/dist/exceljs.min.js"
+
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import {
@@ -150,57 +153,99 @@ export function EventSpeakersSection() {
       return
     }
 
-    const headers = [
-      "ID",
-      "Nombre",
-      "Apellido",
-      "Correo",
-      "Charla",
-      "Bio",
-      "Rol",
-      "Edicion"
-    ]
+    try {
+      const workbook = new ExcelJS.Workbook()
+      const worksheet = workbook.addWorksheet("Ponentes")
 
-    const escapeCSVField = (val: string | null | undefined): string => {
-      if (val === null || val === undefined) return ""
-      const stringVal = String(val)
-      if (stringVal.includes(",") || stringVal.includes('"') || stringVal.includes("\n") || stringVal.includes("\r")) {
-        return `"${stringVal.replace(/"/g, '""')}"`
-      }
-      return stringVal
-    }
+      // Enable grid lines visibility
+      worksheet.views = [{ showGridLines: true }]
 
-    const csvRows = [headers.join(",")]
-
-    speakersToExport.forEach((sp) => {
-      const roleObj = roles.find((r) => r.id === sp.roleId)
-      const roleName = roleObj?.name.es || sp.roleSlug
-      const editionName = editions.find((ed) => ed.id === sp.editionId)?.name || ""
-
-      const row = [
-        sp.id,
-        sp.firstName,
-        sp.lastName,
-        sp.email || "",
-        sp.talkTitle || "",
-        sp.bio || "",
-        roleName || "",
-        editionName || ""
+      // Configure columns (Uppercase titles, moderate widths)
+      worksheet.columns = [
+        { header: "ID", key: "id", width: 12 },
+        { header: "NOMBRES", key: "firstName", width: 22 },
+        { header: "APELLIDOS", key: "lastName", width: 22 },
+        { header: "CORREO", key: "email", width: 28 },
+        { header: "TIPO DOCUMENTO", key: "identityDocumentType", width: 18 },
+        { header: "NRO DOCUMENTO", key: "identityDocumentNumber", width: 18 },
+        { header: "CHARLA", key: "talkTitle", width: 30 },
+        { header: "BIOGRAFÍA", key: "bio", width: 40 },
+        { header: "ROL", key: "role", width: 18 },
+        { header: "EDICIÓN", key: "edition", width: 18 }
       ]
-      csvRows.push(row.map(escapeCSVField).join(","))
-    })
 
-    const csvContent = "\uFEFF" + csvRows.join("\n")
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement("a")
-    link.setAttribute("href", url)
-    link.setAttribute("download", `ponentes_seleccionados_${event?.slug || "evento"}.csv`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-    toast.success(`Se han exportado ${speakersToExport.length} ponentes con éxito.`)
+      // Style Header Row: uppercase, custom height, colored background, white large font, centered
+      const headerRow = worksheet.getRow(1)
+      headerRow.height = 32
+      headerRow.eachCell((cell: any) => {
+        cell.font = {
+          name: "Arial",
+          size: 11,
+          bold: true,
+          color: { argb: "FFFFFFFF" }
+        }
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FF4F46E5" } // Slate violet / Indigo color
+        }
+        cell.alignment = {
+          vertical: "middle",
+          horizontal: "center",
+          wrapText: true
+        }
+      })
+
+      // Add data rows
+      speakersToExport.forEach((sp) => {
+        const roleObj = roles.find((r) => r.id === sp.roleId)
+        const roleName = roleObj?.name.es || sp.roleSlug
+        const editionName = editions.find((ed) => ed.id === sp.editionId)?.name || ""
+
+        const row = worksheet.addRow({
+          id: sp.id,
+          firstName: sp.firstName || "",
+          lastName: sp.lastName || "",
+          email: sp.email || "",
+          identityDocumentType: sp.identityDocumentType || "",
+          identityDocumentNumber: sp.identityDocumentNumber || "",
+          talkTitle: sp.talkTitle || "",
+          bio: sp.bio || "",
+          role: roleName || "",
+          edition: editionName || ""
+        })
+
+        row.height = 24
+        row.eachCell((cell: any, colNumber: number) => {
+          cell.font = {
+            name: "Arial",
+            size: 10
+          }
+          cell.alignment = {
+            vertical: "middle",
+            horizontal: (colNumber === 1 || colNumber === 5 || colNumber === 6) ? "center" : "left",
+            wrapText: true
+          }
+        })
+      })
+
+      // Write to buffer and trigger browser download
+      const buffer = await workbook.xlsx.writeBuffer()
+      const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.setAttribute("href", url)
+      link.setAttribute("download", `ponentes_seleccionados_${event?.slug || "evento"}.xlsx`)
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+
+      toast.success(`Se han exportado ${speakersToExport.length} ponentes con éxito.`)
+    } catch (error: any) {
+      console.error("Error exporting to Excel:", error)
+      toast.error(`Error al exportar a Excel: ${error.message || error}`)
+    }
   }
 
   const columns: ColumnDef<any>[] = [
