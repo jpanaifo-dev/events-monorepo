@@ -379,7 +379,7 @@ export function EventSpeakersImportPage() {
     <div className="space-y-6 animate-in fade-in duration-200">
       <PageHeader
         title="Importar Ponentes en Bloque"
-        description={event.name}
+        description={event?.name || ""}
         showBackButton
         onBackClick={() => navigate(`/dashboard/events/${id}/speakers`)}
       />
