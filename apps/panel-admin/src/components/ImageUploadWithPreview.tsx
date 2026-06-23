@@ -13,6 +13,9 @@ interface ImageUploadWithPreviewProps {
   folder?: string
   identifier?: string
   onFileSelect?: (file: File) => void
+  /** Llamado SOLO cuando el archivo se subió exitosamente a R2 (modo edición directa).
+   *  Recibe la URL pública de R2. Úsalo para persistir en BD automáticamente. */
+  onR2UploadComplete?: (publicUrl: string) => Promise<void>
 }
 
 export function ImageUploadWithPreview({
@@ -23,7 +26,8 @@ export function ImageUploadWithPreview({
   placeholder = "Arrastra y suelta una imagen aquí, o pega un enlace abajo",
   folder = "general",
   identifier = "file",
-  onFileSelect
+  onFileSelect,
+  onR2UploadComplete
 }: ImageUploadWithPreviewProps) {
   const [dragActive, setDragActive] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
@@ -83,8 +87,19 @@ export function ImageUploadWithPreview({
       // Upload to Cloudflare R2
       try {
         const publicUrl = await uploadToR2(file, folder, identifier)
+        // 1. Actualizar URL en el estado del padre
         onChange(publicUrl)
-        toast.success("Imagen subida exitosamente")
+        // 2. Si hay callback de auto-guardado en BD, invocarlo (modo edición)
+        if (onR2UploadComplete) {
+          try {
+            await onR2UploadComplete(publicUrl)
+          } catch (dbErr) {
+            console.error("onR2UploadComplete failed:", dbErr)
+            toast.error("La imagen se subió a R2 pero no se pudo guardar en la base de datos.")
+          }
+        } else {
+          toast.success("Imagen subida exitosamente")
+        }
       } catch (uploadErr: any) {
         console.error("R2 upload failed:", uploadErr)
         toast.error(`Error al subir la imagen a Cloudflare R2. Verifica que las credenciales y las reglas CORS estén configuradas en R2. Detalle: ${uploadErr.message || uploadErr}`)

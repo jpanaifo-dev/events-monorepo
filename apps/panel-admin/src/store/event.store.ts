@@ -158,6 +158,7 @@ interface EventState {
   events: Event[]
   editions: Edition[]
   speakers: Speaker[]
+  speakersTotalCount: number
   agendaItems: AgendaItem[]
   attendees: Attendee[]
   roles: ParticipantRole[]
@@ -167,7 +168,8 @@ interface EventState {
 
   loadData: (organizationId: string, filters?: EventFilters) => Promise<void>
   loadRoles: (mainEventId: string) => Promise<void>
-  loadFilteredSpeakers: (eventId: string, filters?: { search?: string; editionId?: string }) => Promise<void>
+  loadFilteredSpeakers: (eventId: string, filters?: { search?: string; editionId?: string; page?: number; pageSize?: number }) => Promise<void>
+  fetchAllSpeakersForExport: (eventId: string, filters?: { search?: string; editionId?: string }) => Promise<Speaker[]>
   addRole: (role: Omit<ParticipantRole, "id" | "createdAt">) => Promise<void>
   updateRole: (id: string, updates: Partial<Omit<ParticipantRole, "id" | "createdAt">>) => Promise<void>
   deleteRole: (id: string) => Promise<void>
@@ -182,8 +184,8 @@ interface EventState {
   updateTicket: (id: string, updates: Partial<Omit<EventTicket, "id" | "quantitySold" | "createdAt" | "updatedAt">>) => Promise<void>
   deleteTicket: (id: string) => Promise<void>
 
-  addEvent: (event: Omit<Event, "id" | "createdAt" | "updatedAt" | "ownerId" | "slug">) => Promise<string>
-  updateEvent: (id: string, updates: Partial<Event>) => Promise<void>
+  addEvent: (event: Omit<Event, "id" | "createdAt" | "updatedAt" | "ownerId" | "slug"> & { id?: string; coverFile?: File | null; logoFile?: File | null }) => Promise<string>
+  updateEvent: (id: string, updates: Partial<Event> & { coverFile?: File | null; logoFile?: File | null }) => Promise<void>
   deleteEvent: (id: string) => Promise<void>
 
   addEdition: (edition: Omit<Edition, "id" | "slug" | "year"> & { year?: number }) => Promise<void>
@@ -194,6 +196,16 @@ interface EventState {
   updateSpeaker: (id: string, updates: Partial<AddSpeakerInput>) => Promise<void>
   deleteSpeaker: (id: string) => Promise<void>
   toggleSpeakerCheckIn: (id: string) => Promise<void>
+  bulkUpsertSpeakers: (eventId: string, rows: {
+    id?: string
+    firstName: string
+    lastName: string
+    email: string | null
+    talkTitle: string
+    bio: string
+    roleName?: string
+    editionName?: string
+  }[]) => Promise<{ createdCount: number; updatedCount: number; errors: string[] }>
   addAgendaItem: (item: Omit<AgendaItem, "id">) => Promise<void>
   updateAgendaItem: (id: string, updates: Partial<AgendaItem>) => Promise<void>
   deleteAgendaItem: (id: string) => Promise<void>
@@ -308,6 +320,7 @@ export const useEventStore = create<EventState>((set, get) => ({
   events: [],
   editions: [],
   speakers: [],
+  speakersTotalCount: 0,
   agendaItems: [],
   attendees: [],
   roles: [],
@@ -519,34 +532,57 @@ export const useEventStore = create<EventState>((set, get) => ({
     const org = useAuthStore.getState().selectedOrganization
     if (!user || !org) throw new Error("No user or organization")
 
-    const id = crypto.randomUUID()
+    const id = eventData.id || crypto.randomUUID()
     const baseSlug = slugify(eventData.name)
     const slug = `${baseSlug}-${id.substring(0, 8)}`
 
+    const { coverFile, logoFile, ...restData } = eventData
+
+    let coverUrl = eventData.coverUrl || ""
+    let logoUrl = eventData.logoUrl || ""
+
     try {
+      if (coverFile) {
+        try {
+          coverUrl = await uploadToR2(coverFile, `events/${id}`, "cover")
+        } catch (uploadErr) {
+          console.error("Failed to upload event cover to R2:", uploadErr)
+        }
+      }
+
+      if (logoFile) {
+        try {
+          logoUrl = await uploadToR2(logoFile, `events/${id}`, "logo")
+        } catch (uploadErr) {
+          console.error("Failed to upload event logo to R2:", uploadErr)
+        }
+      }
+
       const { error } = await supabase.from("main_events").insert([{
         id,
         organization_id: org.id,
         owner_id: user.id,
         slug,
-        name: eventData.name,
-        short_description: eventData.shortDescription || null,
-        about: eventData.about || null,
-        logo_url: eventData.logoUrl || null,
-        cover_url: eventData.coverUrl || null,
-        brand_colors: eventData.brandColors || { primary: "#000000", secondary: "#ffffff" },
-        status: eventData.status || "draft",
-        is_active: eventData.isActive !== false,
-        website_url: eventData.websiteUrl || null,
-        contact_email: eventData.contactEmail || null,
-        social_links: eventData.socialLinks || { twitter: "", facebook: "", linkedin: "", instagram: "" },
-        settings: eventData.settings || {},
+        name: restData.name,
+        short_description: restData.shortDescription || null,
+        about: restData.about || null,
+        logo_url: logoUrl || null,
+        cover_url: coverUrl || null,
+        brand_colors: restData.brandColors || { primary: "#000000", secondary: "#ffffff" },
+        status: restData.status || "draft",
+        is_active: restData.isActive !== false,
+        website_url: restData.websiteUrl || null,
+        contact_email: restData.contactEmail || null,
+        social_links: restData.socialLinks || { twitter: "", facebook: "", linkedin: "", instagram: "" },
+        settings: restData.settings || {},
       }])
 
       if (error) throw error
 
       const newEvent: Event = {
-        ...eventData,
+        ...restData,
+        logoUrl,
+        coverUrl,
         id,
         organizationId: org.id,
         ownerId: user.id,
@@ -568,19 +604,38 @@ export const useEventStore = create<EventState>((set, get) => ({
 
   updateEvent: async (id, updates) => {
     try {
+      const { coverFile, logoFile, ...restUpdates } = updates
+      let coverUrl = updates.coverUrl
+      let logoUrl = updates.logoUrl
+
+      if (coverFile) {
+        try {
+          coverUrl = await uploadToR2(coverFile, `events/${id}`, "cover")
+        } catch (err) {
+          console.error("Failed to upload cover to R2:", err)
+        }
+      }
+      if (logoFile) {
+        try {
+          logoUrl = await uploadToR2(logoFile, `events/${id}`, "logo")
+        } catch (err) {
+          console.error("Failed to upload logo to R2:", err)
+        }
+      }
+
       const mappedUpdates: any = {}
-      if (updates.name !== undefined) mappedUpdates.name = updates.name
-      if (updates.shortDescription !== undefined) mappedUpdates.short_description = updates.shortDescription
-      if (updates.about !== undefined) mappedUpdates.about = updates.about
-      if (updates.logoUrl !== undefined) mappedUpdates.logo_url = updates.logoUrl
-      if (updates.coverUrl !== undefined) mappedUpdates.cover_url = updates.coverUrl
-      if (updates.brandColors !== undefined) mappedUpdates.brand_colors = updates.brandColors
-      if (updates.status !== undefined) mappedUpdates.status = updates.status
-      if (updates.isActive !== undefined) mappedUpdates.is_active = updates.isActive
-      if (updates.websiteUrl !== undefined) mappedUpdates.website_url = updates.websiteUrl
-      if (updates.contactEmail !== undefined) mappedUpdates.contact_email = updates.contactEmail
-      if (updates.socialLinks !== undefined) mappedUpdates.social_links = updates.socialLinks
-      if (updates.settings !== undefined) mappedUpdates.settings = updates.settings
+      if (restUpdates.name !== undefined) mappedUpdates.name = restUpdates.name
+      if (restUpdates.shortDescription !== undefined) mappedUpdates.short_description = restUpdates.shortDescription
+      if (restUpdates.about !== undefined) mappedUpdates.about = restUpdates.about
+      if (logoUrl !== undefined) mappedUpdates.logo_url = logoUrl
+      if (coverUrl !== undefined) mappedUpdates.cover_url = coverUrl
+      if (restUpdates.brandColors !== undefined) mappedUpdates.brand_colors = restUpdates.brandColors
+      if (restUpdates.status !== undefined) mappedUpdates.status = restUpdates.status
+      if (restUpdates.isActive !== undefined) mappedUpdates.is_active = restUpdates.isActive
+      if (restUpdates.websiteUrl !== undefined) mappedUpdates.website_url = restUpdates.websiteUrl
+      if (restUpdates.contactEmail !== undefined) mappedUpdates.contact_email = restUpdates.contactEmail
+      if (restUpdates.socialLinks !== undefined) mappedUpdates.social_links = restUpdates.socialLinks
+      if (restUpdates.settings !== undefined) mappedUpdates.settings = restUpdates.settings
       mappedUpdates.updated_at = new Date().toISOString()
 
       if (Object.keys(mappedUpdates).length > 1) {
@@ -589,7 +644,13 @@ export const useEventStore = create<EventState>((set, get) => ({
       }
 
       set((state) => ({
-        events: state.events.map((e) => e.id === id ? { ...e, ...updates, updatedAt: new Date().toISOString() } : e)
+        events: state.events.map((e) => e.id === id ? {
+          ...e,
+          ...restUpdates,
+          ...(logoUrl !== undefined ? { logoUrl } : {}),
+          ...(coverUrl !== undefined ? { coverUrl } : {}),
+          updatedAt: new Date().toISOString()
+        } : e)
       }))
     } catch (e) {
       console.error("Error updating event:", e)
@@ -1110,7 +1171,6 @@ export const useEventStore = create<EventState>((set, get) => ({
   loadFilteredSpeakers: async (eventId, filters) => {
     set({ isLoading: true })
     try {
-      // Load event participant roles first to check slugs
       const { data: rolesData, error: rolesError } = await supabase
         .from("participant_roles")
         .select("*")
@@ -1135,18 +1195,48 @@ export const useEventStore = create<EventState>((set, get) => ({
         profileIds = (profiles || []).map((p) => p.id)
       }
 
-      // If search query is specified but yielded no matching profiles, we can return empty speakers for this event
       if (profileIds !== null && profileIds.length === 0) {
         set((state) => {
           const otherSpeakers = state.speakers.filter((s) => s.eventId !== eventId)
           return {
             speakers: otherSpeakers,
+            speakersTotalCount: 0,
             roles: formattedRoles,
             isLoading: false
           }
         })
         return
       }
+
+      if (speakerRoleIds.length === 0) {
+        set((state) => {
+          const otherSpeakers = state.speakers.filter((s) => s.eventId !== eventId)
+          return {
+            speakers: otherSpeakers,
+            speakersTotalCount: 0,
+            roles: formattedRoles,
+            isLoading: false
+          }
+        })
+        return
+      }
+
+      let countQuery = supabase
+        .from("event_participants")
+        .select("id", { count: "exact", head: true })
+        .eq("main_event_id", eventId)
+        .in("role_id", speakerRoleIds)
+
+      if (filters?.editionId && filters.editionId !== "all") {
+        countQuery = countQuery.eq("edition_id", filters.editionId)
+      }
+      if (profileIds !== null) {
+        countQuery = countQuery.in("profile_id", profileIds)
+      }
+
+      const { count, error: countError } = await countQuery
+      if (countError) throw countError
+      const totalCount = count || 0
 
       let query = supabase
         .from("event_participants")
@@ -1163,29 +1253,20 @@ export const useEventStore = create<EventState>((set, get) => ({
           )
         `)
         .eq("main_event_id", eventId)
-
-      if (speakerRoleIds.length > 0) {
-        query = query.in("role_id", speakerRoleIds)
-      } else {
-        // No speaker roles defined at all for this event, so return empty
-        set((state) => {
-          const otherSpeakers = state.speakers.filter((s) => s.eventId !== eventId)
-          return {
-            speakers: otherSpeakers,
-            roles: formattedRoles,
-            isLoading: false
-          }
-        })
-        return
-      }
+        .in("role_id", speakerRoleIds)
 
       if (filters?.editionId && filters.editionId !== "all") {
         query = query.eq("edition_id", filters.editionId)
       }
-
       if (profileIds !== null) {
         query = query.in("profile_id", profileIds)
       }
+
+      const page = filters?.page || 1
+      const pageSize = filters?.pageSize || 20
+      const from = (page - 1) * pageSize
+      const to = from + pageSize - 1
+      query = query.range(from, to)
 
       const { data: participantsData, error: participantsError } = await query
       if (participantsError) throw participantsError
@@ -1223,6 +1304,7 @@ export const useEventStore = create<EventState>((set, get) => ({
         const otherSpeakers = state.speakers.filter((s) => s.eventId !== eventId)
         return {
           speakers: [...otherSpeakers, ...formattedSpeakers],
+          speakersTotalCount: totalCount,
           roles: formattedRoles
         }
       })
@@ -1230,6 +1312,98 @@ export const useEventStore = create<EventState>((set, get) => ({
       console.error("Error loading filtered speakers:", e)
     } finally {
       set({ isLoading: false })
+    }
+  },
+
+  fetchAllSpeakersForExport: async (eventId, filters) => {
+    try {
+      const { data: rolesData, error: rolesError } = await supabase
+        .from("participant_roles")
+        .select("*")
+        .eq("main_event_id", eventId)
+
+      if (rolesError) throw rolesError
+
+      const formattedRoles = (rolesData || []).map(mapParticipantRole)
+      const speakerRoleIds = formattedRoles
+        .filter((r) => r.slug === "speaker" || r.slug === "keynote-speaker")
+        .map((r) => r.id)
+
+      let profileIds: string[] | null = null
+      if (filters?.search && filters.search.trim()) {
+        const searchVal = `%${filters.search.trim()}%`
+        const { data: profiles, error: profileError } = await supabase
+          .from("profiles")
+          .select("id")
+          .or(`first_name.ilike.${searchVal},last_name.ilike.${searchVal},email.ilike.${searchVal}`)
+
+        if (profileError) throw profileError
+        profileIds = (profiles || []).map((p) => p.id)
+      }
+
+      if (profileIds !== null && profileIds.length === 0) return []
+      if (speakerRoleIds.length === 0) return []
+
+      let query = supabase
+        .from("event_participants")
+        .select(`
+          id,
+          main_event_id,
+          edition_id,
+          role_id,
+          check_in_status,
+          ticket_reference,
+          created_at,
+          profile:profile_id (
+            id, first_name, last_name, email, avatar_url, bio
+          )
+        `)
+        .eq("main_event_id", eventId)
+        .in("role_id", speakerRoleIds)
+
+      if (filters?.editionId && filters.editionId !== "all") {
+        query = query.eq("edition_id", filters.editionId)
+      }
+      if (profileIds !== null) {
+        query = query.in("profile_id", profileIds)
+      }
+
+      const { data: participantsData, error: participantsError } = await query
+      if (participantsError) throw participantsError
+
+      const formattedSpeakers: Speaker[] = []
+      if (participantsData) {
+        participantsData.forEach((part: any) => {
+          const profile = part.profile || {}
+          const matchedRole = formattedRoles.find((r) => r.id === part.role_id)
+          const roleSlug = matchedRole?.slug || "attendee"
+          const roleId = part.role_id || ""
+          const fullName = `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || "Participante"
+
+          formattedSpeakers.push({
+            id: part.id,
+            eventId: part.main_event_id,
+            editionId: part.edition_id,
+            profileId: profile.id || "",
+            roleId: roleId,
+            roleSlug: roleSlug,
+            firstName: profile.first_name || "",
+            lastName: profile.last_name || "",
+            name: fullName,
+            email: profile.email || "",
+            avatar: profile.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fullName)}`,
+            talkTitle: part.ticket_reference || "",
+            talkDescription: profile.bio || "",
+            bio: profile.bio || "",
+            checkedIn: !!part.check_in_status,
+          })
+        })
+      }
+
+      return formattedSpeakers
+    } catch (e) {
+      console.error("Error fetching all speakers for export:", e)
+      return []
     }
   },
 
@@ -1570,5 +1744,109 @@ export const useEventStore = create<EventState>((set, get) => ({
     } catch (e) {
       console.error("Error toggling speaker check-in:", e)
     }
+  },
+
+  bulkUpsertSpeakers: async (eventId, rows) => {
+    let currentRoles = get().roles
+    if (currentRoles.length === 0) {
+      const { data } = await supabase.from("participant_roles").select("*").eq("main_event_id", eventId)
+      if (data) {
+        currentRoles = data.map(mapParticipantRole)
+      }
+    }
+    let currentEditions = get().editions.filter(ed => ed.mainEventId === eventId)
+    if (currentEditions.length === 0) {
+      const { data } = await supabase.from("event_editions").select("*").eq("main_event_id", eventId)
+      if (data) {
+        currentEditions = data.map(mapEdition)
+      }
+    }
+
+    let createdCount = 0
+    let updatedCount = 0
+    const errors: string[] = []
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i]
+      try {
+        if (!row.firstName || !row.lastName) {
+          errors.push(`Fila ${i + 2}: Nombre y Apellido son requeridos.`)
+          continue
+        }
+
+        // Find role ID
+        let roleId = ""
+        if (row.roleName) {
+          const matchedRole = currentRoles.find(r => 
+            r.name.es?.toLowerCase() === row.roleName?.toLowerCase() ||
+            r.name.en?.toLowerCase() === row.roleName?.toLowerCase() ||
+            r.slug?.toLowerCase() === row.roleName?.toLowerCase()
+          )
+          if (matchedRole) roleId = matchedRole.id
+        }
+        if (!roleId) {
+          const defaultRole = currentRoles.find(r => r.slug === "speaker" || r.slug === "keynote-speaker") || currentRoles[0]
+          roleId = defaultRole?.id || ""
+        }
+
+        // Find edition ID
+        let editionId: string | null = null
+        if (row.editionName) {
+          const matchedEd = currentEditions.find(ed => ed.name.toLowerCase() === row.editionName?.toLowerCase())
+          if (matchedEd) editionId = matchedEd.id
+        }
+        if (!editionId) {
+          const currentEd = currentEditions.find(ed => ed.isCurrent) || currentEditions[0]
+          editionId = currentEd?.id || null
+        }
+
+        // Determine if speaker already exists in event
+        let existingSpeaker = null
+        if (row.id) {
+          existingSpeaker = get().speakers.find(s => s.id === row.id)
+        }
+        if (!existingSpeaker && row.email) {
+          existingSpeaker = get().speakers.find(s => s.eventId === eventId && s.email?.toLowerCase() === row.email?.toLowerCase())
+        }
+
+        if (existingSpeaker) {
+          // Update speaker
+          await get().updateSpeaker(existingSpeaker.id, {
+            firstName: row.firstName,
+            lastName: row.lastName,
+            email: row.email,
+            talkTitle: row.talkTitle,
+            bio: row.bio,
+            roleId,
+            editionId: editionId || undefined,
+          })
+          updatedCount++
+        } else {
+          // Insert speaker
+          await get().addSpeaker({
+            eventId,
+            editionId: editionId || "",
+            profileId: null,
+            roleId,
+            firstName: row.firstName,
+            lastName: row.lastName,
+            email: row.email,
+            avatar: "",
+            talkTitle: row.talkTitle,
+            talkDescription: row.bio,
+            bio: row.bio,
+          })
+          createdCount++
+        }
+      } catch (err: any) {
+        console.error(`Error processing row ${i + 2}:`, err)
+        errors.push(`Fila ${i + 2} (${row.firstName} ${row.lastName}): ${err.message || err}`)
+      }
+    }
+
+    // Refresh speakers in local state
+    await get().loadFilteredSpeakers(eventId)
+
+    return { createdCount, updatedCount, errors }
   }
 }))

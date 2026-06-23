@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react"
 import { useParams, useNavigate, useSearchParams } from "react-router-dom"
 import { useEventStore } from "@/store/event.store"
-import { Plus, Edit, Trash2, Globe, Layers, BookOpen, Search, Loader2, UserCheck, Check } from "lucide-react"
+import { Plus, Edit, Trash2, Globe, Layers, BookOpen, Search, Loader2, UserCheck, Check, Download, Upload } from "lucide-react"
 import { DataTable, type ColumnDef } from "@/components/ui/data-table"
 import { Button } from "@/components/ui/button"
+import { toast } from "sonner"
+
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import {
@@ -27,6 +29,7 @@ import {
 import { useDebouncedCallback } from "use-debounce"
 
 import { useSEO } from "@/hooks/use-seo"
+import { PageHeader } from "@/components/page-header"
 
 export function EventSpeakersSection() {
   const { id } = useParams<{ id: string }>()
@@ -36,12 +39,14 @@ export function EventSpeakersSection() {
   const {
     events,
     speakers,
+    speakersTotalCount,
     roles,
     editions,
     deleteSpeaker,
     loadFilteredSpeakers,
     isLoading,
     toggleSpeakerCheckIn,
+    fetchAllSpeakersForExport,
   } = useEventStore()
 
   const event = events.find((e) => e.id === id)
@@ -51,6 +56,11 @@ export function EventSpeakersSection() {
   const searchQuery = searchParams.get("search") || ""
   const currentEdition = eventEditions.find((ed) => ed.isCurrent)
   const editionFilter = searchParams.get("edition") || currentEdition?.id || "all"
+
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize] = useState(20)
+  const [selectedSpeakerIds, setSelectedSpeakerIds] = useState<string[]>([])
+  const [selectAllDB, setSelectAllDB] = useState(false)
 
   const [localSearch, setLocalSearch] = useState(searchQuery)
 
@@ -63,6 +73,13 @@ export function EventSpeakersSection() {
   useEffect(() => {
     setLocalSearch(searchQuery)
   }, [searchQuery])
+
+  // Reset page and selection when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+    setSelectedSpeakerIds([])
+    setSelectAllDB(false)
+  }, [searchQuery, editionFilter])
 
   // Debounced search params updater
   const debouncedSearchUpdate = useDebouncedCallback((val: string) => {
@@ -95,15 +112,17 @@ export function EventSpeakersSection() {
     })
   }
 
-  // Load/fetch speakers from the backend whenever search params change
+  // Load/fetch speakers from the backend whenever search params or page changes
   useEffect(() => {
     if (id) {
       loadFilteredSpeakers(id, {
         search: searchQuery,
         editionId: editionFilter,
+        page: currentPage,
+        pageSize,
       })
     }
-  }, [id, searchQuery, editionFilter, loadFilteredSpeakers])
+  }, [id, searchQuery, editionFilter, currentPage, pageSize, loadFilteredSpeakers])
 
   const handleAddClick = () => {
     navigate(`/dashboard/events/${id}/speakers/new`)
@@ -113,7 +132,112 @@ export function EventSpeakersSection() {
     navigate(`/dashboard/events/${id}/speakers/${speakerId}/edit`)
   }
 
+  const handleExportSelected = async () => {
+    let speakersToExport: any[] = []
+
+    if (selectAllDB) {
+      toast.info("Descargando la lista completa de ponentes de la base de datos...")
+      speakersToExport = await fetchAllSpeakersForExport(id!, {
+        search: searchQuery,
+        editionId: editionFilter,
+      })
+    } else {
+      speakersToExport = eventSpeakers.filter(sp => selectedSpeakerIds.includes(sp.id))
+    }
+
+    if (speakersToExport.length === 0) {
+      toast.error("No hay ponentes seleccionados para exportar.")
+      return
+    }
+
+    const headers = [
+      "ID",
+      "Nombre",
+      "Apellido",
+      "Correo",
+      "Charla",
+      "Bio",
+      "Rol",
+      "Edicion"
+    ]
+
+    const escapeCSVField = (val: string | null | undefined): string => {
+      if (val === null || val === undefined) return ""
+      const stringVal = String(val)
+      if (stringVal.includes(",") || stringVal.includes('"') || stringVal.includes("\n") || stringVal.includes("\r")) {
+        return `"${stringVal.replace(/"/g, '""')}"`
+      }
+      return stringVal
+    }
+
+    const csvRows = [headers.join(",")]
+
+    speakersToExport.forEach((sp) => {
+      const roleObj = roles.find((r) => r.id === sp.roleId)
+      const roleName = roleObj?.name.es || sp.roleSlug
+      const editionName = editions.find((ed) => ed.id === sp.editionId)?.name || ""
+
+      const row = [
+        sp.id,
+        sp.firstName,
+        sp.lastName,
+        sp.email || "",
+        sp.talkTitle || "",
+        sp.bio || "",
+        roleName || "",
+        editionName || ""
+      ]
+      csvRows.push(row.map(escapeCSVField).join(","))
+    })
+
+    const csvContent = "\uFEFF" + csvRows.join("\n")
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.setAttribute("href", url)
+    link.setAttribute("download", `ponentes_seleccionados_${event?.slug || "evento"}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+    toast.success(`Se han exportado ${speakersToExport.length} ponentes con éxito.`)
+  }
+
   const columns: ColumnDef<any>[] = [
+    {
+      header: (
+        <input
+          type="checkbox"
+          checked={eventSpeakers.length > 0 && eventSpeakers.every(sp => selectedSpeakerIds.includes(sp.id))}
+          onChange={(e) => {
+            if (e.target.checked) {
+              setSelectedSpeakerIds(eventSpeakers.map(sp => sp.id))
+            } else {
+              setSelectedSpeakerIds([])
+              setSelectAllDB(false)
+            }
+          }}
+          className="rounded border-border text-primary focus:ring-primary size-4 cursor-pointer"
+        />
+      ),
+      className: "p-3 w-10 text-center",
+      headerClassName: "p-3 w-10 text-center",
+      cell: (sp) => (
+        <input
+          type="checkbox"
+          checked={selectedSpeakerIds.includes(sp.id)}
+          onChange={(e) => {
+            setSelectAllDB(false)
+            if (e.target.checked) {
+              setSelectedSpeakerIds(prev => [...prev, sp.id])
+            } else {
+              setSelectedSpeakerIds(prev => prev.filter(id => id !== sp.id))
+            }
+          }}
+          className="rounded border-border text-primary focus:ring-primary size-4 cursor-pointer"
+        />
+      )
+    },
     {
       header: "Ponente",
       className: "p-3",
@@ -270,19 +394,28 @@ export function EventSpeakersSection() {
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
 
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-border pb-3">
-        <div>
-          <h3 className="text-lg font-bold">Ponentes</h3>
-          <p className="text-xs text-muted-foreground">
-            Gestiona los expositores de charlas, conferencias y talleres.
-          </p>
-        </div>
-        <Button onClick={handleAddClick} className="text-xs px-3 py-1.5 h-8">
-          <Plus className="size-4 mr-1.5" />
-          Agregar Ponente
-        </Button>
-      </div>
+      <PageHeader
+        title="Ponentes"
+        description="Gestiona los expositores de charlas, conferencias y talleres."
+        actionButton={
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => navigate(`/dashboard/events/${id}/speakers/import`)}
+              variant="outline"
+              className="text-xs px-3 py-1.5 h-8 flex items-center gap-1.5 transition-all hover:bg-muted"
+              title="Importar ponentes desde archivo CSV"
+            >
+              <Upload className="size-4" />
+              <span className="hidden md:inline">Importar CSV</span>
+            </Button>
+
+            <Button onClick={handleAddClick} className="text-xs px-3 py-1.5 h-8">
+              <Plus className="size-4 mr-1.5" />
+              Agregar Ponente
+            </Button>
+          </div>
+        }
+      />
 
       {/* Filters Row */}
       <div className="flex flex-col sm:flex-row gap-3 items-center">
@@ -323,6 +456,55 @@ export function EventSpeakersSection() {
         )}
       </div>
 
+      {/* Selection Info Banner */}
+      {selectedSpeakerIds.length > 0 && (
+        <div className="bg-primary/[0.03] border border-primary/20 rounded-xl px-4 py-3 text-xs flex flex-col sm:flex-row items-center justify-between gap-3 animate-in fade-in duration-200">
+          <div className="text-muted-foreground text-center sm:text-left">
+            {selectAllDB ? (
+              <span>
+                Todos los <strong className="text-foreground">{speakersTotalCount}</strong> ponentes de este evento han sido seleccionados.
+              </span>
+            ) : (
+              <span>
+                Has seleccionado los <strong className="text-foreground">{selectedSpeakerIds.length}</strong> ponentes de esta página.
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            {!selectAllDB && speakersTotalCount > eventSpeakers.length && (
+              <Button
+                variant="link"
+                onClick={() => setSelectAllDB(true)}
+                className="h-auto p-0 font-bold text-primary hover:text-primary/80 text-xs"
+              >
+                Seleccionar los {speakersTotalCount} ponentes de este evento
+              </Button>
+            )}
+            {selectAllDB && (
+              <Button
+                variant="link"
+                onClick={() => {
+                  setSelectedSpeakerIds([])
+                  setSelectAllDB(false)
+                }}
+                className="h-auto p-0 font-bold text-destructive hover:text-destructive/80 text-xs"
+              >
+                Limpiar selección
+              </Button>
+            )}
+
+            <Button
+              onClick={handleExportSelected}
+              className="text-xs h-8 px-3 flex items-center gap-1.5 transition-all bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg shadow-sm"
+              title="Exportar ponentes seleccionados a un archivo CSV"
+            >
+              <Download className="size-3.5" />
+              <span>Exportar Seleccionados</span>
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Speakers List */}
       {eventSpeakers.length === 0 ? (
         <div className="p-12 text-center text-muted-foreground text-sm border border-dashed border-border rounded-xl bg-card/10 space-y-3">
@@ -341,7 +523,50 @@ export function EventSpeakersSection() {
           </div>
         </div>
       ) : (
-        <DataTable columns={columns} data={eventSpeakers} />
+        <div className="space-y-4">
+          <DataTable columns={columns} data={eventSpeakers} />
+
+          {/* Pagination Controls */}
+          {speakersTotalCount > pageSize && (
+            <div className="flex items-center justify-between border-t border-border pt-4 text-xs text-muted-foreground">
+              <div>
+                Mostrando <strong className="text-foreground">{eventSpeakers.length}</strong> de{" "}
+                <strong className="text-foreground">{speakersTotalCount}</strong> ponentes
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage <= 1}
+                  onClick={() => {
+                    setCurrentPage(prev => prev - 1)
+                    setSelectedSpeakerIds([])
+                    setSelectAllDB(false)
+                  }}
+                  className="text-xs h-8 px-2.5"
+                >
+                  Anterior
+                </Button>
+                <span className="px-2 font-medium">
+                  Página {currentPage} de {Math.ceil(speakersTotalCount / pageSize)}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage >= Math.ceil(speakersTotalCount / pageSize)}
+                  onClick={() => {
+                    setCurrentPage(prev => prev + 1)
+                    setSelectedSpeakerIds([])
+                    setSelectAllDB(false)
+                  }}
+                  className="text-xs h-8 px-2.5"
+                >
+                  Siguiente
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </div>
   )

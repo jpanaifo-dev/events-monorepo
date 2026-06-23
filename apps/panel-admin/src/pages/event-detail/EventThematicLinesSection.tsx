@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/alert-dialog"
 
 import { useSEO } from "@/hooks/use-seo"
+import { PageHeader } from "@/components/page-header"
 
 const PRESETS_COLORS = [
   { name: "Azul", hex: "#3b82f6" },
@@ -328,39 +329,36 @@ export function EventThematicLinesSection() {
   return (
     <div className="space-y-8 animate-in fade-in duration-200">
 
-      {/* Title, Filters & Add Button */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-4">
-        <div>
-          <h3 className="text-lg font-bold">Líneas Temáticas</h3>
-          <p className="text-xs text-muted-foreground">
-            Gestiona los ejes temáticos y temas de interés del contenido científico u operativo de tu evento.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground font-medium whitespace-nowrap">Filtrar por:</span>
-            <Select value={selectedEditionFilter} onValueChange={setSelectedEditionFilter}>
-              <SelectTrigger className="w-[180px] h-8 text-xs">
-                <SelectValue placeholder="Seleccionar edición" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas las ediciones</SelectItem>
-                <SelectItem value="global">Global (Sin edición)</SelectItem>
-                {eventEditions.map((ed) => (
-                  <SelectItem key={ed.id} value={ed.id}>
-                    {ed.name} {ed.isCurrent ? "— [Actual]" : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+      <PageHeader
+        title="Líneas Temáticas"
+        description="Gestiona los ejes temáticos y temas de interés del contenido científico u operativo de tu evento."
+        actionButton={
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 bg-muted/20 border border-border/60 px-3 py-1 rounded-lg h-9">
+              <span className="text-xs text-muted-foreground font-medium whitespace-nowrap">Filtrar por:</span>
+              <Select value={selectedEditionFilter} onValueChange={setSelectedEditionFilter}>
+                <SelectTrigger className="w-[180px] h-7 text-xs border-none bg-transparent shadow-none focus:ring-0 p-0 pr-2 cursor-pointer">
+                  <SelectValue placeholder="Seleccionar edición" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas las ediciones</SelectItem>
+                  <SelectItem value="global">Global (Sin edición)</SelectItem>
+                  {eventEditions.map((ed) => (
+                    <SelectItem key={ed.id} value={ed.id}>
+                      {ed.name} {ed.isCurrent ? "— [Actual]" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          <Button onClick={openCreate} className="text-xs px-3 py-1.5 h-8">
-            <Plus className="size-4 mr-1.5" />
-            Nueva Línea Temática
-          </Button>
-        </div>
-      </div>
+            <Button onClick={openCreate} className="text-xs px-3 py-1.5 h-8">
+              <Plus className="size-4 mr-1.5" />
+              Nueva Línea Temática
+            </Button>
+          </div>
+        }
+      />
 
       {/* Table list of thematic lines */}
       {filteredLines.length === 0 ? (
