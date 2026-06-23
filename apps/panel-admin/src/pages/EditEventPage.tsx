@@ -15,6 +15,8 @@ export function EditEventPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { events, updateEvent, deleteEvent } = useEventStore()
+  const [isAutoSavingCover, setIsAutoSavingCover] = useState(false)
+  const [isAutoSavingLogo, setIsAutoSavingLogo] = useState(false)
 
   const event = events.find((e) => e.id === id)
 
@@ -28,8 +30,7 @@ export function EditEventPage() {
   const [about, setAbout] = useState("")
   const [coverUrl, setCoverUrl] = useState("")
   const [logoUrl, setLogoUrl] = useState("")
-  const [coverFile, setCoverFile] = useState<File | null>(null)
-  const [logoFile, setLogoFile] = useState<File | null>(null)
+  // No se necesita coverFile/logoFile en edición, la subida es automática al seleccionar
   const [status, setStatus] = useState<"draft" | "published" | "archived">("draft")
   const [isActive, setIsActive] = useState(true)
   const [websiteUrl, setWebsiteUrl] = useState("")
@@ -100,6 +101,8 @@ export function EditEventPage() {
 
     setIsSubmitting(true)
     try {
+      // Images are already saved to R2 and DB automatically when changed.
+      // We only need to persist the text fields here.
       await updateEvent(id, {
         name: name.trim(),
         shortDescription: shortDescription.trim(),
@@ -117,8 +120,6 @@ export function EditEventPage() {
           linkedin: socialLinkedin.trim(),
           instagram: socialInstagram.trim(),
         },
-        coverFile,
-        logoFile,
       })
 
       toast.success("Evento actualizado exitosamente")
@@ -238,15 +239,27 @@ export function EditEventPage() {
               <div className="md:w-1/3 space-y-1">
                 <label className="text-sm font-medium text-foreground">Portada del Evento</label>
                 <p className="text-xs text-muted-foreground">Sube la portada oficial o pega un enlace directo.</p>
+                {isAutoSavingCover && (
+                  <p className="text-[10px] text-primary animate-pulse">Guardando portada automáticamente...</p>
+                )}
               </div>
               <div className="md:w-2/3 max-w-md w-full">
                 <ImageUploadWithPreview
                   value={coverUrl}
-                  onChange={(newVal) => {
-                    setCoverUrl(newVal)
-                    if (!newVal) setCoverFile(null)
+                  onChange={setCoverUrl}
+                  onR2UploadComplete={async (publicUrl) => {
+                    if (!id) return
+                    setIsAutoSavingCover(true)
+                    try {
+                      await updateEvent(id, { coverUrl: publicUrl })
+                      toast.success("Portada guardada automáticamente")
+                    } catch (err) {
+                      console.error("Auto-save cover failed:", err)
+                      toast.error("Error al guardar la portada en la base de datos")
+                    } finally {
+                      setIsAutoSavingCover(false)
+                    }
                   }}
-                  onFileSelect={setCoverFile}
                   label=""
                   aspectRatio="banner"
                   folder={`events/${id}`}
@@ -259,15 +272,27 @@ export function EditEventPage() {
               <div className="md:w-1/3 space-y-1">
                 <label className="text-sm font-medium text-foreground">Logo del Evento</label>
                 <p className="text-xs text-muted-foreground">Sube el logo de la marca o pega un enlace directo.</p>
+                {isAutoSavingLogo && (
+                  <p className="text-[10px] text-primary animate-pulse">Guardando logo automáticamente...</p>
+                )}
               </div>
               <div className="md:w-2/3 max-w-md w-full">
                 <ImageUploadWithPreview
                   value={logoUrl}
-                  onChange={(newVal) => {
-                    setLogoUrl(newVal)
-                    if (!newVal) setLogoFile(null)
+                  onChange={setLogoUrl}
+                  onR2UploadComplete={async (publicUrl) => {
+                    if (!id) return
+                    setIsAutoSavingLogo(true)
+                    try {
+                      await updateEvent(id, { logoUrl: publicUrl })
+                      toast.success("Logo guardado automáticamente")
+                    } catch (err) {
+                      console.error("Auto-save logo failed:", err)
+                      toast.error("Error al guardar el logo en la base de datos")
+                    } finally {
+                      setIsAutoSavingLogo(false)
+                    }
                   }}
-                  onFileSelect={setLogoFile}
                   label=""
                   aspectRatio="square"
                   folder={`events/${id}`}
