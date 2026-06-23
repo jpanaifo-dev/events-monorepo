@@ -146,6 +146,8 @@ export interface AddSpeakerInput {
   talkDescription: string
   bio: string
   avatarFile?: File | null
+  identityDocumentType?: string | null
+  identityDocumentNumber?: string | null
 }
 
 export interface EventFilters {
@@ -205,6 +207,8 @@ interface EventState {
     bio: string
     roleName?: string
     editionName?: string
+    identityDocumentType?: string | null
+    identityDocumentNumber?: string | null
   }[]) => Promise<{ createdCount: number; updatedCount: number; errors: string[] }>
   addAgendaItem: (item: Omit<AgendaItem, "id">) => Promise<void>
   updateAgendaItem: (id: string, updates: Partial<AgendaItem>) => Promise<void>
@@ -791,6 +795,8 @@ export const useEventStore = create<EventState>((set, get) => ({
         email: speakerData.email || null,
         avatar_url: avatarUrl,
         bio: speakerData.bio,
+        identity_document_type: speakerData.identityDocumentType || null,
+        identity_document_number: speakerData.identityDocumentNumber || null,
       }
 
       if (speakerData.profileId) {
@@ -821,7 +827,6 @@ export const useEventStore = create<EventState>((set, get) => ({
 
       const roleSlug = roleData?.slug || "speaker"
 
-      // 4. Update local state
       const fullName = `${speakerData.firstName} ${speakerData.lastName}`.trim()
       const newSpeaker: Speaker = {
         id: participantId,
@@ -839,6 +844,8 @@ export const useEventStore = create<EventState>((set, get) => ({
         talkDescription: speakerData.talkDescription,
         bio: speakerData.bio,
         checkedIn: false,
+        identityDocumentType: speakerData.identityDocumentType || null,
+        identityDocumentNumber: speakerData.identityDocumentNumber || null,
       }
 
       set((state) => ({
@@ -864,6 +871,8 @@ export const useEventStore = create<EventState>((set, get) => ({
       if (updates.email !== undefined) profileUpdates.email = updates.email || null
       if (updates.avatar !== undefined) profileUpdates.avatar_url = updates.avatar
       if (updates.bio !== undefined) profileUpdates.bio = updates.bio
+      if (updates.identityDocumentType !== undefined) profileUpdates.identity_document_type = updates.identityDocumentType || null
+      if (updates.identityDocumentNumber !== undefined) profileUpdates.identity_document_number = updates.identityDocumentNumber || null
 
       if (Object.keys(profileUpdates).length > 0) {
         await supabase.from("profiles").update(profileUpdates).eq("id", current.profileId)
@@ -1821,6 +1830,8 @@ export const useEventStore = create<EventState>((set, get) => ({
             bio: row.bio,
             roleId,
             editionId: editionId || undefined,
+            identityDocumentType: row.identityDocumentType,
+            identityDocumentNumber: row.identityDocumentNumber,
           })
           updatedCount++
         } else {
@@ -1837,6 +1848,8 @@ export const useEventStore = create<EventState>((set, get) => ({
             talkTitle: row.talkTitle,
             talkDescription: row.bio,
             bio: row.bio,
+            identityDocumentType: row.identityDocumentType,
+            identityDocumentNumber: row.identityDocumentNumber,
           })
           createdCount++
         }

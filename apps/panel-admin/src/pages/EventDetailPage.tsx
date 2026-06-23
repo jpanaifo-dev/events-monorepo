@@ -162,7 +162,7 @@ export function EventDetailPage() {
 
   const basePath = `/dashboard/events/${event.id}`
   const { pathname } = useLocation()
-  const isAgendaPage = pathname.includes("/agenda")
+  const isWidePage = pathname.includes("/agenda") || pathname.includes("/speakers/import")
   const activeItem = NAV_ITEMS.find((item) => pathname.includes(item.to))
   const activeLabel = activeItem ? activeItem.label : "Secciones"
 
@@ -316,7 +316,7 @@ export function EventDetailPage() {
           {/* Main Outlet Area - "el cuerpo" with max-width limit */}
           <div className={cn(
             "w-full transition-all duration-300",
-            isAgendaPage ? "max-w-[98%]" : "max-w-7xl"
+            isWidePage ? "max-w-[98%]" : ""
           )}>
             <Outlet />
           </div>
