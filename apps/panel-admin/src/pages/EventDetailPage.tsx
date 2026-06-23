@@ -3,9 +3,8 @@ import { useParams, useNavigate, NavLink, Outlet, useLocation } from "react-rout
 import { useAuthStore } from "@/store/auth.store"
 import { useEventStore } from "@/store/event.store"
 import { cn } from "@/lib/utils"
-import { AlertCircle, Menu } from "lucide-react"
+import { AlertCircle, Menu, ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { PageHeader } from "@/components/page-header"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 
@@ -100,6 +99,28 @@ export function EventDetailPage() {
     <div className="min-h-screen bg-background text-foreground font-sans flex flex-col lg:flex-row">
       {/* Sidebar / Aside Navigation (Desktop) - Fixed to the left */}
       <aside className="hidden lg:flex flex-col w-60 fixed left-0 top-0 bottom-0 border-r border-border bg-card p-6 z-20 overflow-y-auto">
+        {/* Volver Link */}
+        <button
+          onClick={() => navigate("/dashboard/events")}
+          className="flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground mb-5 group transition-colors self-start cursor-pointer"
+        >
+          <ArrowLeft className="size-3.5 transition-transform group-hover:-translate-x-1" />
+          <span>Volver a Eventos</span>
+        </button>
+
+        {/* Event Title Header */}
+        <div className="mb-6 pb-4 border-b border-border/60">
+          <h2
+            className="text-sm font-bold text-foreground truncate select-none cursor-default"
+            title={event.name}
+          >
+            {event.name}
+          </h2>
+          <p className="text-[10px] text-muted-foreground mt-0.5 uppercase tracking-wider font-semibold">
+            Gestión de Evento
+          </p>
+        </div>
+
         <nav className="flex flex-col gap-1">
           {NAV_ITEMS.map((item) => {
             const toPath = `${basePath}/${item.to}`
@@ -140,15 +161,6 @@ export function EventDetailPage() {
       {/* Main Content Area - Shifted to the right by the fixed sidebar width on lg screens */}
       <div className="flex-1 lg:pl-60 flex flex-col min-w-0">
         <main className="container mx-auto py-12 px-6 flex-1 w-full">
-          <div className="mb-8">
-            <PageHeader
-              title={event.name}
-              description="Gestión del evento."
-              showBackButton
-              onBackClick={() => navigate("/dashboard/events")}
-            />
-          </div>
-
           {/* Sheet / Drawer Navigation (Mobile & Tablet) */}
           <div className="lg:hidden w-full mb-6">
             <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
@@ -164,10 +176,32 @@ export function EventDetailPage() {
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="w-72 p-6 flex flex-col gap-6">
-                <div>
-                  <h3 className="font-semibold text-lg leading-none tracking-tight">Menú de Evento</h3>
-                  <p className="text-sm text-muted-foreground mt-1.5">{event.name}</p>
+                <div className="flex flex-col gap-4">
+                  {/* Volver Link */}
+                  <button
+                    onClick={() => {
+                      setIsSheetOpen(false)
+                      navigate("/dashboard/events")
+                    }}
+                    className="flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground group transition-colors self-start cursor-pointer"
+                  >
+                    <ArrowLeft className="size-3.5 transition-transform group-hover:-translate-x-1" />
+                    <span>Volver a Eventos</span>
+                  </button>
+
+                  <div className="pb-2 border-b border-border/60">
+                    <h2
+                      className="text-sm font-bold text-foreground truncate select-none cursor-default"
+                      title={event.name}
+                    >
+                      {event.name}
+                    </h2>
+                    <p className="text-[10px] text-muted-foreground mt-0.5 uppercase tracking-wider font-semibold">
+                      Gestión de Evento
+                    </p>
+                  </div>
                 </div>
+
                 <nav className="flex flex-col gap-1">
                   {NAV_ITEMS.map((item) => {
                     const toPath = `${basePath}/${item.to}`

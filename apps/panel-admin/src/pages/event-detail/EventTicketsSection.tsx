@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/alert-dialog"
 
 import { useSEO } from "@/hooks/use-seo"
+import { PageHeader } from "@/components/page-header"
 
 function formatToDatetimeLocal(isoString: string | null): string {
   if (!isoString) return ""
@@ -409,17 +410,16 @@ export function EventTicketsSection() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-bold tracking-tight text-foreground">Tickets y Costos</h2>
-          <p className="text-sm text-muted-foreground">Administra los tipos de entradas, precios y límites de venta.</p>
-        </div>
-
-        <Button onClick={openCreate} className="flex items-center gap-2 self-start sm:self-auto">
-          <Plus className="size-4" />
-          Crear Ticket
-        </Button>
-      </div>
+      <PageHeader
+        title="Tickets y Costos"
+        description="Administra los tipos de entradas, precios y límites de venta."
+        actionButton={
+          <Button onClick={openCreate} className="flex items-center gap-2 self-start sm:self-auto font-semibold">
+            <Plus className="size-4" />
+            Crear Ticket
+          </Button>
+        }
+      />
 
       {/* Filter Toolbar */}
       <div className="flex items-center gap-3">

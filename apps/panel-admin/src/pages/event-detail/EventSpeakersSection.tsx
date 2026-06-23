@@ -29,6 +29,7 @@ import {
 import { useDebouncedCallback } from "use-debounce"
 
 import { useSEO } from "@/hooks/use-seo"
+import { PageHeader } from "@/components/page-header"
 
 export function EventSpeakersSection() {
   const { id } = useParams<{ id: string }>()
@@ -393,31 +394,28 @@ export function EventSpeakersSection() {
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
 
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-border pb-3">
-        <div>
-          <h3 className="text-lg font-bold">Ponentes</h3>
-          <p className="text-xs text-muted-foreground">
-            Gestiona los expositores de charlas, conferencias y talleres.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            onClick={() => navigate(`/dashboard/events/${id}/speakers/import`)}
-            variant="outline"
-            className="text-xs px-3 py-1.5 h-8 flex items-center gap-1.5 transition-all hover:bg-muted"
-            title="Importar ponentes desde archivo CSV"
-          >
-            <Upload className="size-4" />
-            <span className="hidden md:inline">Importar CSV</span>
-          </Button>
+      <PageHeader
+        title="Ponentes"
+        description="Gestiona los expositores de charlas, conferencias y talleres."
+        actionButton={
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => navigate(`/dashboard/events/${id}/speakers/import`)}
+              variant="outline"
+              className="text-xs px-3 py-1.5 h-8 flex items-center gap-1.5 transition-all hover:bg-muted"
+              title="Importar ponentes desde archivo CSV"
+            >
+              <Upload className="size-4" />
+              <span className="hidden md:inline">Importar CSV</span>
+            </Button>
 
-          <Button onClick={handleAddClick} className="text-xs px-3 py-1.5 h-8">
-            <Plus className="size-4 mr-1.5" />
-            Agregar Ponente
-          </Button>
-        </div>
-      </div>
+            <Button onClick={handleAddClick} className="text-xs px-3 py-1.5 h-8">
+              <Plus className="size-4 mr-1.5" />
+              Agregar Ponente
+            </Button>
+          </div>
+        }
+      />
 
       {/* Filters Row */}
       <div className="flex flex-col sm:flex-row gap-3 items-center">

@@ -15,6 +15,7 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog"
 import { useSEO } from "@/hooks/use-seo"
+import { PageHeader } from "@/components/page-header"
 
 export function EventAttendeesSection() {
   const { id } = useParams<{ id: string }>()
@@ -162,13 +163,16 @@ export function EventAttendeesSection() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      <div className="flex items-center justify-between border-b border-border pb-3">
-        <h3 className="text-lg font-bold">Participantes</h3>
-        <Button onClick={() => navigate("new")} className="text-xs px-3 py-1.5 h-8">
-          <Plus className="size-4 mr-1.5" />
-          Inscribir Participante
-        </Button>
-      </div>
+      <PageHeader
+        title="Participantes"
+        description="Gestiona y acredita a los asistentes registrados en el evento."
+        actionButton={
+          <Button onClick={() => navigate("new")} className="text-xs px-3 py-1.5 h-8">
+            <Plus className="size-4 mr-1.5" />
+            Inscribir Participante
+          </Button>
+        }
+      />
 
       {eventAttendees.length === 0 ? (
         <div className="p-8 text-center text-muted-foreground text-sm border border-dashed border-border rounded-lg">

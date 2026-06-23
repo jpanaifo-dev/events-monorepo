@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/alert-dialog"
 
 import { useSEO } from "@/hooks/use-seo"
+import { PageHeader } from "@/components/page-header"
 
 export function EventEditionsSection() {
   const { id } = useParams<{ id: string }>()
@@ -184,13 +185,16 @@ export function EventEditionsSection() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      <div className="flex items-center justify-between border-b border-border pb-3">
-        <h3 className="text-lg font-bold">Ediciones</h3>
-        <Button onClick={openCreate} className="text-xs px-3 py-1.5 h-8">
-          <Plus className="size-4 mr-1.5" />
-          Nueva Edición
-        </Button>
-      </div>
+      <PageHeader
+        title="Ediciones"
+        description="Historial y programación de las diferentes ediciones periódicas para el evento."
+        actionButton={
+          <Button onClick={openCreate} className="text-xs px-3 py-1.5 h-8">
+            <Plus className="size-4 mr-1.5" />
+            Nueva Edición
+          </Button>
+        }
+      />
 
       {eventEditions.length === 0 ? (
         <div className="p-8 text-center text-muted-foreground text-sm border border-dashed border-border rounded-lg">

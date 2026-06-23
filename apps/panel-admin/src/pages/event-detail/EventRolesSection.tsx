@@ -90,6 +90,7 @@ function slugify(text: string): string {
 }
 
 import { useSEO } from "@/hooks/use-seo"
+import { PageHeader } from "@/components/page-header"
 
 export function EventRolesSection() {
   const { id } = useParams<{ id: string }>()
@@ -369,19 +370,16 @@ export function EventRolesSection() {
   return (
     <div className="space-y-8 animate-in fade-in duration-200">
       
-      {/* Title & Add Button */}
-      <div className="flex items-center justify-between border-b border-border pb-3">
-        <div>
-          <h3 className="text-lg font-bold">Roles de Participantes</h3>
-          <p className="text-xs text-muted-foreground">
-            Administra los roles personalizados que los participantes pueden tener en este evento.
-          </p>
-        </div>
-        <Button onClick={openCreate} className="text-xs px-3 py-1.5 h-8">
-          <Plus className="size-4 mr-1.5" />
-          Nuevo Rol
-        </Button>
-      </div>
+      <PageHeader
+        title="Roles de Participantes"
+        description="Administra los roles personalizados que los participantes pueden tener en este evento."
+        actionButton={
+          <Button onClick={openCreate} className="text-xs px-3 py-1.5 h-8">
+            <Plus className="size-4 mr-1.5" />
+            Nuevo Rol
+          </Button>
+        }
+      />
 
       {/* Suggested Roles Cards Block */}
       {availableSuggestions.length > 0 && (

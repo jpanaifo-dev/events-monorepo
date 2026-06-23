@@ -15,6 +15,7 @@ import {
 import { toast } from "sonner"
 import { useSEO } from "@/hooks/use-seo"
 import { Calendar, Clock, MapPin, Link2, User, Sliders, ArrowLeft } from "lucide-react"
+import { PageHeader } from "@/components/page-header"
 
 export function EventActivityFormPage() {
   const { id: eventId, activityId } = useParams<{ id: string; activityId?: string }>()
@@ -301,26 +302,12 @@ export function EventActivityFormPage() {
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-200">
       
-      {/* Back button header */}
-      <div className="flex items-center justify-between border-b border-border pb-4">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate(`/dashboard/events/${eventId}/agenda`)}
-            className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors py-1.5 px-3 border border-border rounded-md bg-muted/20 cursor-pointer"
-          >
-            <ArrowLeft className="size-3.5" />
-            Volver a Agenda
-          </button>
-          <div>
-            <h3 className="text-xl font-bold tracking-tight text-foreground">
-              {isEditMode ? "Editar Sesión" : "Nueva Sesión"}
-            </h3>
-            <p className="text-xs text-muted-foreground">
-              Define el cronograma, ubicación y modalidad de la actividad.
-            </p>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        title={isEditMode ? "Editar Sesión" : "Nueva Sesión"}
+        description="Define el cronograma, ubicación y modalidad de la actividad."
+        showBackButton
+        onBackClick={() => navigate(`/dashboard/events/${eventId}/agenda`)}
+      />
 
       <form onSubmit={handleSave} className="space-y-6">
         <div className="border border-border rounded-xl bg-card overflow-hidden">

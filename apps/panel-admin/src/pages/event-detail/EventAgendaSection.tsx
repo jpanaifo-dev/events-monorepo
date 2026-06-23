@@ -23,6 +23,7 @@ import {
   X
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { PageHeader } from "@/components/page-header"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { DataTable, type ColumnDef } from "@/components/ui/data-table"
@@ -843,92 +844,88 @@ export function EventAgendaSection() {
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
 
-      {/* View Switcher & Title Action Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-4">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-          <div>
-            <h3 className="text-lg font-bold text-foreground">Planificador del Cronograma</h3>
-            <p className="text-xs text-muted-foreground">Estructura las ponencias, talleres e itinerarios principales.</p>
-          </div>
+      <PageHeader
+        title="Planificador del Cronograma"
+        description="Estructura las ponencias, talleres e itinerarios principales."
+        actionButton={
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Edition Select Dropdown in header */}
+            {currentEdition && (
+              <div className="flex items-center gap-2 bg-muted/20 border border-border/60 px-3 py-1 rounded-lg h-9">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Edición:</span>
+                <Select
+                  value={currentEdition.id}
+                  onValueChange={(val) => {
+                    setSelectedEditionId(val)
+                    const selected = editions.find((ed) => ed.id === val)
+                    if (selected && selected.startDate) {
+                      setSelectedDate(selected.startDate)
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-[150px] h-7 text-xs border-none bg-transparent shadow-none focus:ring-0 p-0 pr-2 cursor-pointer">
+                    <SelectValue placeholder="Seleccionar edición" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {editions
+                      .filter((ed) => ed.mainEventId === eventId)
+                      .map((ed) => (
+                        <SelectItem key={ed.id} value={ed.id} className="text-xs">
+                          {ed.name && typeof ed.name === "object"
+                            ? (ed.name as any).es || (ed.name as any).en || JSON.stringify(ed.name)
+                            : (ed.name || "")}
+                          {ed.isCurrent ? " (Actual)" : ""}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
-          {/* Edition Select Dropdown in header */}
-          {currentEdition && (
-            <div className="flex items-center gap-2 bg-muted/20 border border-border/60 px-3 py-1 rounded-lg">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Edición:</span>
-              <Select
-                value={currentEdition.id}
-                onValueChange={(val) => {
-                  setSelectedEditionId(val)
-                  const selected = editions.find((ed) => ed.id === val)
-                  if (selected && selected.startDate) {
-                    setSelectedDate(selected.startDate)
-                  }
-                }}
+            {/* 3-View Toggle Switcher */}
+            <div className="flex items-center bg-muted/40 border border-border p-1 rounded-lg">
+              <button
+                onClick={() => setViewMode("dia")}
+                className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-md transition-all cursor-pointer font-medium ${viewMode === "dia"
+                  ? "bg-card text-foreground shadow-xs border border-border/50"
+                  : "text-muted-foreground hover:text-foreground"
+                  }`}
               >
-                <SelectTrigger className="w-[180px] h-7 text-xs border-none bg-transparent shadow-none focus:ring-0 p-0 pr-2 cursor-pointer">
-                  <SelectValue placeholder="Seleccionar edición" />
-                </SelectTrigger>
-                <SelectContent>
-                  {editions
-                    .filter((ed) => ed.mainEventId === eventId)
-                    .map((ed) => (
-                      <SelectItem key={ed.id} value={ed.id} className="text-xs">
-                        {ed.name && typeof ed.name === "object"
-                          ? (ed.name as any).es || (ed.name as any).en || JSON.stringify(ed.name)
-                          : (ed.name || "")}
-                        {ed.isCurrent ? " (Actual)" : ""}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
+                <Clock className="size-3.5" />
+                Día
+              </button>
+              <button
+                onClick={() => setViewMode("agenda")}
+                className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-md transition-all cursor-pointer font-medium ${viewMode === "agenda"
+                  ? "bg-card text-foreground shadow-xs border border-border/50"
+                  : "text-muted-foreground hover:text-foreground"
+                  }`}
+              >
+                <Calendar className="size-3.5" />
+                Agenda
+              </button>
+              <button
+                onClick={() => setViewMode("list")}
+                className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-md transition-all cursor-pointer font-medium ${viewMode === "list"
+                  ? "bg-card text-foreground shadow-xs border border-border/50"
+                  : "text-muted-foreground hover:text-foreground"
+                  }`}
+              >
+                <List className="size-3.5" />
+                Lista
+              </button>
             </div>
-          )}
-        </div>
 
-        <div className="flex items-center gap-3">
-          {/* 3-View Toggle Switcher */}
-          <div className="flex items-center bg-muted/40 border border-border p-1 rounded-lg">
-            <button
-              onClick={() => setViewMode("dia")}
-              className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-md transition-all cursor-pointer font-medium ${viewMode === "dia"
-                ? "bg-card text-foreground shadow-xs border border-border/50"
-                : "text-muted-foreground hover:text-foreground"
-                }`}
+            <Button
+              onClick={() => handleOpenCreate()}
+              className="text-xs px-3.5 py-1.5 h-9 font-semibold font-sans"
             >
-              <Clock className="size-3.5" />
-              Día
-            </button>
-            <button
-              onClick={() => setViewMode("agenda")}
-              className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-md transition-all cursor-pointer font-medium ${viewMode === "agenda"
-                ? "bg-card text-foreground shadow-xs border border-border/50"
-                : "text-muted-foreground hover:text-foreground"
-                }`}
-            >
-              <Calendar className="size-3.5" />
-              Agenda
-            </button>
-            <button
-              onClick={() => setViewMode("list")}
-              className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-md transition-all cursor-pointer font-medium ${viewMode === "list"
-                ? "bg-card text-foreground shadow-xs border border-border/50"
-                : "text-muted-foreground hover:text-foreground"
-                }`}
-            >
-              <List className="size-3.5" />
-              Lista
-            </button>
+              <Plus className="size-4 mr-1.5" />
+              Nueva Actividad
+            </Button>
           </div>
-
-          <Button
-            onClick={() => handleOpenCreate()}
-            className="text-xs px-3.5 py-1.5 h-9 font-semibold"
-          >
-            <Plus className="size-4 mr-1.5" />
-            Nueva Actividad
-          </Button>
-        </div>
-      </div>
+        }
+      />
 
       {(eventAgenda.length === 0 && viewMode === "list") || (viewMode === "dia" && switcherDates.length === 0) || (viewMode === "agenda" && switcherDates.length === 0) ? (
         <div className="p-16 text-center text-muted-foreground text-sm border border-dashed border-border rounded-xl bg-card/20 space-y-3">

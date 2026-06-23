@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/alert-dialog"
 
 import { useSEO } from "@/hooks/use-seo"
+import { PageHeader } from "@/components/page-header"
 
 export function EventInfoSection() {
   const { id } = useParams<{ id: string }>()
@@ -146,7 +147,10 @@ export function EventInfoSection() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <h2 className="text-lg">Informacion del Evento</h2>
+      <PageHeader
+        title="Información General"
+        description="Gestiona la información básica, portada, logo, colores de marca y visibilidad del evento."
+      />
       {/* Informacion Basica */}
       <div className="border border-border rounded-xl bg-card overflow-hidden shadow-sm">
         <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
