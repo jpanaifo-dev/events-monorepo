@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import { PageHeader } from "@/components/page-header"
 import { CalendarDays } from "lucide-react"
+import { ImageUploadWithPreview } from "@/components/ImageUploadWithPreview"
 
 import { useSEO } from "@/hooks/use-seo"
 
@@ -26,6 +27,8 @@ export function CreateEventPage() {
   const [about, setAbout] = useState("")
   const [coverUrl, setCoverUrl] = useState("")
   const [logoUrl, setLogoUrl] = useState("")
+  const [coverFile, setCoverFile] = useState<File | null>(null)
+  const [logoFile, setLogoFile] = useState<File | null>(null)
   const [status, setStatus] = useState<"draft" | "published" | "archived">("draft")
   const [websiteUrl, setWebsiteUrl] = useState("")
   const [contactEmail, setContactEmail] = useState("")
@@ -104,14 +107,19 @@ export function CreateEventPage() {
           instagram: socialInstagram.trim(),
         },
         settings: {},
+        coverFile,
+        logoFile,
       })
+
+      const createdEvent = useEventStore.getState().events.find((e) => e.id === eventId)
+      const finalCoverUrl = createdEvent?.coverUrl || ""
 
       if (createEdition && editionName.trim()) {
         await addEdition({
           mainEventId: eventId,
           name: editionName.trim(),
           description: "",
-          coverUrl: coverUrl.trim() || "",
+          coverUrl: finalCoverUrl,
           startDate: editionStartDate || "",
           endDate: editionEndDate || "",
           isCurrent: editionIsCurrent,
@@ -208,38 +216,42 @@ export function CreateEventPage() {
 
             <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
               <div className="md:w-1/3 space-y-1">
-                <label htmlFor="evt-cover" className="text-sm font-medium text-foreground">
-                  URL de Portada
-                </label>
-                <p className="text-xs text-muted-foreground">Imagen de portada del evento.</p>
+                <label className="text-sm font-medium text-foreground">Portada del Evento</label>
+                <p className="text-xs text-muted-foreground">Sube la portada oficial o pega un enlace directo.</p>
               </div>
               <div className="md:w-2/3 max-w-md w-full">
-                <Input
-                  id="evt-cover"
-                  type="url"
-                  placeholder="https://ejemplo.com/portada.jpg"
+                <ImageUploadWithPreview
                   value={coverUrl}
-                  onChange={(e) => setCoverUrl(e.target.value)}
-                  className="bg-background"
+                  onChange={(newVal) => {
+                    setCoverUrl(newVal)
+                    if (!newVal) setCoverFile(null)
+                  }}
+                  onFileSelect={setCoverFile}
+                  label=""
+                  aspectRatio="banner"
+                  folder="events/temp"
+                  identifier="cover"
                 />
               </div>
             </div>
 
             <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
               <div className="md:w-1/3 space-y-1">
-                <label htmlFor="evt-logo" className="text-sm font-medium text-foreground">
-                  URL del Logo
-                </label>
-                <p className="text-xs text-muted-foreground">Logo del evento o marca.</p>
+                <label className="text-sm font-medium text-foreground">Logo del Evento</label>
+                <p className="text-xs text-muted-foreground">Sube el logo de la marca o pega un enlace directo.</p>
               </div>
               <div className="md:w-2/3 max-w-md w-full">
-                <Input
-                  id="evt-logo"
-                  type="url"
-                  placeholder="https://ejemplo.com/logo.png"
+                <ImageUploadWithPreview
                   value={logoUrl}
-                  onChange={(e) => setLogoUrl(e.target.value)}
-                  className="bg-background"
+                  onChange={(newVal) => {
+                    setLogoUrl(newVal)
+                    if (!newVal) setLogoFile(null)
+                  }}
+                  onFileSelect={setLogoFile}
+                  label=""
+                  aspectRatio="square"
+                  folder="events/temp"
+                  identifier="logo"
                 />
               </div>
             </div>

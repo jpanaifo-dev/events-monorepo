@@ -184,8 +184,8 @@ interface EventState {
   updateTicket: (id: string, updates: Partial<Omit<EventTicket, "id" | "quantitySold" | "createdAt" | "updatedAt">>) => Promise<void>
   deleteTicket: (id: string) => Promise<void>
 
-  addEvent: (event: Omit<Event, "id" | "createdAt" | "updatedAt" | "ownerId" | "slug">) => Promise<string>
-  updateEvent: (id: string, updates: Partial<Event>) => Promise<void>
+  addEvent: (event: Omit<Event, "id" | "createdAt" | "updatedAt" | "ownerId" | "slug"> & { id?: string; coverFile?: File | null; logoFile?: File | null }) => Promise<string>
+  updateEvent: (id: string, updates: Partial<Event> & { coverFile?: File | null; logoFile?: File | null }) => Promise<void>
   deleteEvent: (id: string) => Promise<void>
 
   addEdition: (edition: Omit<Edition, "id" | "slug" | "year"> & { year?: number }) => Promise<void>
@@ -532,34 +532,57 @@ export const useEventStore = create<EventState>((set, get) => ({
     const org = useAuthStore.getState().selectedOrganization
     if (!user || !org) throw new Error("No user or organization")
 
-    const id = crypto.randomUUID()
+    const id = eventData.id || crypto.randomUUID()
     const baseSlug = slugify(eventData.name)
     const slug = `${baseSlug}-${id.substring(0, 8)}`
 
+    const { coverFile, logoFile, ...restData } = eventData
+
+    let coverUrl = eventData.coverUrl || ""
+    let logoUrl = eventData.logoUrl || ""
+
     try {
+      if (coverFile) {
+        try {
+          coverUrl = await uploadToR2(coverFile, `events/${id}`, "cover")
+        } catch (uploadErr) {
+          console.error("Failed to upload event cover to R2:", uploadErr)
+        }
+      }
+
+      if (logoFile) {
+        try {
+          logoUrl = await uploadToR2(logoFile, `events/${id}`, "logo")
+        } catch (uploadErr) {
+          console.error("Failed to upload event logo to R2:", uploadErr)
+        }
+      }
+
       const { error } = await supabase.from("main_events").insert([{
         id,
         organization_id: org.id,
         owner_id: user.id,
         slug,
-        name: eventData.name,
-        short_description: eventData.shortDescription || null,
-        about: eventData.about || null,
-        logo_url: eventData.logoUrl || null,
-        cover_url: eventData.coverUrl || null,
-        brand_colors: eventData.brandColors || { primary: "#000000", secondary: "#ffffff" },
-        status: eventData.status || "draft",
-        is_active: eventData.isActive !== false,
-        website_url: eventData.websiteUrl || null,
-        contact_email: eventData.contactEmail || null,
-        social_links: eventData.socialLinks || { twitter: "", facebook: "", linkedin: "", instagram: "" },
-        settings: eventData.settings || {},
+        name: restData.name,
+        short_description: restData.shortDescription || null,
+        about: restData.about || null,
+        logo_url: logoUrl || null,
+        cover_url: coverUrl || null,
+        brand_colors: restData.brandColors || { primary: "#000000", secondary: "#ffffff" },
+        status: restData.status || "draft",
+        is_active: restData.isActive !== false,
+        website_url: restData.websiteUrl || null,
+        contact_email: restData.contactEmail || null,
+        social_links: restData.socialLinks || { twitter: "", facebook: "", linkedin: "", instagram: "" },
+        settings: restData.settings || {},
       }])
 
       if (error) throw error
 
       const newEvent: Event = {
-        ...eventData,
+        ...restData,
+        logoUrl,
+        coverUrl,
         id,
         organizationId: org.id,
         ownerId: user.id,
@@ -581,19 +604,38 @@ export const useEventStore = create<EventState>((set, get) => ({
 
   updateEvent: async (id, updates) => {
     try {
+      const { coverFile, logoFile, ...restUpdates } = updates
+      let coverUrl = updates.coverUrl
+      let logoUrl = updates.logoUrl
+
+      if (coverFile) {
+        try {
+          coverUrl = await uploadToR2(coverFile, `events/${id}`, "cover")
+        } catch (err) {
+          console.error("Failed to upload cover to R2:", err)
+        }
+      }
+      if (logoFile) {
+        try {
+          logoUrl = await uploadToR2(logoFile, `events/${id}`, "logo")
+        } catch (err) {
+          console.error("Failed to upload logo to R2:", err)
+        }
+      }
+
       const mappedUpdates: any = {}
-      if (updates.name !== undefined) mappedUpdates.name = updates.name
-      if (updates.shortDescription !== undefined) mappedUpdates.short_description = updates.shortDescription
-      if (updates.about !== undefined) mappedUpdates.about = updates.about
-      if (updates.logoUrl !== undefined) mappedUpdates.logo_url = updates.logoUrl
-      if (updates.coverUrl !== undefined) mappedUpdates.cover_url = updates.coverUrl
-      if (updates.brandColors !== undefined) mappedUpdates.brand_colors = updates.brandColors
-      if (updates.status !== undefined) mappedUpdates.status = updates.status
-      if (updates.isActive !== undefined) mappedUpdates.is_active = updates.isActive
-      if (updates.websiteUrl !== undefined) mappedUpdates.website_url = updates.websiteUrl
-      if (updates.contactEmail !== undefined) mappedUpdates.contact_email = updates.contactEmail
-      if (updates.socialLinks !== undefined) mappedUpdates.social_links = updates.socialLinks
-      if (updates.settings !== undefined) mappedUpdates.settings = updates.settings
+      if (restUpdates.name !== undefined) mappedUpdates.name = restUpdates.name
+      if (restUpdates.shortDescription !== undefined) mappedUpdates.short_description = restUpdates.shortDescription
+      if (restUpdates.about !== undefined) mappedUpdates.about = restUpdates.about
+      if (logoUrl !== undefined) mappedUpdates.logo_url = logoUrl
+      if (coverUrl !== undefined) mappedUpdates.cover_url = coverUrl
+      if (restUpdates.brandColors !== undefined) mappedUpdates.brand_colors = restUpdates.brandColors
+      if (restUpdates.status !== undefined) mappedUpdates.status = restUpdates.status
+      if (restUpdates.isActive !== undefined) mappedUpdates.is_active = restUpdates.isActive
+      if (restUpdates.websiteUrl !== undefined) mappedUpdates.website_url = restUpdates.websiteUrl
+      if (restUpdates.contactEmail !== undefined) mappedUpdates.contact_email = restUpdates.contactEmail
+      if (restUpdates.socialLinks !== undefined) mappedUpdates.social_links = restUpdates.socialLinks
+      if (restUpdates.settings !== undefined) mappedUpdates.settings = restUpdates.settings
       mappedUpdates.updated_at = new Date().toISOString()
 
       if (Object.keys(mappedUpdates).length > 1) {
@@ -602,7 +644,13 @@ export const useEventStore = create<EventState>((set, get) => ({
       }
 
       set((state) => ({
-        events: state.events.map((e) => e.id === id ? { ...e, ...updates, updatedAt: new Date().toISOString() } : e)
+        events: state.events.map((e) => e.id === id ? {
+          ...e,
+          ...restUpdates,
+          ...(logoUrl !== undefined ? { logoUrl } : {}),
+          ...(coverUrl !== undefined ? { coverUrl } : {}),
+          updatedAt: new Date().toISOString()
+        } : e)
       }))
     } catch (e) {
       console.error("Error updating event:", e)

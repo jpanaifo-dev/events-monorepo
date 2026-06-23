@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import { PageHeader } from "@/components/page-header"
 import { Trash2 } from "lucide-react"
+import { ImageUploadWithPreview } from "@/components/ImageUploadWithPreview"
 
 import { useSEO } from "@/hooks/use-seo"
 
@@ -27,6 +28,8 @@ export function EditEventPage() {
   const [about, setAbout] = useState("")
   const [coverUrl, setCoverUrl] = useState("")
   const [logoUrl, setLogoUrl] = useState("")
+  const [coverFile, setCoverFile] = useState<File | null>(null)
+  const [logoFile, setLogoFile] = useState<File | null>(null)
   const [status, setStatus] = useState<"draft" | "published" | "archived">("draft")
   const [isActive, setIsActive] = useState(true)
   const [websiteUrl, setWebsiteUrl] = useState("")
@@ -114,6 +117,8 @@ export function EditEventPage() {
           linkedin: socialLinkedin.trim(),
           instagram: socialInstagram.trim(),
         },
+        coverFile,
+        logoFile,
       })
 
       toast.success("Evento actualizado exitosamente")
@@ -231,19 +236,43 @@ export function EditEventPage() {
 
             <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
               <div className="md:w-1/3 space-y-1">
-                <label htmlFor="evt-cover" className="text-sm font-medium text-foreground">URL de Portada</label>
+                <label className="text-sm font-medium text-foreground">Portada del Evento</label>
+                <p className="text-xs text-muted-foreground">Sube la portada oficial o pega un enlace directo.</p>
               </div>
               <div className="md:w-2/3 max-w-md w-full">
-                <Input id="evt-cover" type="url" value={coverUrl} onChange={(e) => setCoverUrl(e.target.value)} className="bg-background" />
+                <ImageUploadWithPreview
+                  value={coverUrl}
+                  onChange={(newVal) => {
+                    setCoverUrl(newVal)
+                    if (!newVal) setCoverFile(null)
+                  }}
+                  onFileSelect={setCoverFile}
+                  label=""
+                  aspectRatio="banner"
+                  folder={`events/${id}`}
+                  identifier="cover"
+                />
               </div>
             </div>
 
             <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
               <div className="md:w-1/3 space-y-1">
-                <label htmlFor="evt-logo" className="text-sm font-medium text-foreground">URL del Logo</label>
+                <label className="text-sm font-medium text-foreground">Logo del Evento</label>
+                <p className="text-xs text-muted-foreground">Sube el logo de la marca o pega un enlace directo.</p>
               </div>
               <div className="md:w-2/3 max-w-md w-full">
-                <Input id="evt-logo" type="url" value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} className="bg-background" />
+                <ImageUploadWithPreview
+                  value={logoUrl}
+                  onChange={(newVal) => {
+                    setLogoUrl(newVal)
+                    if (!newVal) setLogoFile(null)
+                  }}
+                  onFileSelect={setLogoFile}
+                  label=""
+                  aspectRatio="square"
+                  folder={`events/${id}`}
+                  identifier="logo"
+                />
               </div>
             </div>
 
