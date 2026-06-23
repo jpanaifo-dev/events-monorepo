@@ -194,6 +194,16 @@ interface EventState {
   updateSpeaker: (id: string, updates: Partial<AddSpeakerInput>) => Promise<void>
   deleteSpeaker: (id: string) => Promise<void>
   toggleSpeakerCheckIn: (id: string) => Promise<void>
+  bulkUpsertSpeakers: (eventId: string, rows: {
+    id?: string
+    firstName: string
+    lastName: string
+    email: string | null
+    talkTitle: string
+    bio: string
+    roleName?: string
+    editionName?: string
+  }[]) => Promise<{ createdCount: number; updatedCount: number; errors: string[] }>
   addAgendaItem: (item: Omit<AgendaItem, "id">) => Promise<void>
   updateAgendaItem: (id: string, updates: Partial<AgendaItem>) => Promise<void>
   deleteAgendaItem: (id: string) => Promise<void>
@@ -1570,5 +1580,109 @@ export const useEventStore = create<EventState>((set, get) => ({
     } catch (e) {
       console.error("Error toggling speaker check-in:", e)
     }
+  },
+
+  bulkUpsertSpeakers: async (eventId, rows) => {
+    let currentRoles = get().roles
+    if (currentRoles.length === 0) {
+      const { data } = await supabase.from("participant_roles").select("*").eq("main_event_id", eventId)
+      if (data) {
+        currentRoles = data.map(mapParticipantRole)
+      }
+    }
+    let currentEditions = get().editions.filter(ed => ed.mainEventId === eventId)
+    if (currentEditions.length === 0) {
+      const { data } = await supabase.from("event_editions").select("*").eq("main_event_id", eventId)
+      if (data) {
+        currentEditions = data.map(mapEdition)
+      }
+    }
+
+    let createdCount = 0
+    let updatedCount = 0
+    const errors: string[] = []
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i]
+      try {
+        if (!row.firstName || !row.lastName) {
+          errors.push(`Fila ${i + 2}: Nombre y Apellido son requeridos.`)
+          continue
+        }
+
+        // Find role ID
+        let roleId = ""
+        if (row.roleName) {
+          const matchedRole = currentRoles.find(r => 
+            r.name.es?.toLowerCase() === row.roleName?.toLowerCase() ||
+            r.name.en?.toLowerCase() === row.roleName?.toLowerCase() ||
+            r.slug?.toLowerCase() === row.roleName?.toLowerCase()
+          )
+          if (matchedRole) roleId = matchedRole.id
+        }
+        if (!roleId) {
+          const defaultRole = currentRoles.find(r => r.slug === "speaker" || r.slug === "keynote-speaker") || currentRoles[0]
+          roleId = defaultRole?.id || ""
+        }
+
+        // Find edition ID
+        let editionId: string | null = null
+        if (row.editionName) {
+          const matchedEd = currentEditions.find(ed => ed.name.toLowerCase() === row.editionName?.toLowerCase())
+          if (matchedEd) editionId = matchedEd.id
+        }
+        if (!editionId) {
+          const currentEd = currentEditions.find(ed => ed.isCurrent) || currentEditions[0]
+          editionId = currentEd?.id || null
+        }
+
+        // Determine if speaker already exists in event
+        let existingSpeaker = null
+        if (row.id) {
+          existingSpeaker = get().speakers.find(s => s.id === row.id)
+        }
+        if (!existingSpeaker && row.email) {
+          existingSpeaker = get().speakers.find(s => s.eventId === eventId && s.email?.toLowerCase() === row.email?.toLowerCase())
+        }
+
+        if (existingSpeaker) {
+          // Update speaker
+          await get().updateSpeaker(existingSpeaker.id, {
+            firstName: row.firstName,
+            lastName: row.lastName,
+            email: row.email,
+            talkTitle: row.talkTitle,
+            bio: row.bio,
+            roleId,
+            editionId: editionId || undefined,
+          })
+          updatedCount++
+        } else {
+          // Insert speaker
+          await get().addSpeaker({
+            eventId,
+            editionId: editionId || "",
+            profileId: null,
+            roleId,
+            firstName: row.firstName,
+            lastName: row.lastName,
+            email: row.email,
+            avatar: "",
+            talkTitle: row.talkTitle,
+            talkDescription: row.bio,
+            bio: row.bio,
+          })
+          createdCount++
+        }
+      } catch (err: any) {
+        console.error(`Error processing row ${i + 2}:`, err)
+        errors.push(`Fila ${i + 2} (${row.firstName} ${row.lastName}): ${err.message || err}`)
+      }
+    }
+
+    // Refresh speakers in local state
+    await get().loadFilteredSpeakers(eventId)
+
+    return { createdCount, updatedCount, errors }
   }
 }))

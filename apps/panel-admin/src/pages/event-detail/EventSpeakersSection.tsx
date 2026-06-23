@@ -1,9 +1,44 @@
 import { useState, useEffect } from "react"
 import { useParams, useNavigate, useSearchParams } from "react-router-dom"
 import { useEventStore } from "@/store/event.store"
-import { Plus, Edit, Trash2, Globe, Layers, BookOpen, Search, Loader2, UserCheck, Check } from "lucide-react"
+import { Plus, Edit, Trash2, Globe, Layers, BookOpen, Search, Loader2, UserCheck, Check, Download, Upload } from "lucide-react"
 import { DataTable, type ColumnDef } from "@/components/ui/data-table"
 import { Button } from "@/components/ui/button"
+import { toast } from "sonner"
+
+function parseCSV(text: string) {
+  const lines: string[][] = []
+  let row: string[] = [""]
+  let inQuotes = false
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i]
+    const nextChar = text[i + 1]
+
+    if (char === '"') {
+      if (inQuotes && nextChar === '"') {
+        row[row.length - 1] += '"'
+        i++ // skip next quote
+      } else {
+        inQuotes = !inQuotes
+      }
+    } else if (char === ',' && !inQuotes) {
+      row.push("")
+    } else if ((char === '\r' || char === '\n') && !inQuotes) {
+      if (char === '\r' && nextChar === '\n') {
+        i++ // skip \n
+      }
+      lines.push(row)
+      row = [""]
+    } else {
+      row[row.length - 1] += char
+    }
+  }
+  if (row.length > 1 || row[0] !== "") {
+    lines.push(row)
+  }
+  return lines
+}
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import {
@@ -42,6 +77,7 @@ export function EventSpeakersSection() {
     loadFilteredSpeakers,
     isLoading,
     toggleSpeakerCheckIn,
+    bulkUpsertSpeakers,
   } = useEventStore()
 
   const event = events.find((e) => e.id === id)
@@ -111,6 +147,176 @@ export function EventSpeakersSection() {
 
   const handleEditClick = (speakerId: string) => {
     navigate(`/dashboard/events/${id}/speakers/${speakerId}/edit`)
+  }
+
+  const [isImporting, setIsImporting] = useState(false)
+
+  const handleExportTemplate = () => {
+    const headers = [
+      "ID",
+      "Nombre",
+      "Apellido",
+      "Correo",
+      "Charla",
+      "Bio",
+      "Rol",
+      "Edicion"
+    ]
+
+    const escapeCSVField = (val: string | null | undefined): string => {
+      if (val === null || val === undefined) return ""
+      const stringVal = String(val)
+      if (stringVal.includes(",") || stringVal.includes('"') || stringVal.includes("\n") || stringVal.includes("\r")) {
+        return `"${stringVal.replace(/"/g, '""')}"`
+      }
+      return stringVal
+    }
+
+    const csvRows = [headers.join(",")]
+
+    eventSpeakers.forEach((sp) => {
+      const roleObj = roles.find((r) => r.id === sp.roleId)
+      const roleName = roleObj?.name.es || sp.roleSlug
+      const editionName = editions.find((ed) => ed.id === sp.editionId)?.name || ""
+
+      const row = [
+        sp.id,
+        sp.firstName,
+        sp.lastName,
+        sp.email || "",
+        sp.talkTitle || "",
+        sp.bio || "",
+        roleName || "",
+        editionName || ""
+      ]
+      csvRows.push(row.map(escapeCSVField).join(","))
+    })
+
+    if (eventSpeakers.length === 0) {
+      const sampleRow = [
+        "", // Leave blank for creation
+        "Juan",
+        "Pérez",
+        "juan.perez@ejemplo.com",
+        "Charla Magistral sobre IA",
+        "Experto en aprendizaje profundo y desarrollo de agentes.",
+        "Ponente",
+        currentEdition?.name || ""
+      ]
+      csvRows.push(sampleRow.map(escapeCSVField).join(","))
+    }
+
+    const csvContent = "\uFEFF" + csvRows.join("\n")
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.setAttribute("href", url)
+    link.setAttribute("download", `plantilla_ponentes_${event?.slug || "evento"}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+    toast.success("Plantilla de ponentes exportada con éxito")
+  }
+
+  const handleImportCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !id) return
+
+    setIsImporting(true)
+    const reader = new FileReader()
+
+    reader.onload = async (event) => {
+      const text = event.target?.result as string
+      if (!text) {
+        toast.error("El archivo está vacío o no se pudo leer.")
+        setIsImporting(false)
+        return
+      }
+
+      try {
+        const parsed = parseCSV(text)
+        if (parsed.length <= 1) {
+          toast.error("El archivo CSV no contiene registros de datos.")
+          setIsImporting(false)
+          return
+        }
+
+        const headerRow = parsed[0].map(h => h.trim().toLowerCase())
+        const idxId = headerRow.findIndex(h => h.includes("id"))
+        const idxNombre = headerRow.findIndex(h => h.includes("nombre") || h.includes("first"))
+        const idxApellido = headerRow.findIndex(h => h.includes("apellido") || h.includes("last"))
+        const idxCorreo = headerRow.findIndex(h => h.includes("correo") || h.includes("email"))
+        const idxCharla = headerRow.findIndex(h => h.includes("charla") || h.includes("titulo") || h.includes("título") || h.includes("ticket") || h.includes("charla"))
+        const idxBio = headerRow.findIndex(h => h.includes("bio") || h.includes("biografía") || h.includes("biografia"))
+        const idxRol = headerRow.findIndex(h => h.includes("rol") || h.includes("role"))
+        const idxEdicion = headerRow.findIndex(h => h.includes("edicion") || h.includes("edición") || h.includes("edition"))
+
+        if (idxNombre === -1 || idxApellido === -1) {
+          toast.error("No se encontraron las columnas requeridas 'Nombre' y/o 'Apellido'.")
+          setIsImporting(false)
+          return
+        }
+
+        const rowsToImport = []
+        for (let i = 1; i < parsed.length; i++) {
+          const row = parsed[i]
+          if (row.length === 0 || (row.length === 1 && row[0] === "")) continue
+
+          const nombreVal = idxNombre !== -1 ? row[idxNombre]?.trim() : ""
+          const apellidoVal = idxApellido !== -1 ? row[idxApellido]?.trim() : ""
+
+          if (!nombreVal && !apellidoVal) continue
+
+          const idVal = idxId !== -1 ? row[idxId]?.trim() : ""
+          const correoVal = idxCorreo !== -1 ? row[idxCorreo]?.trim() : ""
+          const charlaVal = idxCharla !== -1 ? row[idxCharla]?.trim() : ""
+          const bioVal = idxBio !== -1 ? row[idxBio]?.trim() : ""
+          const rolVal = idxRol !== -1 ? row[idxRol]?.trim() : ""
+          const edicionVal = idxEdicion !== -1 ? row[idxEdicion]?.trim() : ""
+
+          rowsToImport.push({
+            id: idVal || undefined,
+            firstName: nombreVal,
+            lastName: apellidoVal,
+            email: correoVal || null,
+            talkTitle: charlaVal,
+            bio: bioVal,
+            roleName: rolVal,
+            editionName: edicionVal
+          })
+        }
+
+        if (rowsToImport.length === 0) {
+          toast.error("No hay registros válidos para importar.")
+          setIsImporting(false)
+          return
+        }
+
+        toast.info(`Procesando la importación de ${rowsToImport.length} registros...`)
+
+        const result = await bulkUpsertSpeakers(id, rowsToImport)
+
+        if (result.errors.length > 0) {
+          console.error("Errors during bulk import:", result.errors)
+          toast.warning(
+            `Importación completada con observaciones. Creados: ${result.createdCount}, Actualizados: ${result.updatedCount}. Hubo ${result.errors.length} errores. Revisa la consola.`
+          )
+        } else {
+          toast.success(
+            `Importación completada con éxito. Creados: ${result.createdCount}, Actualizados: ${result.updatedCount}.`
+          )
+        }
+      } catch (err: any) {
+        console.error("Failed to parse or import CSV:", err)
+        toast.error(`Error al procesar el archivo: ${err.message || err}`)
+      } finally {
+        setIsImporting(false)
+        e.target.value = ""
+      }
+    }
+
+    reader.readAsText(file, "UTF-8")
   }
 
   const columns: ColumnDef<any>[] = [
@@ -278,10 +484,41 @@ export function EventSpeakersSection() {
             Gestiona los expositores de charlas, conferencias y talleres.
           </p>
         </div>
-        <Button onClick={handleAddClick} className="text-xs px-3 py-1.5 h-8">
-          <Plus className="size-4 mr-1.5" />
-          Agregar Ponente
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={handleExportTemplate}
+            variant="outline"
+            className="text-xs px-3 py-1.5 h-8 flex items-center gap-1.5 transition-all hover:bg-muted"
+            title="Exportar plantilla CSV con los ponentes actuales"
+          >
+            <Download className="size-4" />
+            <span className="hidden md:inline">Exportar Plantilla</span>
+          </Button>
+
+          <label
+            className={`cursor-pointer inline-flex items-center justify-center rounded-lg border border-input bg-background hover:bg-accent hover:text-accent-foreground text-xs font-semibold px-3 py-1.5 h-8 gap-1.5 transition-colors shadow-xs ${isImporting ? "opacity-50 pointer-events-none" : ""}`}
+            title="Importar ponentes desde archivo CSV"
+          >
+            {isImporting ? (
+              <Loader2 className="size-4 animate-spin text-primary" />
+            ) : (
+              <Upload className="size-4" />
+            )}
+            <span className="hidden md:inline">{isImporting ? "Importando..." : "Importar CSV"}</span>
+            <input
+              type="file"
+              accept=".csv"
+              onChange={handleImportCSV}
+              className="hidden"
+              disabled={isImporting}
+            />
+          </label>
+
+          <Button onClick={handleAddClick} className="text-xs px-3 py-1.5 h-8">
+            <Plus className="size-4 mr-1.5" />
+            Agregar Ponente
+          </Button>
+        </div>
       </div>
 
       {/* Filters Row */}
