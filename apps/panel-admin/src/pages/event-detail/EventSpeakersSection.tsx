@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { useParams, useNavigate, useSearchParams } from "react-router-dom"
 import { useEventStore } from "@/store/event.store"
-import { Plus, Edit, Trash2, Globe, Layers, BookOpen, Search, Loader2, UserCheck, Check, Download, Upload } from "lucide-react"
+import { Plus, Edit, Trash2, Globe, Layers, BookOpen, Search, Loader2, UserCheck, Check, Download, Upload, ExternalLink } from "lucide-react"
 import { DataTable, type ColumnDef } from "@/components/ui/data-table"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
@@ -396,6 +396,18 @@ export function EventSpeakersSection() {
       className: "text-right p-3",
       cell: (sp) => (
         <div className="flex items-center justify-end gap-1">
+          {sp.profileId && (
+            <Button
+              asChild
+              variant="ghost"
+              className="size-8 p-0 hover:bg-muted text-muted-foreground hover:text-foreground"
+              title="Gestionar perfil de ponente"
+            >
+              <a href={`/dashboard/profiles/${sp.profileId}`} target="_blank" rel="noreferrer">
+                <ExternalLink className="size-3.5" />
+              </a>
+            </Button>
+          )}
           <Button
             onClick={() => handleEditClick(sp.id)}
             variant="ghost"

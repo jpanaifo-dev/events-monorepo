@@ -44,6 +44,8 @@ export function CreateEventPage() {
   const [editionStartDate, setEditionStartDate] = useState("")
   const [editionEndDate, setEditionEndDate] = useState("")
   const [editionIsCurrent, setEditionIsCurrent] = useState(true)
+  const [editionLocation, setEditionLocation] = useState("")
+  const [editionModality, setEditionModality] = useState("presencial")
 
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -123,6 +125,8 @@ export function CreateEventPage() {
           startDate: editionStartDate || "",
           endDate: editionEndDate || "",
           isCurrent: editionIsCurrent,
+          location: editionLocation,
+          modality: editionModality,
         })
       }
 
@@ -467,6 +471,42 @@ export function CreateEventPage() {
                           className="bg-background"
                         />
                       </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+                    <div className="md:w-1/3 space-y-1">
+                      <label className="text-sm font-medium text-foreground">Modalidad de la Edición</label>
+                      <p className="text-xs text-muted-foreground">Formato de realización de esta edición.</p>
+                    </div>
+                    <div className="md:w-2/3 max-w-md w-full">
+                      <select
+                        id="ed-modality"
+                        value={editionModality}
+                        onChange={(e) => setEditionModality(e.target.value)}
+                        className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs outline-none focus-visible:ring-1 focus-visible:ring-ring text-foreground"
+                      >
+                        <option value="presencial">Presencial</option>
+                        <option value="virtual">Virtual</option>
+                        <option value="hibrido">Híbrido</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+                    <div className="md:w-1/3 space-y-1">
+                      <label className="text-sm font-medium text-foreground">Ubicación o Enlace</label>
+                      <p className="text-xs text-muted-foreground">Lugar físico, ciudad o enlace de transmisión.</p>
+                    </div>
+                    <div className="md:w-2/3 max-w-md w-full">
+                      <Input
+                        id="ed-location"
+                        type="text"
+                        placeholder="Ej. Hotel Savoy o Zoom Link"
+                        value={editionLocation}
+                        onChange={(e) => setEditionLocation(e.target.value)}
+                        className="bg-background"
+                      />
                     </div>
                   </div>
                 </div>

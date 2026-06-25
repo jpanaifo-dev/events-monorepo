@@ -4,6 +4,7 @@ import { useAdminProfilesStore } from "@/store/admin-profiles.store"
 import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
+import { Skeleton } from "@/components/ui/skeleton"
 import { ShieldAlert, AlertTriangle, Trash2, CheckCircle2 } from "lucide-react"
 import {
   AlertDialog,
@@ -64,8 +65,20 @@ export function ProfileManageDangerSection() {
 
   if (!targetProfile) {
     return (
-      <div className="p-8 text-center text-muted-foreground border border-dashed border-border rounded-xl">
-        Cargando información del perfil...
+      <div className="space-y-6">
+        <div className="border border-border rounded-xl bg-card overflow-hidden p-6 space-y-6">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/40 pb-6 last:border-0 last:pb-0">
+              <div className="md:w-2/3 space-y-2">
+                <Skeleton className="h-5 w-48" />
+                <Skeleton className="h-3 w-80" />
+              </div>
+              <div className="md:w-1/3 flex justify-end">
+                <Skeleton className="h-9 w-28" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     )
   }

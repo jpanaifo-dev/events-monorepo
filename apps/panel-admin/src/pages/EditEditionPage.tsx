@@ -32,6 +32,8 @@ export function EditEditionPage() {
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
   const [status, setStatus] = useState<"active" | "planned">("planned")
+  const [location, setLocation] = useState("")
+  const [modality, setModality] = useState("presencial")
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -45,6 +47,8 @@ export function EditEditionPage() {
       setStartDate(edition.startDate || "")
       setEndDate(edition.endDate || "")
       setStatus(edition.isCurrent ? "active" : "planned")
+      setLocation(edition.location || "")
+      setModality(edition.modality || "presencial")
     } else {
       toast.error("Edición no encontrada.")
       navigate(`/dashboard/events/${eventId}`)
@@ -83,6 +87,8 @@ export function EditEditionPage() {
         startDate,
         endDate,
         isCurrent: status === "active",
+        location,
+        modality,
       })
 
       toast.success("Edición actualizada exitosamente")
@@ -253,6 +259,48 @@ export function EditEditionPage() {
                     />
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* Modality Row */}
+            <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+              <div className="md:w-1/3 space-y-1">
+                <label htmlFor="ed-modality" className="text-sm font-medium text-foreground">
+                  Modalidad de la Edición
+                </label>
+                <p className="text-xs text-muted-foreground">Formato de realización de esta edición.</p>
+              </div>
+              <div className="md:w-2/3 max-w-md w-full">
+                <select
+                  id="ed-modality"
+                  value={modality}
+                  onChange={(e) => setModality(e.target.value)}
+                  className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs outline-none focus-visible:ring-1 focus-visible:ring-ring text-foreground"
+                >
+                  <option value="presencial">Presencial</option>
+                  <option value="virtual">Virtual</option>
+                  <option value="hibrido">Híbrido</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Location Row */}
+            <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+              <div className="md:w-1/3 space-y-1">
+                <label htmlFor="ed-location" className="text-sm font-medium text-foreground">
+                  Ubicación o Enlace
+                </label>
+                <p className="text-xs text-muted-foreground">Lugar físico, ciudad o enlace de transmisión.</p>
+              </div>
+              <div className="md:w-2/3 max-w-md w-full">
+                <Input
+                  id="ed-location"
+                  type="text"
+                  placeholder="Ej. Hotel Savoy o Zoom Link"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  className="bg-background"
+                />
               </div>
             </div>
 

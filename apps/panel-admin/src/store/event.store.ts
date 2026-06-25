@@ -35,6 +35,8 @@ export interface Edition {
   startDate: string
   endDate: string
   isCurrent: boolean
+  location: string
+  modality: string
 }
 
 export interface Speaker {
@@ -269,6 +271,8 @@ function mapEdition(row: any): Edition {
     startDate: row.start_date || "",
     endDate: row.end_date || "",
     isCurrent: !!row.is_current,
+    location: row.location || "",
+    modality: row.modality || "",
   }
 }
 
@@ -710,6 +714,8 @@ export const useEventStore = create<EventState>((set, get) => ({
         start_date: editionData.startDate || null,
         end_date: editionData.endDate || null,
         is_current: editionData.isCurrent,
+        location: editionData.location || null,
+        modality: editionData.modality || null,
       }])
 
       if (error) throw error
@@ -725,6 +731,8 @@ export const useEventStore = create<EventState>((set, get) => ({
         startDate: editionData.startDate || "",
         endDate: editionData.endDate || "",
         isCurrent: editionData.isCurrent,
+        location: editionData.location || "",
+        modality: editionData.modality || "",
       }
 
       set((state) => ({
@@ -745,6 +753,8 @@ export const useEventStore = create<EventState>((set, get) => ({
       if (updates.startDate !== undefined) mappedUpdates.start_date = updates.startDate
       if (updates.endDate !== undefined) mappedUpdates.end_date = updates.endDate
       if (updates.isCurrent !== undefined) mappedUpdates.is_current = updates.isCurrent
+      if (updates.location !== undefined) mappedUpdates.location = updates.location || null
+      if (updates.modality !== undefined) mappedUpdates.modality = updates.modality || null
       mappedUpdates.updated_at = new Date().toISOString()
 
       const { error } = await supabase.from("editions").update(mappedUpdates).eq("id", id)
@@ -1046,6 +1056,8 @@ export const useEventStore = create<EventState>((set, get) => ({
             isCurrent: true,
             description: "",
             coverUrl: "",
+            location: "",
+            modality: "presencial",
           }
 
           set((state) => ({
@@ -1767,7 +1779,7 @@ export const useEventStore = create<EventState>((set, get) => ({
     }
     let currentEditions = get().editions.filter(ed => ed.mainEventId === eventId)
     if (currentEditions.length === 0) {
-      const { data } = await supabase.from("event_editions").select("*").eq("main_event_id", eventId)
+      const { data } = await supabase.from("editions").select("*").eq("main_event_id", eventId)
       if (data) {
         currentEditions = data.map(mapEdition)
       }
