@@ -50,6 +50,8 @@ export function EventEditionsSection() {
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
   const [isCurrent, setIsCurrent] = useState(false)
+  const [location, setLocation] = useState("")
+  const [modality, setModality] = useState("presencial")
 
   const openCreate = () => {
     setEditingId(null)
@@ -58,6 +60,8 @@ export function EventEditionsSection() {
     setStartDate("")
     setEndDate("")
     setIsCurrent(false)
+    setLocation("")
+    setModality("presencial")
     setIsSheetOpen(true)
   }
 
@@ -68,6 +72,8 @@ export function EventEditionsSection() {
     setStartDate(ed.startDate)
     setEndDate(ed.endDate)
     setIsCurrent(ed.isCurrent)
+    setLocation(ed.location || "")
+    setModality(ed.modality || "presencial")
     setIsSheetOpen(true)
   }
 
@@ -79,6 +85,8 @@ export function EventEditionsSection() {
     setStartDate("")
     setEndDate("")
     setIsCurrent(false)
+    setLocation("")
+    setModality("presencial")
   }
 
   const editionSchema = z.object({
@@ -101,7 +109,7 @@ export function EventEditionsSection() {
       return
     }
     if (editingId) {
-      await updateEdition(editingId, { name, description, startDate, endDate, isCurrent })
+      await updateEdition(editingId, { name, description, startDate, endDate, isCurrent, location, modality })
     } else {
       await addEdition({
         mainEventId: id!,
@@ -111,6 +119,8 @@ export function EventEditionsSection() {
         startDate,
         endDate,
         isCurrent,
+        location,
+        modality,
       })
     }
     closeSheet()
@@ -137,6 +147,18 @@ export function EventEditionsSection() {
       cell: (ed) => ed.startDate && ed.endDate
         ? `${new Date(ed.startDate).toLocaleDateString("es-ES")} – ${new Date(ed.endDate).toLocaleDateString("es-ES")}`
         : "Por definir"
+    },
+    {
+      header: "Modalidad",
+      className: "p-3 text-xs capitalize text-muted-foreground",
+      headerClassName: "p-3",
+      cell: (ed) => ed.modality || "–"
+    },
+    {
+      header: "Ubicación",
+      className: "p-3 text-xs text-muted-foreground truncate max-w-[150px]",
+      headerClassName: "p-3",
+      cell: (ed) => ed.location || "–"
     },
     {
       header: "Estado",
@@ -236,6 +258,31 @@ export function EventEditionsSection() {
                 <Field>
                   <FieldLabel htmlFor="edEnd">Fecha Fin</FieldLabel>
                   <Input id="edEnd" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                </Field>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <Field>
+                  <FieldLabel htmlFor="edModality">Modalidad</FieldLabel>
+                  <select
+                    id="edModality"
+                    value={modality}
+                    onChange={(e) => setModality(e.target.value)}
+                    className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs outline-none focus-visible:ring-1 focus-visible:ring-ring text-foreground"
+                  >
+                    <option value="presencial">Presencial</option>
+                    <option value="virtual">Virtual</option>
+                    <option value="hibrido">Híbrido</option>
+                  </select>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="edLocation">Ubicación / Enlace</FieldLabel>
+                  <Input
+                    id="edLocation"
+                    type="text"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    placeholder="Ej. Hotel Savoy o Zoom Link"
+                  />
                 </Field>
               </div>
               <Field>

@@ -530,6 +530,8 @@ export interface Edition {
   is_current: boolean | null
   created_at: string | null
   updated_at: string | null
+  location: string | null
+  modality: string | null
 }
 
 export interface ThematicLine {
