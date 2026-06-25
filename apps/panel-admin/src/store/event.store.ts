@@ -1056,6 +1056,8 @@ export const useEventStore = create<EventState>((set, get) => ({
             isCurrent: true,
             description: "",
             coverUrl: "",
+            location: "",
+            modality: "presencial",
           }
 
           set((state) => ({
