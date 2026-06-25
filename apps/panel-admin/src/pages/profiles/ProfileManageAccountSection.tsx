@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom"
 import { useAdminProfilesStore } from "@/store/admin-profiles.store"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   Select,
   SelectTrigger,
@@ -164,8 +165,20 @@ export function ProfileManageAccountSection() {
 
   if (!targetProfile) {
     return (
-      <div className="p-8 text-center text-muted-foreground border border-dashed border-border rounded-xl">
-        Cargando configuración de la cuenta...
+      <div className="space-y-6">
+        <div className="border border-border rounded-xl bg-card overflow-hidden p-6 space-y-6">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex flex-col md:flex-row md:items-start justify-between gap-4 border-b border-border/40 pb-6 last:border-0 last:pb-0">
+              <div className="md:w-1/3 space-y-2">
+                <Skeleton className="h-4 w-36" />
+                <Skeleton className="h-3 w-56" />
+              </div>
+              <div className="md:w-2/3 max-w-md w-full">
+                <Skeleton className="h-9 w-full" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     )
   }
