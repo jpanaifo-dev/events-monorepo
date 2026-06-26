@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { useParams, useNavigate, useSearchParams } from "react-router-dom"
 import { useEventStore } from "@/store/event.store"
-import { Plus, Edit, Trash2, Globe, Layers, BookOpen, Search, Loader2, UserCheck, Check, Download, Upload, ExternalLink } from "lucide-react"
+import { Plus, Edit, Trash2, Globe, Layers, BookOpen, Search, Loader2, UserCheck, Check, Download, Upload, ExternalLink, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react"
 import { DataTable, type ColumnDef } from "@/components/ui/data-table"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
@@ -34,6 +34,11 @@ import { useDebouncedCallback } from "use-debounce"
 import { useSEO } from "@/hooks/use-seo"
 import { PageHeader } from "@/components/page-header"
 
+// Module-level variable: persists across component mount/unmount cycles
+// within the same browser session, preventing redundant re-fetches
+// when navigating back from create/edit pages.
+let _speakersLastFetchKey = ""
+
 export function EventSpeakersSection() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -59,6 +64,7 @@ export function EventSpeakersSection() {
   const searchQuery = searchParams.get("search") || ""
   const currentEdition = eventEditions.find((ed) => ed.isCurrent)
   const editionFilter = searchParams.get("edition") || currentEdition?.id || "all"
+  const sortParam = searchParams.get("sort") || "" // "name_asc" | "name_desc" | ""
 
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize] = useState(20)
@@ -82,7 +88,7 @@ export function EventSpeakersSection() {
     setCurrentPage(1)
     setSelectedSpeakerIds([])
     setSelectAllDB(false)
-  }, [searchQuery, editionFilter])
+  }, [searchQuery, editionFilter, sortParam])
 
   // Debounced search params updater
   const debouncedSearchUpdate = useDebouncedCallback((val: string) => {
@@ -115,17 +121,31 @@ export function EventSpeakersSection() {
     })
   }
 
-  // Load/fetch speakers from the backend whenever search params or page changes
+  // Load speakers only when filters/page/sort actually change.
+  // The module-level _speakersLastFetchKey persists across component
+  // unmount/remount so navigating back from create/edit doesn't re-fetch
+  // (which would reorder the list unexpectedly).
   useEffect(() => {
-    if (id) {
-      loadFilteredSpeakers(id, {
-        search: searchQuery,
-        editionId: editionFilter,
-        page: currentPage,
-        pageSize,
-      })
-    }
-  }, [id, searchQuery, editionFilter, currentPage, pageSize, loadFilteredSpeakers])
+    if (!id) return
+    const fetchKey = `${id}:${searchQuery}:${editionFilter}:${currentPage}:${sortParam}`
+    if (_speakersLastFetchKey === fetchKey) return
+    _speakersLastFetchKey = fetchKey
+
+    const order = sortParam === "name_asc"
+      ? { field: "name" as const, direction: "asc" as const }
+      : sortParam === "name_desc"
+        ? { field: "name" as const, direction: "desc" as const }
+        : undefined
+
+    loadFilteredSpeakers(id, {
+      search: searchQuery,
+      editionId: editionFilter,
+      page: currentPage,
+      pageSize,
+      order,
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, searchQuery, editionFilter, currentPage, sortParam])
 
   const handleAddClick = () => {
     navigate(`/dashboard/events/${id}/speakers/new`)
@@ -284,7 +304,29 @@ export function EventSpeakersSection() {
       )
     },
     {
-      header: "Ponente",
+      header: (
+        <button
+          type="button"
+          onClick={() => {
+            setSearchParams((prev) => {
+              const next = new URLSearchParams(prev)
+              const current = next.get("sort") || ""
+              if (current === "") next.set("sort", "name_asc")
+              else if (current === "name_asc") next.set("sort", "name_desc")
+              else next.delete("sort")
+              return next
+            })
+            setCurrentPage(1)
+          }}
+          className="flex items-center gap-1.5 group/sortbtn hover:text-foreground transition-colors cursor-pointer select-none"
+          title={sortParam === "" ? "Ordenar por nombre A→Z" : sortParam === "name_asc" ? "Ordenar por nombre Z→A" : "Quitar ordenamiento"}
+        >
+          <span>Ponente</span>
+          {sortParam === "" && <ArrowUpDown className="size-3 opacity-40 group-hover/sortbtn:opacity-80 transition-opacity" />}
+          {sortParam === "name_asc" && <ArrowUp className="size-3 text-primary" />}
+          {sortParam === "name_desc" && <ArrowDown className="size-3 text-primary" />}
+        </button>
+      ),
       className: "p-3",
       headerClassName: "p-3",
       cell: (sp) => sp ? (
