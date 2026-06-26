@@ -61,7 +61,12 @@ export interface Speaker {
 
 export interface AgendaItem {
   id: string
+  /** Corresponds to event_id in DB (stores the edition id when linked to an edition) */
   eventId: string
+  /** edition_id FK — direct reference to the editions table */
+  editionId?: string | null
+  /** parent_activity_id FK — for nested/child activities */
+  parentActivityId?: string | null
   timeSlot: string
   title: string
   stage: string
@@ -76,6 +81,8 @@ export interface AgendaItem {
   orderIndex?: number
   startDate?: string | null
   endDate?: string | null
+  createdAt?: string | null
+  updatedAt?: string | null
 }
 
 export interface Attendee {
@@ -391,6 +398,8 @@ export const useEventStore = create<EventState>((set, get) => ({
           formattedAgenda = activitiesData.map((act: any) => ({
             id: act.id,
             eventId: act.event_id,
+            editionId: act.edition_id || null,
+            parentActivityId: act.parent_activity_id || null,
             timeSlot: `${act.start_time ? act.start_time.split("T")[1]?.substring(0, 5) : "09:00"} - ${act.end_time ? act.end_time.split("T")[1]?.substring(0, 5) : "10:00"}`,
             title: act.activity_name,
             stage: act.custom_location || "Escenario Principal",
@@ -405,6 +414,8 @@ export const useEventStore = create<EventState>((set, get) => ({
             orderIndex: act.order_index || 0,
             startDate: act.start_date || null,
             endDate: act.end_date || null,
+            createdAt: act.created_at || null,
+            updatedAt: act.updated_at || null,
           }))
         }
       }
@@ -957,6 +968,8 @@ export const useEventStore = create<EventState>((set, get) => ({
       const { error } = await supabase.from("event_activities").insert([{
         id,
         event_id: itemData.eventId,
+        edition_id: itemData.editionId || null,
+        parent_activity_id: itemData.parentActivityId || null,
         activity_name: itemData.title,
         description: itemData.description || null,
         custom_location: itemData.stage,
@@ -999,6 +1012,8 @@ export const useEventStore = create<EventState>((set, get) => ({
       if (updates.orderIndex !== undefined) mappedUpdates.order_index = updates.orderIndex
       if (updates.startDate !== undefined) mappedUpdates.start_date = updates.startDate
       if (updates.endDate !== undefined) mappedUpdates.end_date = updates.endDate
+      if (updates.editionId !== undefined) mappedUpdates.edition_id = updates.editionId || null
+      if (updates.parentActivityId !== undefined) mappedUpdates.parent_activity_id = updates.parentActivityId || null
 
       const { error } = await supabase.from("event_activities").update(mappedUpdates).eq("id", id)
       if (error) throw error

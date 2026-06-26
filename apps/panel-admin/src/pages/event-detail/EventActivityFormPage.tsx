@@ -259,6 +259,7 @@ export function EventActivityFormPage() {
 
     const payload = {
       eventId: currentEdition?.id || eventId,
+      editionId: currentEdition?.id || null,
       title: activityName,
       description: description || null,
       stage: customLocation,
