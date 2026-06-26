@@ -179,7 +179,7 @@ interface EventState {
 
   loadData: (organizationId: string, filters?: EventFilters) => Promise<void>
   loadRoles: (mainEventId: string) => Promise<void>
-  loadFilteredSpeakers: (eventId: string, filters?: { search?: string; editionId?: string; page?: number; pageSize?: number }) => Promise<void>
+  loadFilteredSpeakers: (eventId: string, filters?: { search?: string; editionId?: string; page?: number; pageSize?: number; order?: { field: "name" | "created_at"; direction: "asc" | "desc" } }) => Promise<void>
   fetchAllSpeakersForExport: (eventId: string, filters?: { search?: string; editionId?: string }) => Promise<Speaker[]>
   addRole: (role: Omit<ParticipantRole, "id" | "createdAt">) => Promise<void>
   updateRole: (id: string, updates: Partial<Omit<ParticipantRole, "id" | "createdAt">>) => Promise<void>
@@ -1304,6 +1304,11 @@ export const useEventStore = create<EventState>((set, get) => ({
       const to = from + pageSize - 1
       query = query.range(from, to)
 
+      // Ordering: default is created_at desc; name sort is client-side after fetch
+      // since name lives on profiles (joined), we always fetch ordered by created_at
+      // and sort client-side when field === 'name'
+      query = query.order("created_at", { ascending: false })
+
       const { data: participantsData, error: participantsError } = await query
       if (participantsError) throw participantsError
 
@@ -1336,10 +1341,20 @@ export const useEventStore = create<EventState>((set, get) => ({
         })
       }
 
+      // Apply name sort client-side if requested (name comes from joined profile)
+      let sorted = formattedSpeakers
+      if (filters?.order?.field === "name") {
+        sorted = [...formattedSpeakers].sort((a, b) =>
+          filters.order!.direction === "asc"
+            ? a.name.localeCompare(b.name)
+            : b.name.localeCompare(a.name)
+        )
+      }
+
       set((state) => {
         const otherSpeakers = state.speakers.filter((s) => s.eventId !== eventId)
         return {
-          speakers: [...otherSpeakers, ...formattedSpeakers],
+          speakers: [...otherSpeakers, ...sorted],
           speakersTotalCount: totalCount,
           roles: formattedRoles
         }
