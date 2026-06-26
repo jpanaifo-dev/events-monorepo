@@ -72,7 +72,7 @@ function Modal({ isOpen, onClose, title, children }: ModalProps) {
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="relative w-full max-w-2xl bg-card border border-border rounded-xl shadow-xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+      <div className="relative w-full max-w-2xl lg:max-w-3xl bg-card border border-border rounded-xl shadow-xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <h3 className="text-sm font-bold text-foreground">{title}</h3>
@@ -758,7 +758,8 @@ export function EventAgendaSection() {
     const isoEnd = new Date(`${endDate}T${endTime}:00`).toISOString()
 
     const payload = {
-      eventId: currentEdition?.id || eventId,
+      eventId: currentEdition?.id || eventId!,
+      editionId: currentEdition?.id || null,
       title: activityName,
       description: description || null,
       stage: customLocation,
@@ -1356,6 +1357,7 @@ export function EventAgendaSection() {
                   </div>
                   <div className="w-[100px]">
                     <Input
+                      key={`start-time-${editingItem?.id ?? 'new'}`}
                       type="time"
                       value={startTime}
                       onChange={(e) => setStartTime(e.target.value)}
@@ -1386,6 +1388,7 @@ export function EventAgendaSection() {
                   </div>
                   <div className="w-[100px]">
                     <Input
+                      key={`end-time-${editingItem?.id ?? 'new'}`}
                       type="time"
                       value={endTime}
                       onChange={(e) => setEndTime(e.target.value)}
