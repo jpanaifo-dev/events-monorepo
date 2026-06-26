@@ -20,7 +20,9 @@ import {
   Lock,
   ChevronLeft,
   ChevronRight,
-  X
+  X,
+  ZoomIn,
+  ZoomOut
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/page-header"
@@ -252,6 +254,13 @@ export function EventAgendaSection() {
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState(0)
   const [dragCurrent, setDragCurrent] = useState(0)
+
+  // Zoom level for the day timeline
+  // '1h'    = 64px per hour  (default, 1 row = 1 hour)
+  // '30min' = 120px per hour (1 row = 30 min)
+  // '15min' = 200px per hour (1 row = 15 min)
+  const [zoomLevel, setZoomLevel] = useState<'1h' | '30min' | '15min'>('1h')
+  const rowHeight = zoomLevel === '15min' ? 200 : zoomLevel === '30min' ? 120 : 64
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.button !== 0) return
@@ -985,6 +994,49 @@ export function EventAgendaSection() {
                   ref={timelineGridRef}
                   className="border border-border rounded-xl bg-card shadow-xs relative select-none"
                 >
+                  {/* Zoom controls inside the grid top-right */}
+                  <div className="absolute top-2 right-2 z-40 flex items-center gap-1 bg-card/90 backdrop-blur-xs border border-border/60 rounded-lg px-1.5 py-1 shadow-xs">
+                    <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground px-1">Zoom</span>
+                    <button
+                      type="button"
+                      onClick={() => setZoomLevel('1h')}
+                      className={`px-2 py-0.5 text-[10px] font-semibold rounded transition-colors cursor-pointer ${
+                        zoomLevel === '1h' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground hover:text-foreground'
+                      }`}
+                      title="1 fila = 1 hora"
+                    >1h</button>
+                    <button
+                      type="button"
+                      onClick={() => setZoomLevel('30min')}
+                      className={`px-2 py-0.5 text-[10px] font-semibold rounded transition-colors cursor-pointer ${
+                        zoomLevel === '30min' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground hover:text-foreground'
+                      }`}
+                      title="1 fila = 30 minutos"
+                    >30m</button>
+                    <button
+                      type="button"
+                      onClick={() => setZoomLevel('15min')}
+                      className={`px-2 py-0.5 text-[10px] font-semibold rounded transition-colors cursor-pointer ${
+                        zoomLevel === '15min' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground hover:text-foreground'
+                      }`}
+                      title="1 fila = 15 minutos"
+                    >15m</button>
+                    <div className="w-px h-3.5 bg-border/60 mx-0.5" />
+                    <button
+                      type="button"
+                      onClick={() => setZoomLevel(z => z === '1h' ? '30min' : z === '30min' ? '15min' : '15min')}
+                      disabled={zoomLevel === '15min'}
+                      className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                      title="Acercar"
+                    ><ZoomIn className="size-3" /></button>
+                    <button
+                      type="button"
+                      onClick={() => setZoomLevel(z => z === '15min' ? '30min' : z === '30min' ? '1h' : '1h')}
+                      disabled={zoomLevel === '1h'}
+                      className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                      title="Alejar"
+                    ><ZoomOut className="size-3" /></button>
+                  </div>
                   <div
                     className="relative flex cursor-crosshair"
                     style={{ height: `${24 * rowHeight}px` }}
@@ -993,30 +1045,75 @@ export function EventAgendaSection() {
                     onMouseUp={handleMouseUp}
                   >
                     {/* Left Column: Hour Labels */}
-                    <div className="w-20 border-r border-border bg-muted/[0.02] shrink-0 flex flex-col pointer-events-none">
+                    <div className="w-20 border-r border-border bg-muted/[0.02] shrink-0 flex flex-col pointer-events-none relative">
                       {orderedHours.map((h) => (
                         <div
                           key={h}
-                          className="text-right pr-4 text-[10px] font-bold text-muted-foreground"
-                          style={{
-                            height: `${rowHeight}px`,
-                            paddingTop: "6px"
-                          }}
+                          className="relative shrink-0"
+                          style={{ height: `${rowHeight}px` }}
                         >
-                          {formatHourLabel(h)}
+                          {/* Full hour label */}
+                          <span className="absolute top-1.5 right-3 text-[11px] font-bold text-muted-foreground leading-none">
+                            {formatHourLabel(h)}
+                          </span>
+                          {/* 30-min sub-label */}
+                          {(zoomLevel === '30min' || zoomLevel === '15min') && (
+                            <span
+                              className="absolute right-3 text-[9px] font-medium text-muted-foreground/50 leading-none"
+                              style={{ top: `${rowHeight / 2 + 1}px` }}
+                            >
+                              :{String(30).padStart(2,'0')}
+                            </span>
+                          )}
+                          {/* 15-min sub-labels */}
+                          {zoomLevel === '15min' && (
+                            <>
+                              <span
+                                className="absolute right-3 text-[9px] font-medium text-muted-foreground/40 leading-none"
+                                style={{ top: `${rowHeight * 0.25 + 1}px` }}
+                              >:15</span>
+                              <span
+                                className="absolute right-3 text-[9px] font-medium text-muted-foreground/40 leading-none"
+                                style={{ top: `${rowHeight * 0.75 + 1}px` }}
+                              >:45</span>
+                            </>
+                          )}
                         </div>
                       ))}
                     </div>
 
                     {/* Right Column: Grid and Cards */}
                     <div className="flex-1 relative">
-                      {/* Horizontal Grid lines */}
+                      {/* Horizontal Grid lines - full hours (solid) */}
                       {orderedHours.map((h, index) => (
                         <div
                           key={h}
                           className="absolute left-0 right-0 border-t border-border/40 pointer-events-none"
                           style={{ top: `${index * rowHeight}px`, height: `${rowHeight}px` }}
                         />
+                      ))}
+                      {/* Sub-grid lines: 30-min intervals */}
+                      {(zoomLevel === '30min' || zoomLevel === '15min') && orderedHours.map((_, index) => (
+                        <div
+                          key={`sub30-${index}`}
+                          className="absolute left-0 right-0 border-t border-border/25 border-dashed pointer-events-none"
+                          style={{ top: `${index * rowHeight + rowHeight / 2}px` }}
+                        />
+                      ))}
+                      {/* Sub-grid lines: 15-min intervals */}
+                      {zoomLevel === '15min' && orderedHours.map((_, index) => (
+                        <>
+                          <div
+                            key={`sub15a-${index}`}
+                            className="absolute left-0 right-0 border-t border-border/15 pointer-events-none"
+                            style={{ top: `${index * rowHeight + rowHeight * 0.25}px` }}
+                          />
+                          <div
+                            key={`sub15b-${index}`}
+                            className="absolute left-0 right-0 border-t border-border/15 pointer-events-none"
+                            style={{ top: `${index * rowHeight + rowHeight * 0.75}px` }}
+                          />
+                        </>
                       ))}
 
                       {/* Dragging Highlight Overlay */}
@@ -1530,7 +1627,9 @@ export function EventAgendaSection() {
   )
 }
 
-const rowHeight = 64; // px
+// NOTE: rowHeight is now dynamic state inside EventAgendaSection (zoomLevel-based).
+// Kept here only for reference — not used at module level anymore.
+// const rowHeight = 64
 
 const formatHourLabel = (h: number) => {
   if (h === 0) return "12 AM"
