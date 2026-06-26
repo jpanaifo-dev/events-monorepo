@@ -193,7 +193,7 @@ export function EventActivityFormPage() {
     endTime: z.string().regex(/^\d{2}:\d{2}$/, "Hora de fin inválida (HH:MM)."),
     customLocation: z.string().trim().min(1, "El escenario o ubicación es requerido."),
     activityMode: z.enum(["PRESENCIAL", "VIRTUAL", "HIBRIDO"]),
-    meetingUrl: z.string().url("El enlace de la reunión no es válido.").or(z.literal("")).optional(),
+    meetingUrl: z.string().url("El enlace de la reunión no es válido.").or(z.literal("")).or(z.undefined()).optional(),
     speakerId: z.string().uuid("Seleccione un ponente válido o deje vacío.").or(z.literal("")).optional(),
     status: z.enum(["PUBLIC", "DRAFT", "ARCHIVED"]),
     orderIndex: z.number().int().min(0, "El índice de orden debe ser un número entero positivo.").default(0),
@@ -587,7 +587,7 @@ export function EventActivityFormPage() {
                 <div className="md:w-1/3 space-y-1">
                   <label htmlFor="meetingUrl" className="text-sm font-semibold text-foreground flex items-center gap-1.5">
                     <Link2 className="size-4 text-muted-foreground" />
-                    <span>Enlace de Reunión</span>
+                    <span>Enlace de Reunión <span className="text-muted-foreground font-normal text-xs">(opcional)</span></span>
                   </label>
                   <p className="text-xs text-muted-foreground">URL de Zoom, Teams, Meet o Streaming.</p>
                 </div>
@@ -598,9 +598,11 @@ export function EventActivityFormPage() {
                     placeholder="https://zoom.us/j/123456789"
                     value={meetingUrl}
                     onChange={(e) => setMeetingUrl(e.target.value)}
-                    required
                     disabled={isSubmitting}
                   />
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    Si aún no tienes el enlace, déjalo vacío. Se mostrará como <em>Aún no disponible</em>.
+                  </p>
                 </div>
               </div>
             )}

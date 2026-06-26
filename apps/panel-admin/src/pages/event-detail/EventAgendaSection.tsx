@@ -20,7 +20,9 @@ import {
   Lock,
   ChevronLeft,
   ChevronRight,
-  X
+  X,
+  ZoomIn,
+  ZoomOut
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/page-header"
@@ -252,6 +254,22 @@ export function EventAgendaSection() {
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState(0)
   const [dragCurrent, setDragCurrent] = useState(0)
+  const zoomLevel = useMemo(() => {
+    const val = searchParams.get("zoom")
+    if (val === '1h' || val === '30min' || val === '15min') return val
+    return '30min' as const
+  }, [searchParams])
+
+  const setZoomLevel = (val: '1h' | '30min' | '15min' | ((prev: '1h' | '30min' | '15min') => '1h' | '30min' | '15min')) => {
+    const next = typeof val === 'function' ? val(zoomLevel) : val
+    setSearchParams((prev) => {
+      const p = new URLSearchParams(prev)
+      p.set('zoom', next)
+      return p
+    })
+  }
+
+  const rowHeight = zoomLevel === '15min' ? 200 : zoomLevel === '30min' ? 120 : 64
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.button !== 0) return
@@ -403,14 +421,19 @@ export function EventAgendaSection() {
       cell: (item) => {
         const sp = eventSpeakers.find((s) => s.id === item.speakerId)
         return (
-          <div className="space-y-1.5">
-            {sp && (
-              <div className="bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-800 dark:text-emerald-200 border-l-2 border-emerald-500 font-semibold text-xs px-2.5 py-1 rounded-md inline-block">
-                {sp.name}
-              </div>
+          <div className="space-y-1">
+            {sp ? (
+              <>
+                <p className="text-sm font-semibold text-foreground leading-snug">{sp.name}</p>
+                {sp.talkTitle && (
+                  <p className="text-xs text-muted-foreground leading-snug">{sp.talkTitle}</p>
+                )}
+              </>
+            ) : (
+              <span className="text-xs text-muted-foreground italic">Sin ponente asignado</span>
             )}
             {item.description && (
-              <p className="text-xs text-muted-foreground leading-relaxed">
+              <p className="text-xs text-muted-foreground/70 leading-relaxed mt-1">
                 {item.description}
               </p>
             )}
@@ -563,14 +586,14 @@ export function EventAgendaSection() {
           .from("session_speakers")
           .select("session_id")
           .eq("participant_id", speakerId)
-        
+
         if (!pivotErr && pivots && pivots.length > 0) {
           const sessionIds = pivots.map((p) => p.session_id)
           const { data: sessions, error: sessionsErr } = await supabase
             .from("event_sessions")
             .select("*")
             .in("id", sessionIds)
-          
+
           if (!sessionsErr && sessions) {
             setSpeakerSessions(sessions)
           } else {
@@ -632,7 +655,7 @@ export function EventAgendaSection() {
     endTime: z.string().regex(/^\d{2}:\d{2}$/, "Hora de fin inválida (HH:MM)."),
     customLocation: z.string().trim().min(1, "El escenario o ubicación es requerido."),
     activityMode: z.enum(["PRESENCIAL", "VIRTUAL", "HIBRIDO"]),
-    meetingUrl: z.string().url("El enlace de la reunión no es válido.").or(z.literal("")).optional(),
+    meetingUrl: z.string().url("El enlace de la reunión no es válido.").or(z.literal("")).or(z.undefined()).optional(),
     speakerId: z.string().uuid("Seleccione un ponente válido o deje vacío.").or(z.literal("")).optional(),
     status: z.enum(["PUBLIC", "DRAFT", "ARCHIVED"]),
     orderIndex: z.number().int().min(0, "El índice de orden debe ser un número entero positivo.").default(0),
@@ -985,6 +1008,46 @@ export function EventAgendaSection() {
                   ref={timelineGridRef}
                   className="border border-border rounded-xl bg-card shadow-xs relative select-none"
                 >
+                  {/* Zoom controls inside the grid top-right */}
+                  <div className="absolute top-2 right-2 z-40 flex items-center gap-1 bg-card/90 backdrop-blur-xs border border-border/60 rounded-lg px-1.5 py-1 shadow-xs">
+                    <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground px-1">Zoom</span>
+                    <button
+                      type="button"
+                      onClick={() => setZoomLevel('1h')}
+                      className={`px-2 py-0.5 text-[10px] font-semibold rounded transition-colors cursor-pointer ${zoomLevel === '1h' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground hover:text-foreground'
+                        }`}
+                      title="1 fila = 1 hora"
+                    >1h</button>
+                    <button
+                      type="button"
+                      onClick={() => setZoomLevel('30min')}
+                      className={`px-2 py-0.5 text-[10px] font-semibold rounded transition-colors cursor-pointer ${zoomLevel === '30min' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground hover:text-foreground'
+                        }`}
+                      title="1 fila = 30 minutos"
+                    >30m</button>
+                    <button
+                      type="button"
+                      onClick={() => setZoomLevel('15min')}
+                      className={`px-2 py-0.5 text-[10px] font-semibold rounded transition-colors cursor-pointer ${zoomLevel === '15min' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground hover:text-foreground'
+                        }`}
+                      title="1 fila = 15 minutos"
+                    >15m</button>
+                    <div className="w-px h-3.5 bg-border/60 mx-0.5" />
+                    <button
+                      type="button"
+                      onClick={() => setZoomLevel(z => z === '1h' ? '30min' : z === '30min' ? '15min' : '15min')}
+                      disabled={zoomLevel === '15min'}
+                      className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                      title="Acercar"
+                    ><ZoomIn className="size-3" /></button>
+                    <button
+                      type="button"
+                      onClick={() => setZoomLevel(z => z === '15min' ? '30min' : z === '30min' ? '1h' : '1h')}
+                      disabled={zoomLevel === '1h'}
+                      className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                      title="Alejar"
+                    ><ZoomOut className="size-3" /></button>
+                  </div>
                   <div
                     className="relative flex cursor-crosshair"
                     style={{ height: `${24 * rowHeight}px` }}
@@ -993,30 +1056,75 @@ export function EventAgendaSection() {
                     onMouseUp={handleMouseUp}
                   >
                     {/* Left Column: Hour Labels */}
-                    <div className="w-20 border-r border-border bg-muted/[0.02] shrink-0 flex flex-col pointer-events-none">
+                    <div className="w-20 border-r border-border bg-muted/[0.02] shrink-0 flex flex-col pointer-events-none relative">
                       {orderedHours.map((h) => (
                         <div
                           key={h}
-                          className="text-right pr-4 text-[10px] font-bold text-muted-foreground"
-                          style={{
-                            height: `${rowHeight}px`,
-                            paddingTop: "6px"
-                          }}
+                          className="relative shrink-0"
+                          style={{ height: `${rowHeight}px` }}
                         >
-                          {formatHourLabel(h)}
+                          {/* Full hour label */}
+                          <span className="absolute top-1.5 right-3 text-[11px] font-bold text-muted-foreground leading-none">
+                            {formatHourLabel(h)}
+                          </span>
+                          {/* 30-min sub-label */}
+                          {(zoomLevel === '30min' || zoomLevel === '15min') && (
+                            <span
+                              className="absolute right-3 text-[9px] font-medium text-muted-foreground/50 leading-none"
+                              style={{ top: `${rowHeight / 2 + 1}px` }}
+                            >
+                              :{String(30).padStart(2, '0')}
+                            </span>
+                          )}
+                          {/* 15-min sub-labels */}
+                          {zoomLevel === '15min' && (
+                            <>
+                              <span
+                                className="absolute right-3 text-[9px] font-medium text-muted-foreground/40 leading-none"
+                                style={{ top: `${rowHeight * 0.25 + 1}px` }}
+                              >:15</span>
+                              <span
+                                className="absolute right-3 text-[9px] font-medium text-muted-foreground/40 leading-none"
+                                style={{ top: `${rowHeight * 0.75 + 1}px` }}
+                              >:45</span>
+                            </>
+                          )}
                         </div>
                       ))}
                     </div>
 
                     {/* Right Column: Grid and Cards */}
                     <div className="flex-1 relative">
-                      {/* Horizontal Grid lines */}
+                      {/* Horizontal Grid lines - full hours (solid) */}
                       {orderedHours.map((h, index) => (
                         <div
                           key={h}
                           className="absolute left-0 right-0 border-t border-border/40 pointer-events-none"
                           style={{ top: `${index * rowHeight}px`, height: `${rowHeight}px` }}
                         />
+                      ))}
+                      {/* Sub-grid lines: 30-min intervals */}
+                      {(zoomLevel === '30min' || zoomLevel === '15min') && orderedHours.map((_, index) => (
+                        <div
+                          key={`sub30-${index}`}
+                          className="absolute left-0 right-0 border-t border-border/25 border-dashed pointer-events-none"
+                          style={{ top: `${index * rowHeight + rowHeight / 2}px` }}
+                        />
+                      ))}
+                      {/* Sub-grid lines: 15-min intervals */}
+                      {zoomLevel === '15min' && orderedHours.map((_, index) => (
+                        <>
+                          <div
+                            key={`sub15a-${index}`}
+                            className="absolute left-0 right-0 border-t border-border/15 pointer-events-none"
+                            style={{ top: `${index * rowHeight + rowHeight * 0.25}px` }}
+                          />
+                          <div
+                            key={`sub15b-${index}`}
+                            className="absolute left-0 right-0 border-t border-border/15 pointer-events-none"
+                            style={{ top: `${index * rowHeight + rowHeight * 0.75}px` }}
+                          />
+                        </>
                       ))}
 
                       {/* Dragging Highlight Overlay */}
@@ -1486,7 +1594,7 @@ export function EventAgendaSection() {
               <div className="space-y-1.5 animate-in slide-in-from-top-1 duration-200">
                 <label htmlFor="modalMeetingUrl" className="text-xs font-semibold text-foreground flex items-center gap-1">
                   <Video className="size-3.5 text-muted-foreground" />
-                  <span>Enlace de Videollamada</span>
+                  <span>Enlace de Videollamada <span className="text-muted-foreground font-normal">(opcional)</span></span>
                 </label>
                 <Input
                   id="modalMeetingUrl"
@@ -1494,9 +1602,11 @@ export function EventAgendaSection() {
                   placeholder="https://zoom.us/j/12345678"
                   value={meetingUrl}
                   onChange={(e) => setMeetingUrl(e.target.value)}
-                  required
                   disabled={isSubmitting}
                 />
+                <p className="text-[10px] text-muted-foreground">
+                  Si aún no tienes el enlace, puedes dejarlo vacío. Se mostrará como <em>Aún no disponible</em>.
+                </p>
               </div>
             )}
 
@@ -1530,7 +1640,9 @@ export function EventAgendaSection() {
   )
 }
 
-const rowHeight = 64; // px
+// NOTE: rowHeight is now dynamic state inside EventAgendaSection (zoomLevel-based).
+// Kept here only for reference — not used at module level anymore.
+// const rowHeight = 64
 
 const formatHourLabel = (h: number) => {
   if (h === 0) return "12 AM"
