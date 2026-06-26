@@ -254,12 +254,21 @@ export function EventAgendaSection() {
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState(0)
   const [dragCurrent, setDragCurrent] = useState(0)
+  const zoomLevel = useMemo(() => {
+    const val = searchParams.get("zoom")
+    if (val === '1h' || val === '30min' || val === '15min') return val
+    return '30min' as const
+  }, [searchParams])
 
-  // Zoom level for the day timeline
-  // '1h'    = 64px per hour  (default, 1 row = 1 hour)
-  // '30min' = 120px per hour (1 row = 30 min)
-  // '15min' = 200px per hour (1 row = 15 min)
-  const [zoomLevel, setZoomLevel] = useState<'1h' | '30min' | '15min'>('1h')
+  const setZoomLevel = (val: '1h' | '30min' | '15min' | ((prev: '1h' | '30min' | '15min') => '1h' | '30min' | '15min')) => {
+    const next = typeof val === 'function' ? val(zoomLevel) : val
+    setSearchParams((prev) => {
+      const p = new URLSearchParams(prev)
+      p.set('zoom', next)
+      return p
+    })
+  }
+
   const rowHeight = zoomLevel === '15min' ? 200 : zoomLevel === '30min' ? 120 : 64
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -412,14 +421,19 @@ export function EventAgendaSection() {
       cell: (item) => {
         const sp = eventSpeakers.find((s) => s.id === item.speakerId)
         return (
-          <div className="space-y-1.5">
-            {sp && (
-              <div className="bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-800 dark:text-emerald-200 border-l-2 border-emerald-500 font-semibold text-xs px-2.5 py-1 rounded-md inline-block">
-                {sp.name}
-              </div>
+          <div className="space-y-1">
+            {sp ? (
+              <>
+                <p className="text-sm font-semibold text-foreground leading-snug">{sp.name}</p>
+                {sp.talkTitle && (
+                  <p className="text-xs text-muted-foreground leading-snug">{sp.talkTitle}</p>
+                )}
+              </>
+            ) : (
+              <span className="text-xs text-muted-foreground italic">Sin ponente asignado</span>
             )}
             {item.description && (
-              <p className="text-xs text-muted-foreground leading-relaxed">
+              <p className="text-xs text-muted-foreground/70 leading-relaxed mt-1">
                 {item.description}
               </p>
             )}
@@ -572,14 +586,14 @@ export function EventAgendaSection() {
           .from("session_speakers")
           .select("session_id")
           .eq("participant_id", speakerId)
-        
+
         if (!pivotErr && pivots && pivots.length > 0) {
           const sessionIds = pivots.map((p) => p.session_id)
           const { data: sessions, error: sessionsErr } = await supabase
             .from("event_sessions")
             .select("*")
             .in("id", sessionIds)
-          
+
           if (!sessionsErr && sessions) {
             setSpeakerSessions(sessions)
           } else {
@@ -641,7 +655,7 @@ export function EventAgendaSection() {
     endTime: z.string().regex(/^\d{2}:\d{2}$/, "Hora de fin inválida (HH:MM)."),
     customLocation: z.string().trim().min(1, "El escenario o ubicación es requerido."),
     activityMode: z.enum(["PRESENCIAL", "VIRTUAL", "HIBRIDO"]),
-    meetingUrl: z.string().url("El enlace de la reunión no es válido.").or(z.literal("")).optional(),
+    meetingUrl: z.string().url("El enlace de la reunión no es válido.").or(z.literal("")).or(z.undefined()).optional(),
     speakerId: z.string().uuid("Seleccione un ponente válido o deje vacío.").or(z.literal("")).optional(),
     status: z.enum(["PUBLIC", "DRAFT", "ARCHIVED"]),
     orderIndex: z.number().int().min(0, "El índice de orden debe ser un número entero positivo.").default(0),
@@ -1000,25 +1014,22 @@ export function EventAgendaSection() {
                     <button
                       type="button"
                       onClick={() => setZoomLevel('1h')}
-                      className={`px-2 py-0.5 text-[10px] font-semibold rounded transition-colors cursor-pointer ${
-                        zoomLevel === '1h' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground hover:text-foreground'
-                      }`}
+                      className={`px-2 py-0.5 text-[10px] font-semibold rounded transition-colors cursor-pointer ${zoomLevel === '1h' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground hover:text-foreground'
+                        }`}
                       title="1 fila = 1 hora"
                     >1h</button>
                     <button
                       type="button"
                       onClick={() => setZoomLevel('30min')}
-                      className={`px-2 py-0.5 text-[10px] font-semibold rounded transition-colors cursor-pointer ${
-                        zoomLevel === '30min' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground hover:text-foreground'
-                      }`}
+                      className={`px-2 py-0.5 text-[10px] font-semibold rounded transition-colors cursor-pointer ${zoomLevel === '30min' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground hover:text-foreground'
+                        }`}
                       title="1 fila = 30 minutos"
                     >30m</button>
                     <button
                       type="button"
                       onClick={() => setZoomLevel('15min')}
-                      className={`px-2 py-0.5 text-[10px] font-semibold rounded transition-colors cursor-pointer ${
-                        zoomLevel === '15min' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground hover:text-foreground'
-                      }`}
+                      className={`px-2 py-0.5 text-[10px] font-semibold rounded transition-colors cursor-pointer ${zoomLevel === '15min' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground hover:text-foreground'
+                        }`}
                       title="1 fila = 15 minutos"
                     >15m</button>
                     <div className="w-px h-3.5 bg-border/60 mx-0.5" />
@@ -1062,7 +1073,7 @@ export function EventAgendaSection() {
                               className="absolute right-3 text-[9px] font-medium text-muted-foreground/50 leading-none"
                               style={{ top: `${rowHeight / 2 + 1}px` }}
                             >
-                              :{String(30).padStart(2,'0')}
+                              :{String(30).padStart(2, '0')}
                             </span>
                           )}
                           {/* 15-min sub-labels */}
@@ -1583,7 +1594,7 @@ export function EventAgendaSection() {
               <div className="space-y-1.5 animate-in slide-in-from-top-1 duration-200">
                 <label htmlFor="modalMeetingUrl" className="text-xs font-semibold text-foreground flex items-center gap-1">
                   <Video className="size-3.5 text-muted-foreground" />
-                  <span>Enlace de Videollamada</span>
+                  <span>Enlace de Videollamada <span className="text-muted-foreground font-normal">(opcional)</span></span>
                 </label>
                 <Input
                   id="modalMeetingUrl"
@@ -1591,9 +1602,11 @@ export function EventAgendaSection() {
                   placeholder="https://zoom.us/j/12345678"
                   value={meetingUrl}
                   onChange={(e) => setMeetingUrl(e.target.value)}
-                  required
                   disabled={isSubmitting}
                 />
+                <p className="text-[10px] text-muted-foreground">
+                  Si aún no tienes el enlace, puedes dejarlo vacío. Se mostrará como <em>Aún no disponible</em>.
+                </p>
               </div>
             )}
 
