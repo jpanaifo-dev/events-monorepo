@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
 import { useSpeakers } from "@/hooks/use-speakers"
+import { Skeleton } from "@/components/ui/skeleton"
 
 // @ts-ignore
 import ExcelJS from "exceljs/dist/exceljs.min.js"
@@ -605,7 +606,9 @@ export function EventSpeakersSection() {
       )}
 
       {/* Speakers List */}
-      {eventSpeakers.length === 0 ? (
+      {isQueryLoading || isFetching ? (
+        <SpeakersSkeleton />
+      ) : eventSpeakers.length === 0 ? (
         <div className="p-12 text-center text-muted-foreground text-sm border border-dashed border-border rounded-xl bg-card/10 space-y-3">
           <BookOpen className="size-8 mx-auto opacity-40 text-primary animate-pulse" />
           <div>
@@ -667,6 +670,42 @@ export function EventSpeakersSection() {
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+function SpeakersSkeleton() {
+  return (
+    <div className="border border-border rounded-xl bg-card/10 backdrop-blur-xs p-6 space-y-4 shadow-xs">
+      <div className="space-y-3">
+        {/* Table Header Skeleton */}
+        <div className="flex gap-4 border-b border-border pb-3">
+          <Skeleton className="h-4 w-10" />
+          <Skeleton className="h-4 w-1/3" />
+          <Skeleton className="h-4 w-1/5" />
+          <Skeleton className="h-4 w-1/4" />
+          <Skeleton className="h-4 w-1/12 ml-auto" />
+        </div>
+        {/* Table Rows Skeletons */}
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="flex gap-4 items-center py-4 border-b border-border/50 last:border-none">
+            <Skeleton className="size-4 rounded" />
+            <div className="flex items-center gap-3 w-1/3">
+              <Skeleton className="size-10 rounded-full shrink-0" />
+              <div className="space-y-1.5 w-full">
+                <Skeleton className="h-4 w-3/4 animate-pulse" />
+                <Skeleton className="h-3 w-1/2 animate-pulse" />
+              </div>
+            </div>
+            <Skeleton className="h-5 w-24 rounded-md animate-pulse" />
+            <Skeleton className="h-4 w-1/3 animate-pulse" />
+            <div className="w-1/12 ml-auto flex justify-end gap-2">
+              <Skeleton className="size-8 rounded-lg animate-pulse" />
+              <Skeleton className="size-8 rounded-lg animate-pulse" />
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
