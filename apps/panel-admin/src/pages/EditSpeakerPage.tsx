@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { z } from "zod"
 import { useEventStore } from "@/store/event.store"
@@ -13,7 +13,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select"
-import { AlertTriangle, Trash2, Plus, Loader2, Edit } from "lucide-react"
+import { AlertTriangle, Trash2, Plus, Loader2, Edit, Search, ChevronLeft, ChevronRight } from "lucide-react"
 import { ImageUploadWithPreview } from "@/components/ImageUploadWithPreview"
 import { useSEO } from "@/hooks/use-seo"
 import { Label } from "@/components/ui/label"
@@ -62,8 +62,78 @@ export function EditSpeakerPage() {
   const [lastName, setLastName] = useState("")
   const [bio, setBio] = useState("")
   const [avatar, setAvatar] = useState("")
+  const [institution, setInstitution] = useState("")
   const [selectedRoleId, setSelectedRoleId] = useState("")
   const [selectedEditionId, setSelectedEditionId] = useState("")
+
+  // Navigation and Search states
+  const [allEventSpeakers, setAllEventSpeakers] = useState<Array<{ id: string, name: string }>>([])
+  const [searchVal, setSearchVal] = useState("")
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const suggestionsRef = useRef<HTMLDivElement>(null)
+
+  // Filter local speakers
+  const suggestedSpeakers = searchVal.trim()
+    ? allEventSpeakers.filter(s => s.name.toLowerCase().includes(searchVal.toLowerCase()))
+    : []
+
+  // Close suggestions on click outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
+  const currentIndex = allEventSpeakers.findIndex(s => s.id === speakerId)
+
+  // Load all speakers for navigation
+  useEffect(() => {
+    async function loadAllSpeakers() {
+      if (!eventId) return
+      try {
+        const { data: rolesData } = await supabase
+          .from("participant_roles")
+          .select("id, slug")
+          .eq("main_event_id", eventId)
+
+        const speakerRoleIds = (rolesData || [])
+          .filter((r) => r.slug === "speaker" || r.slug === "keynote-speaker")
+          .map((r) => r.id)
+
+        if (speakerRoleIds.length === 0) return
+
+        const { data } = await supabase
+          .from("event_participants")
+          .select(`
+            id,
+            profile:profile_id (
+              first_name, last_name
+            )
+          `)
+          .eq("main_event_id", eventId)
+          .in("role_id", speakerRoleIds)
+          .order("created_at", { ascending: false })
+
+        if (data) {
+          const mapped = data.map((part: any) => {
+            const profile = part.profile || {}
+            return {
+              id: part.id,
+              name: `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || "Ponente"
+            }
+          })
+          setAllEventSpeakers(mapped)
+        }
+      } catch (err) {
+        console.error("Error loading all speakers for navigation:", err)
+      }
+    }
+    loadAllSpeakers()
+  }, [eventId])
 
   // Sessions List State
   const [sessionsList, setSessionsList] = useState<Array<{
@@ -105,6 +175,7 @@ export function EditSpeakerPage() {
       setLastName(speaker.lastName || "")
       setBio(speaker.bio || "")
       setAvatar(speaker.avatar || "")
+      setInstitution(speaker.institution || "")
       setSelectedRoleId(speaker.roleId || "")
       setSelectedEditionId(speaker.editionId || currentEdition?.id || "")
     }
@@ -422,6 +493,7 @@ export function EditSpeakerPage() {
       talkTitle: sessionsList[0]?.title || "",
       talkDescription: "",
       bio: bio.trim(),
+      institution: institution.trim() || null,
     }
 
     try {
@@ -457,6 +529,81 @@ export function EditSpeakerPage() {
             description={`Modifica los datos del perfil y la ponencia de: ${speaker.name}.`}
             showBackButton
             onBackClick={() => navigate(`/dashboard/events/${eventId}/speakers`)}
+            actionButton={
+              <div className="flex items-center gap-4 flex-wrap">
+                {/* Search Bar */}
+                <div ref={suggestionsRef} className="relative w-64">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar ponente..."
+                    value={searchVal}
+                    onChange={(e) => {
+                      setSearchVal(e.target.value)
+                      setShowSuggestions(true)
+                    }}
+                    onFocus={() => setShowSuggestions(true)}
+                    className="pl-9 h-9 text-xs rounded-xl"
+                  />
+                  {showSuggestions && suggestedSpeakers.length > 0 && (
+                    <div className="absolute right-0 left-0 mt-1 bg-card border border-border rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto py-1">
+                      {suggestedSpeakers.map((s) => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() => {
+                            navigate(`/dashboard/events/${eventId}/speakers/${s.id}/edit`)
+                            setSearchVal("")
+                            setShowSuggestions(false)
+                          }}
+                          className="w-full text-left px-3 py-2 text-xs hover:bg-muted/60 transition-colors text-foreground font-medium truncate"
+                        >
+                          {s.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Minimalist Prev/Next Navigation Controls */}
+                <div className="flex items-center gap-1 bg-muted/40 p-1 border border-border rounded-xl">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      if (currentIndex > 0) {
+                        const prevSpeaker = allEventSpeakers[currentIndex - 1]
+                        navigate(`/dashboard/events/${eventId}/speakers/${prevSpeaker.id}/edit`)
+                      }
+                    }}
+                    disabled={currentIndex <= 0}
+                    className="size-7 p-0 rounded-lg hover:bg-background"
+                    title="Ponente anterior"
+                  >
+                    <ChevronLeft className="size-4" />
+                  </Button>
+                  <span className="text-[10px] font-bold text-muted-foreground px-1.5 select-none uppercase">
+                    {currentIndex + 1} / {allEventSpeakers.length}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      if (currentIndex < allEventSpeakers.length - 1) {
+                        const nextSpeaker = allEventSpeakers[currentIndex + 1]
+                        navigate(`/dashboard/events/${eventId}/speakers/${nextSpeaker.id}/edit`)
+                      }
+                    }}
+                    disabled={currentIndex < 0 || currentIndex >= allEventSpeakers.length - 1}
+                    className="size-7 p-0 rounded-lg hover:bg-background"
+                    title="Siguiente ponente"
+                  >
+                    <ChevronRight className="size-4" />
+                  </Button>
+                </div>
+              </div>
+            }
           />
         </div>
 
@@ -520,6 +667,25 @@ export function EditSpeakerPage() {
                     />
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* Institution Row */}
+            <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+              <div className="md:w-1/3 space-y-1">
+                <label htmlFor="institutionInput" className="text-sm font-medium text-foreground">
+                  Institución
+                </label>
+                <p className="text-xs text-muted-foreground">Empresa, universidad o centro de afiliación del ponente.</p>
+              </div>
+              <div className="md:w-2/3 max-w-md w-full">
+                <Input
+                  id="institutionInput"
+                  value={institution}
+                  onChange={(e) => setInstitution(e.target.value)}
+                  placeholder="Ej. Universidad Nacional"
+                  disabled={isSubmitting}
+                />
               </div>
             </div>
 

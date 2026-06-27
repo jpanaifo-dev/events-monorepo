@@ -57,6 +57,7 @@ export interface Speaker {
   checkedIn?: boolean
   identityDocumentType?: string | null
   identityDocumentNumber?: string | null
+  institution?: string | null
 }
 
 export interface AgendaItem {
@@ -157,6 +158,7 @@ export interface AddSpeakerInput {
   avatarFile?: File | null
   identityDocumentType?: string | null
   identityDocumentNumber?: string | null
+  institution?: string | null
 }
 
 export interface EventFilters {
@@ -448,7 +450,7 @@ export const useEventStore = create<EventState>((set, get) => ({
             ticket_reference,
             created_at,
             profile:profile_id (
-              id, first_name, last_name, email, avatar_url, bio, identity_document_type, identity_document_number
+              id, first_name, last_name, email, avatar_url, bio, identity_document_type, identity_document_number, institution
             )
           `)
           .in("main_event_id", mainEventIds)
@@ -480,6 +482,7 @@ export const useEventStore = create<EventState>((set, get) => ({
                 checkedIn: !!part.check_in_status,
                 identityDocumentType: profile.identity_document_type || null,
                 identityDocumentNumber: profile.identity_document_number || null,
+                institution: profile.institution || "",
               })
             } else {
               formattedAttendees.push({
@@ -818,6 +821,7 @@ export const useEventStore = create<EventState>((set, get) => ({
         bio: speakerData.bio,
         identity_document_type: speakerData.identityDocumentType || null,
         identity_document_number: speakerData.identityDocumentNumber || null,
+        institution: speakerData.institution || null,
       }
 
       if (speakerData.profileId) {
@@ -867,6 +871,7 @@ export const useEventStore = create<EventState>((set, get) => ({
         checkedIn: false,
         identityDocumentType: speakerData.identityDocumentType || null,
         identityDocumentNumber: speakerData.identityDocumentNumber || null,
+        institution: speakerData.institution || "",
       }
 
       set((state) => ({
@@ -894,6 +899,7 @@ export const useEventStore = create<EventState>((set, get) => ({
       if (updates.bio !== undefined) profileUpdates.bio = updates.bio
       if (updates.identityDocumentType !== undefined) profileUpdates.identity_document_type = updates.identityDocumentType || null
       if (updates.identityDocumentNumber !== undefined) profileUpdates.identity_document_number = updates.identityDocumentNumber || null
+      if (updates.institution !== undefined) profileUpdates.institution = updates.institution || null
 
       if (Object.keys(profileUpdates).length > 0) {
         await supabase.from("profiles").update(profileUpdates).eq("id", current.profileId)
@@ -1285,7 +1291,7 @@ export const useEventStore = create<EventState>((set, get) => ({
           ticket_reference,
           created_at,
           profile:profile_id (
-            id, first_name, last_name, email, avatar_url, bio
+            id, first_name, last_name, email, avatar_url, bio, identity_document_type, identity_document_number, institution
           )
         `)
         .eq("main_event_id", eventId)
@@ -1337,6 +1343,9 @@ export const useEventStore = create<EventState>((set, get) => ({
             talkDescription: profile.bio || "",
             bio: profile.bio || "",
             checkedIn: !!part.check_in_status,
+            identityDocumentType: profile.identity_document_type || null,
+            identityDocumentNumber: profile.identity_document_number || null,
+            institution: profile.institution || "",
           })
         })
       }
@@ -1406,7 +1415,7 @@ export const useEventStore = create<EventState>((set, get) => ({
           ticket_reference,
           created_at,
           profile:profile_id (
-            id, first_name, last_name, email, avatar_url, bio, identity_document_type, identity_document_number
+            id, first_name, last_name, email, avatar_url, bio, identity_document_type, identity_document_number, institution
           )
         `)
         .eq("main_event_id", eventId)
@@ -1449,6 +1458,7 @@ export const useEventStore = create<EventState>((set, get) => ({
             checkedIn: !!part.check_in_status,
             identityDocumentType: profile.identity_document_type || null,
             identityDocumentNumber: profile.identity_document_number || null,
+            institution: profile.institution || "",
           })
         })
       }
