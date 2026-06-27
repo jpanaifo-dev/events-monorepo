@@ -5,6 +5,8 @@ import { Plus, Edit, Trash2, Globe, Layers, BookOpen, Search, Loader2, UserCheck
 import { DataTable, type ColumnDef } from "@/components/ui/data-table"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
+import { useQueryClient } from "@tanstack/react-query"
+import { useSpeakers } from "@/hooks/use-speakers"
 
 // @ts-ignore
 import ExcelJS from "exceljs/dist/exceljs.min.js"
@@ -34,31 +36,22 @@ import { useDebouncedCallback } from "use-debounce"
 import { useSEO } from "@/hooks/use-seo"
 import { PageHeader } from "@/components/page-header"
 
-// Module-level variable: persists across component mount/unmount cycles
-// within the same browser session, preventing redundant re-fetches
-// when navigating back from create/edit pages.
-let _speakersLastFetchKey = ""
-
 export function EventSpeakersSection() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
+  const queryClient = useQueryClient()
 
   const {
     events,
-    speakers,
-    speakersTotalCount,
-    roles,
+    roles: storeRoles,
     editions,
     deleteSpeaker,
-    loadFilteredSpeakers,
-    isLoading,
     toggleSpeakerCheckIn,
     fetchAllSpeakersForExport,
   } = useEventStore()
 
   const event = events.find((e) => e.id === id)
-  const eventSpeakers = speakers.filter((sp) => sp.eventId === id)
   const eventEditions = editions.filter((ed) => ed.mainEventId === id)
 
   const searchQuery = searchParams.get("search") || ""
@@ -72,6 +65,19 @@ export function EventSpeakersSection() {
   const [selectAllDB, setSelectAllDB] = useState(false)
 
   const [localSearch, setLocalSearch] = useState(searchQuery)
+
+  // Fetch speakers using TanStack Query
+  const { data, isLoading: isQueryLoading, isFetching } = useSpeakers(id!, {
+    search: searchQuery,
+    editionId: editionFilter,
+    page: currentPage,
+    pageSize,
+    sort: sortParam,
+  })
+
+  const eventSpeakers = data?.speakers || []
+  const speakersTotalCount = data?.totalCount || 0
+  const roles = data?.roles || storeRoles || []
 
   useSEO({
     title: event ? `${event.name} - Ponentes` : "Ponentes de Evento",
@@ -121,31 +127,25 @@ export function EventSpeakersSection() {
     })
   }
 
-  // Load speakers only when filters/page/sort actually change.
-  // The module-level _speakersLastFetchKey persists across component
-  // unmount/remount so navigating back from create/edit doesn't re-fetch
-  // (which would reorder the list unexpectedly).
-  useEffect(() => {
-    if (!id) return
-    const fetchKey = `${id}:${searchQuery}:${editionFilter}:${currentPage}:${sortParam}`
-    if (_speakersLastFetchKey === fetchKey) return
-    _speakersLastFetchKey = fetchKey
+  const handleToggleCheckIn = async (speakerId: string) => {
+    try {
+      await toggleSpeakerCheckIn(speakerId)
+      queryClient.invalidateQueries({ queryKey: ["speakers", id] })
+      toast.success("Acreditación actualizada con éxito.")
+    } catch (error: any) {
+      toast.error("Error al actualizar la acreditación.")
+    }
+  }
 
-    const order = sortParam === "name_asc"
-      ? { field: "name" as const, direction: "asc" as const }
-      : sortParam === "name_desc"
-        ? { field: "name" as const, direction: "desc" as const }
-        : undefined
-
-    loadFilteredSpeakers(id, {
-      search: searchQuery,
-      editionId: editionFilter,
-      page: currentPage,
-      pageSize,
-      order,
-    })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, searchQuery, editionFilter, currentPage, sortParam])
+  const handleDeleteSpeaker = async (speakerId: string) => {
+    try {
+      await deleteSpeaker(speakerId)
+      queryClient.invalidateQueries({ queryKey: ["speakers", id] })
+      toast.success("Ponente eliminado con éxito.")
+    } catch (error: any) {
+      toast.error("Error al eliminar al ponente.")
+    }
+  }
 
   const handleAddClick = () => {
     navigate(`/dashboard/events/${id}/speakers/new`)
@@ -424,7 +424,7 @@ export function EventSpeakersSection() {
       headerClassName: "p-3 text-center",
       cell: (sp) => (
         <button
-          onClick={() => toggleSpeakerCheckIn(sp.id)}
+          onClick={() => handleToggleCheckIn(sp.id)}
           className={`p-1.5 rounded-full border transition-colors inline-flex ${sp.checkedIn ? "bg-primary/10 border-primary/30 text-primary" : "bg-muted/40 border-border/80 text-muted-foreground/60 hover:text-foreground"}`}
           title={sp.checkedIn ? "Acreditado (Haga clic para desmarcar)" : "Sin Acreditar (Haga clic para marcar)"}
         >
@@ -457,7 +457,7 @@ export function EventSpeakersSection() {
           >
             <Edit className="size-3.5" />
           </Button>
-
+ 
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button
@@ -477,7 +477,7 @@ export function EventSpeakersSection() {
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
                 <AlertDialogAction
-                  onClick={() => deleteSpeaker(sp.id)}
+                  onClick={() => handleDeleteSpeaker(sp.id)}
                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 >
                   Sí, eliminar
@@ -489,10 +489,10 @@ export function EventSpeakersSection() {
       )
     }
   ]
-
+ 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-
+ 
       <PageHeader
         title="Ponentes"
         description="Gestiona los expositores de charlas, conferencias y talleres."
@@ -507,7 +507,7 @@ export function EventSpeakersSection() {
               <Upload className="size-4" />
               <span className="hidden md:inline">Importar CSV</span>
             </Button>
-
+ 
             <Button onClick={handleAddClick} className="text-xs px-3 py-1.5 h-8">
               <Plus className="size-4 mr-1.5" />
               Agregar Ponente
@@ -515,7 +515,7 @@ export function EventSpeakersSection() {
           </div>
         }
       />
-
+ 
       {/* Filters Row */}
       <div className="flex flex-col sm:flex-row gap-3 items-center">
         {/* Search Input */}
@@ -528,7 +528,7 @@ export function EventSpeakersSection() {
             className="pl-9 h-9 text-xs rounded-xl shadow-xs border-muted-foreground/20 focus-visible:ring-primary/20"
           />
         </div>
-
+ 
         {/* Edition Select Filter */}
         <div className="w-full sm:max-w-xs">
           <Select value={editionFilter} onValueChange={handleEditionChange}>
@@ -545,9 +545,9 @@ export function EventSpeakersSection() {
             </SelectContent>
           </Select>
         </div>
-
+ 
         {/* Loading Spinner for dynamic backend loading indicator */}
-        {isLoading && (
+        {(isQueryLoading || isFetching) && (
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground animate-in fade-in">
             <Loader2 className="size-3.5 animate-spin text-primary" />
             <span>Actualizando...</span>
