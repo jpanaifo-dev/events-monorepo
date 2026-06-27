@@ -96,7 +96,7 @@ export async function fetchEventSpeakers(
       ticket_reference,
       created_at,
       profile:profile_id (
-        id, first_name, last_name, email, avatar_url, bio, identity_document_type, identity_document_number
+        id, first_name, last_name, email, avatar_url, bio, identity_document_type, identity_document_number, institution
       )
     `)
     .eq("main_event_id", eventId)
@@ -146,6 +146,7 @@ export async function fetchEventSpeakers(
         checkedIn: !!part.check_in_status,
         identityDocumentType: profile.identity_document_type || null,
         identityDocumentNumber: profile.identity_document_number || null,
+        institution: profile.institution || "",
       })
     })
   }

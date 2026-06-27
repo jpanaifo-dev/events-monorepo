@@ -42,6 +42,7 @@ export function CreateSpeakerPage() {
   const [bio, setBio] = useState("")
   const [avatar, setAvatar] = useState("")
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
+  const [institution, setInstitution] = useState("")
   const [hasSession, setHasSession] = useState(false)
   const [createAccount, setCreateAccount] = useState(false)
   const [sessionTitle, setSessionTitle] = useState("")
@@ -115,6 +116,7 @@ export function CreateSpeakerPage() {
         setLastName(data.last_name || "")
         setBio(data.bio || "")
         setAvatar(data.avatar_url || "")
+        setInstitution(data.institution || "")
         setIsProfileFound(true)
       } else {
         setProfileId("")
@@ -174,6 +176,7 @@ export function CreateSpeakerPage() {
       talkDescription: "",
       bio: bio.trim(),
       avatarFile,
+      institution: institution.trim() || null,
     }
 
     try {
@@ -367,6 +370,25 @@ export function CreateSpeakerPage() {
                     />
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* Institution Row */}
+            <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+              <div className="md:w-1/3 space-y-1">
+                <label htmlFor="institutionInput" className="text-sm font-medium text-foreground">
+                  Institución
+                </label>
+                <p className="text-xs text-muted-foreground">Empresa, universidad o centro de afiliación del ponente.</p>
+              </div>
+              <div className="md:w-2/3 max-w-md w-full">
+                <Input
+                  id="institutionInput"
+                  value={institution}
+                  onChange={(e) => setInstitution(e.target.value)}
+                  placeholder="Ej. Universidad Nacional"
+                  disabled={isSubmitting}
+                />
               </div>
             </div>
 
