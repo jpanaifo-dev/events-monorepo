@@ -143,23 +143,43 @@ export function EventActivityFormPage() {
         if (item.startDate) {
           setStartDate(item.startDate)
         } else if (item.startTime) {
-          setStartDate(item.startTime.split("T")[0])
+          const d = new Date(item.startTime)
+          if (!isNaN(d.getTime())) {
+            const year = d.getFullYear()
+            const month = String(d.getMonth() + 1).padStart(2, "0")
+            const day = String(d.getDate()).padStart(2, "0")
+            setStartDate(`${year}-${month}-${day}`)
+          }
         }
 
         if (item.startTime) {
-          const parts = item.startTime.split("T")
-          if (parts[1]) setStartTime(parts[1].substring(0, 5))
+          const d = new Date(item.startTime)
+          if (!isNaN(d.getTime())) {
+            const hours = String(d.getHours()).padStart(2, "0")
+            const minutes = String(d.getMinutes()).padStart(2, "0")
+            setStartTime(`${hours}:${minutes}`)
+          }
         }
 
         if (item.endDate) {
           setEndDate(item.endDate)
         } else if (item.endTime) {
-          setEndDate(item.endTime.split("T")[0])
+          const d = new Date(item.endTime)
+          if (!isNaN(d.getTime())) {
+            const year = d.getFullYear()
+            const month = String(d.getMonth() + 1).padStart(2, "0")
+            const day = String(d.getDate()).padStart(2, "0")
+            setEndDate(`${year}-${month}-${day}`)
+          }
         }
 
         if (item.endTime) {
-          const parts = item.endTime.split("T")
-          if (parts[1]) setEndTime(parts[1].substring(0, 5))
+          const d = new Date(item.endTime)
+          if (!isNaN(d.getTime())) {
+            const hours = String(d.getHours()).padStart(2, "0")
+            const minutes = String(d.getMinutes()).padStart(2, "0")
+            setEndTime(`${hours}:${minutes}`)
+          }
         }
       }
     }

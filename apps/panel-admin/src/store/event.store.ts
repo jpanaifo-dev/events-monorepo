@@ -402,7 +402,17 @@ export const useEventStore = create<EventState>((set, get) => ({
             eventId: act.event_id,
             editionId: act.edition_id || null,
             parentActivityId: act.parent_activity_id || null,
-            timeSlot: `${act.start_time ? act.start_time.split("T")[1]?.substring(0, 5) : "09:00"} - ${act.end_time ? act.end_time.split("T")[1]?.substring(0, 5) : "10:00"}`,
+            timeSlot: (() => {
+              if (!act.start_time || !act.end_time) return "09:00 - 10:00";
+              const dStart = new Date(act.start_time);
+              const dEnd = new Date(act.end_time);
+              if (isNaN(dStart.getTime()) || isNaN(dEnd.getTime())) return "09:00 - 10:00";
+              const hStart = String(dStart.getHours()).padStart(2, "0");
+              const mStart = String(dStart.getMinutes()).padStart(2, "0");
+              const hEnd = String(dEnd.getHours()).padStart(2, "0");
+              const mEnd = String(dEnd.getMinutes()).padStart(2, "0");
+              return `${hStart}:${mStart} - ${hEnd}:${mEnd}`;
+            })(),
             title: act.activity_name,
             stage: act.custom_location || "Escenario Principal",
             speakerId: act.speaker_id || "",
