@@ -176,12 +176,37 @@ export function EventAgendaSection() {
 
   // Group activities by date
   const groupedAgenda = useMemo(() => {
-    return eventAgenda.reduce<Record<string, AgendaItem[]>>((acc, item) => {
-      const dateKey = item.startDate || (item.startTime ? item.startTime.split("T")[0] : "Sin fecha")
+    const grouped = eventAgenda.reduce<Record<string, AgendaItem[]>>((acc, item) => {
+      let dateKey = item.startDate
+      if (!dateKey && item.startTime) {
+        const d = new Date(item.startTime)
+        if (!isNaN(d.getTime())) {
+          const year = d.getFullYear()
+          const month = String(d.getMonth() + 1).padStart(2, "0")
+          const day = String(d.getDate()).padStart(2, "0")
+          dateKey = `${year}-${month}-${day}`
+        }
+      }
+      if (!dateKey) dateKey = "Sin fecha"
+
       if (!acc[dateKey]) acc[dateKey] = []
       acc[dateKey].push(item)
       return acc
     }, {})
+
+    // Sort items within each date by orderIndex or startTime
+    for (const dateKey of Object.keys(grouped)) {
+      grouped[dateKey].sort((a, b) => {
+        if (a.orderIndex !== b.orderIndex) {
+          return (a.orderIndex ?? 0) - (b.orderIndex ?? 0)
+        }
+        const timeA = a.startTime ? new Date(a.startTime).getTime() : 0
+        const timeB = b.startTime ? new Date(b.startTime).getTime() : 0
+        return timeA - timeB
+      })
+    }
+
+    return grouped
   }, [eventAgenda])
 
   // Sort dates chronologically
@@ -208,22 +233,6 @@ export function EventAgendaSection() {
   const switcherDates = useMemo(() => {
     return editionDates.length > 0 ? editionDates : sortedDates
   }, [editionDates, sortedDates])
-
-  // Sort items within each date by orderIndex or startTime
-  useEffect(() => {
-    switcherDates.forEach((dateKey) => {
-      if (groupedAgenda[dateKey]) {
-        groupedAgenda[dateKey].sort((a, b) => {
-          if (a.orderIndex !== b.orderIndex) {
-            return (a.orderIndex ?? 0) - (b.orderIndex ?? 0)
-          }
-          const timeA = a.startTime ? a.startTime.split("T")[1] || "" : ""
-          const timeB = b.startTime ? b.startTime.split("T")[1] || "" : ""
-          return timeA.localeCompare(timeB)
-        })
-      }
-    })
-  }, [switcherDates, groupedAgenda])
 
   // Selected date for Agenda Mode
   const [selectedDate, setSelectedDate] = useState<string>("")
@@ -314,7 +323,10 @@ export function EventAgendaSection() {
     if (endAbs < startAbs) {
       const d = new Date(`${selectedDate}T00:00:00`)
       d.setDate(d.getDate() + 1)
-      const nextDayStr = d.toISOString().split("T")[0]
+      const year = d.getFullYear()
+      const month = String(d.getMonth() + 1).padStart(2, "0")
+      const day = String(d.getDate()).padStart(2, "0")
+      const nextDayStr = `${year}-${month}-${day}`
       setEndDate(nextDayStr)
     } else {
       setEndDate(selectedDate)
@@ -725,23 +737,43 @@ export function EventAgendaSection() {
     if (item.startDate) {
       setStartDate(item.startDate)
     } else if (item.startTime) {
-      setStartDate(item.startTime.split("T")[0])
+      const d = new Date(item.startTime)
+      if (!isNaN(d.getTime())) {
+        const year = d.getFullYear()
+        const month = String(d.getMonth() + 1).padStart(2, "0")
+        const day = String(d.getDate()).padStart(2, "0")
+        setStartDate(`${year}-${month}-${day}`)
+      }
     }
 
     if (item.startTime) {
-      const parts = item.startTime.split("T")
-      if (parts[1]) setStartTime(parts[1].substring(0, 5))
+      const d = new Date(item.startTime)
+      if (!isNaN(d.getTime())) {
+        const hours = String(d.getHours()).padStart(2, "0")
+        const minutes = String(d.getMinutes()).padStart(2, "0")
+        setStartTime(`${hours}:${minutes}`)
+      }
     }
 
     if (item.endDate) {
       setEndDate(item.endDate)
     } else if (item.endTime) {
-      setEndDate(item.endTime.split("T")[0])
+      const d = new Date(item.endTime)
+      if (!isNaN(d.getTime())) {
+        const year = d.getFullYear()
+        const month = String(d.getMonth() + 1).padStart(2, "0")
+        const day = String(d.getDate()).padStart(2, "0")
+        setEndDate(`${year}-${month}-${day}`)
+      }
     }
 
     if (item.endTime) {
-      const parts = item.endTime.split("T")
-      if (parts[1]) setEndTime(parts[1].substring(0, 5))
+      const d = new Date(item.endTime)
+      if (!isNaN(d.getTime())) {
+        const hours = String(d.getHours()).padStart(2, "0")
+        const minutes = String(d.getMinutes()).padStart(2, "0")
+        setEndTime(`${hours}:${minutes}`)
+      }
     }
     setIsModalOpen(true)
   }
