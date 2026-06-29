@@ -22,7 +22,8 @@ import {
   ChevronRight,
   X,
   ZoomIn,
-  ZoomOut
+  ZoomOut,
+  Search
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/page-header"
@@ -124,6 +125,27 @@ export function EventAgendaSection() {
   }, [agendaItems, eventId, currentEdition])
   const eventSpeakers = useMemo(() => speakers.filter((sp) => sp.eventId === eventId), [speakers, eventId])
 
+  const [searchTerm, setSearchTerm] = useState("")
+  const [selectedModality, setSelectedModality] = useState<string>("ALL")
+
+  const filteredAgenda = useMemo(() => {
+    return eventAgenda.filter((item) => {
+      if (selectedModality !== "ALL" && item.activityMode !== selectedModality) {
+        return false
+      }
+      if (searchTerm.trim() !== "") {
+        const term = searchTerm.toLowerCase()
+        const titleMatch = (item.title || "").toLowerCase().includes(term)
+        const descMatch = (item.description || "").toLowerCase().includes(term)
+        const stageMatch = (item.stage || "").toLowerCase().includes(term)
+        const sp = eventSpeakers.find((s) => s.id === item.speakerId)
+        const speakerMatch = sp ? sp.name.toLowerCase().includes(term) : false
+        return titleMatch || descMatch || stageMatch || speakerMatch
+      }
+      return true
+    })
+  }, [eventAgenda, searchTerm, selectedModality, eventSpeakers])
+
   useSEO({
     title: event ? `${event.name} - Cronograma` : "Cronograma de Evento",
     description: `Administra las actividades del cronograma del evento ${event?.name || ""}.`
@@ -176,7 +198,7 @@ export function EventAgendaSection() {
 
   // Group activities by date
   const groupedAgenda = useMemo(() => {
-    const grouped = eventAgenda.reduce<Record<string, AgendaItem[]>>((acc, item) => {
+    const grouped = filteredAgenda.reduce<Record<string, AgendaItem[]>>((acc, item) => {
       let dateKey = item.startDate
       if (!dateKey && item.startTime) {
         const d = new Date(item.startTime)
@@ -207,7 +229,7 @@ export function EventAgendaSection() {
     }
 
     return grouped
-  }, [eventAgenda])
+  }, [filteredAgenda])
 
   // Sort dates chronologically
   const sortedDates = useMemo(() => Object.keys(groupedAgenda).sort(), [groupedAgenda])
@@ -900,90 +922,139 @@ export function EventAgendaSection() {
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
 
-      <PageHeader
-        title="Planificador del Cronograma"
-        description="Estructura las ponencias, talleres e itinerarios principales."
-        actionButton={
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Edition Select Dropdown in header */}
-            {currentEdition && (
-              <div className="flex items-center gap-2 bg-muted/20 border border-border/60 px-3 py-1 rounded-lg h-9">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Edición:</span>
-                <Select
-                  value={currentEdition.id}
-                  onValueChange={(val) => {
-                    setSelectedEditionId(val)
-                    const selected = editions.find((ed) => ed.id === val)
-                    if (selected && selected.startDate) {
-                      setSelectedDate(selected.startDate)
-                    }
-                  }}
-                >
-                  <SelectTrigger className="w-[150px] h-7 text-xs border-none bg-transparent shadow-none focus:ring-0 p-0 pr-2 cursor-pointer">
-                    <SelectValue placeholder="Seleccionar edición" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {editions
-                      .filter((ed) => ed.mainEventId === eventId)
-                      .map((ed) => (
-                        <SelectItem key={ed.id} value={ed.id} className="text-xs">
-                          {ed.name && typeof ed.name === "object"
-                            ? (ed.name as any).es || (ed.name as any).en || JSON.stringify(ed.name)
-                            : (ed.name || "")}
-                          {ed.isCurrent ? " (Actual)" : ""}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+      {/* Sticky Header Container */}
+      <div className="sticky top-0 bg-background/95 backdrop-blur-md z-40 pb-4 pt-3 -mx-6 px-6 border-b border-border/80 shadow-xs space-y-4">
+        <PageHeader
+          title="Planificador del Cronograma"
+          description="Estructura las ponencias, talleres e itinerarios principales."
+          actionButton={
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Edition Select Dropdown in header */}
+              {currentEdition && (
+                <div className="flex items-center gap-2 bg-muted/20 border border-border/60 px-3 py-1 rounded-lg h-9">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Edición:</span>
+                  <Select
+                    value={currentEdition.id}
+                    onValueChange={(val) => {
+                      setSelectedEditionId(val)
+                      const selected = editions.find((ed) => ed.id === val)
+                      if (selected && selected.startDate) {
+                        setSelectedDate(selected.startDate)
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-[150px] h-7 text-xs border-none bg-transparent shadow-none focus:ring-0 p-0 pr-2 cursor-pointer">
+                      <SelectValue placeholder="Seleccionar edición" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {editions
+                        .filter((ed) => ed.mainEventId === eventId)
+                        .map((ed) => (
+                          <SelectItem key={ed.id} value={ed.id} className="text-xs">
+                            {ed.name && typeof ed.name === "object"
+                              ? (ed.name as any).es || (ed.name as any).en || JSON.stringify(ed.name)
+                              : (ed.name || "")}
+                            {ed.isCurrent ? " (Actual)" : ""}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
-            {/* 3-View Toggle Switcher */}
-            <div className="flex items-center bg-muted/40 border border-border p-1 rounded-lg">
-              <button
-                onClick={() => setViewMode("dia")}
-                className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-md transition-all cursor-pointer font-medium ${viewMode === "dia"
-                  ? "bg-card text-foreground shadow-xs border border-border/50"
-                  : "text-muted-foreground hover:text-foreground"
-                  }`}
+              {/* 3-View Toggle Switcher */}
+              <div className="flex items-center bg-muted/40 border border-border p-1 rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => setViewMode("dia")}
+                  className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-md transition-all cursor-pointer font-medium ${viewMode === "dia"
+                    ? "bg-card text-foreground shadow-xs border border-border/50"
+                    : "text-muted-foreground hover:text-foreground"
+                    }`}
+                >
+                  <Clock className="size-3.5" />
+                  Día
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("agenda")}
+                  className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-md transition-all cursor-pointer font-medium ${viewMode === "agenda"
+                    ? "bg-card text-foreground shadow-xs border border-border/50"
+                    : "text-muted-foreground hover:text-foreground"
+                    }`}
+                >
+                  <Calendar className="size-3.5" />
+                  Agenda
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("list")}
+                  className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-md transition-all cursor-pointer font-medium ${viewMode === "list"
+                    ? "bg-card text-foreground shadow-xs border border-border/50"
+                    : "text-muted-foreground hover:text-foreground"
+                    }`}
+                >
+                  <List className="size-3.5" />
+                  Lista
+                </button>
+              </div>
+
+              <Button
+                onClick={() => handleOpenCreate()}
+                className="text-xs px-3.5 py-1.5 h-9 font-semibold font-sans cursor-pointer"
               >
-                <Clock className="size-3.5" />
-                Día
-              </button>
-              <button
-                onClick={() => setViewMode("agenda")}
-                className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-md transition-all cursor-pointer font-medium ${viewMode === "agenda"
-                  ? "bg-card text-foreground shadow-xs border border-border/50"
-                  : "text-muted-foreground hover:text-foreground"
-                  }`}
-              >
-                <Calendar className="size-3.5" />
-                Agenda
-              </button>
-              <button
-                onClick={() => setViewMode("list")}
-                className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-md transition-all cursor-pointer font-medium ${viewMode === "list"
-                  ? "bg-card text-foreground shadow-xs border border-border/50"
-                  : "text-muted-foreground hover:text-foreground"
-                  }`}
-              >
-                <List className="size-3.5" />
-                Lista
-              </button>
+                <Plus className="size-4 mr-1.5" />
+                Nueva Actividad
+              </Button>
+            </div>
+          }
+        />
+
+        {eventAgenda.length > 0 && (
+          <div className="flex flex-col sm:flex-row gap-3 items-center justify-between animate-in fade-in duration-200">
+            {/* Search Input */}
+            <div className="relative w-full sm:max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/80" />
+              <Input
+                type="text"
+                placeholder="Buscar por título, ponente, descripción o escenario..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 pr-8 h-9 text-xs w-full bg-muted/20 focus:bg-background border-border/80 rounded-lg shadow-xs"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-muted-foreground hover:text-foreground rounded-md hover:bg-muted/65 transition-colors cursor-pointer"
+                >
+                  <X className="size-3" />
+                </button>
+              )}
             </div>
 
-            <Button
-              onClick={() => handleOpenCreate()}
-              className="text-xs px-3.5 py-1.5 h-9 font-semibold font-sans"
-            >
-              <Plus className="size-4 mr-1.5" />
-              Nueva Actividad
-            </Button>
+            {/* Modality Filter */}
+            <div className="flex items-center gap-2 w-full sm:w-auto self-start sm:self-auto shrink-0">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap hidden sm:inline">
+                Modalidad:
+              </span>
+              <Select value={selectedModality} onValueChange={setSelectedModality}>
+                <SelectTrigger className="w-full sm:w-[180px] h-9 text-xs border-border/80 bg-muted/20 hover:bg-muted/40 rounded-lg shadow-xs cursor-pointer">
+                  <SelectValue placeholder="Todas las modalidades" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL" className="text-xs">Todas las modalidades</SelectItem>
+                  <SelectItem value="PRESENCIAL" className="text-xs">Presencial</SelectItem>
+                  <SelectItem value="VIRTUAL" className="text-xs">Virtual</SelectItem>
+                  <SelectItem value="HIBRIDO" className="text-xs">Híbrido</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-        }
-      />
+        )}
+      </div>
 
-      {(eventAgenda.length === 0 && viewMode === "list") || (viewMode === "dia" && switcherDates.length === 0) || (viewMode === "agenda" && switcherDates.length === 0) ? (
+      {eventAgenda.length === 0 ? (
         <div className="p-16 text-center text-muted-foreground text-sm border border-dashed border-border rounded-xl bg-card/20 space-y-3">
           <Calendar className="size-10 mx-auto opacity-30" />
           <div>
@@ -995,9 +1066,29 @@ export function EventAgendaSection() {
           <Button
             onClick={() => handleOpenCreate()}
             variant="outline"
-            className="text-xs h-8 font-semibold mt-2"
+            className="text-xs h-8 font-semibold mt-2 cursor-pointer"
           >
             Agregar Primera Actividad
+          </Button>
+        </div>
+      ) : filteredAgenda.length === 0 ? (
+        <div className="p-16 text-center text-muted-foreground text-sm border border-dashed border-border rounded-xl bg-card/20 space-y-3">
+          <Search className="size-10 mx-auto opacity-30" />
+          <div>
+            <p className="font-semibold text-lg text-foreground">No se encontraron actividades</p>
+            <p className="text-xs text-muted-foreground">
+              No hay actividades que coincidan con la búsqueda o el filtro de modalidad seleccionado.
+            </p>
+          </div>
+          <Button
+            onClick={() => {
+              setSearchTerm("")
+              setSelectedModality("ALL")
+            }}
+            variant="outline"
+            className="text-xs h-8 font-semibold mt-2 cursor-pointer"
+          >
+            Limpiar filtros
           </Button>
         </div>
       ) : (
