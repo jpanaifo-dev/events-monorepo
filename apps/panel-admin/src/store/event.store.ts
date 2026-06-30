@@ -70,7 +70,7 @@ export interface AgendaItem {
   parentActivityId?: string | null
   timeSlot: string
   title: string
-  stage: string
+  stage: string | null
   speakerId: string
   description?: string | null
   startTime?: string | null
