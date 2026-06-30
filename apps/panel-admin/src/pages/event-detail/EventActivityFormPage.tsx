@@ -52,6 +52,7 @@ export function EventActivityFormPage() {
   const [activityMode, setActivityMode] = useState<"PRESENCIAL" | "VIRTUAL" | "HIBRIDO">("PRESENCIAL")
   const [meetingUrl, setMeetingUrl] = useState("")
   const [hasMeetingUrl, setHasMeetingUrl] = useState(false)
+  const [hasPhysicalLocation, setHasPhysicalLocation] = useState(true)
   const [speakerId, setSpeakerId] = useState("")
   const [status, setStatus] = useState<"PUBLIC" | "DRAFT" | "ARCHIVED">("PUBLIC")
   const [orderIndex, setOrderIndex] = useState(0)
@@ -146,6 +147,7 @@ export function EventActivityFormPage() {
         setActivityMode(item.activityMode || "PRESENCIAL")
         setMeetingUrl(item.meetingUrl || "")
         setHasMeetingUrl(!!item.meetingUrl)
+        setHasPhysicalLocation(item.activityMode === "HIBRIDO" ? !!item.stage : true)
         setStatus(item.status || "PUBLIC")
         setOrderIndex(item.orderIndex ?? 0)
 
@@ -220,7 +222,7 @@ export function EventActivityFormPage() {
     startTime: z.string().regex(/^\d{2}:\d{2}$/, "Hora de inicio inválida (HH:MM)."),
     endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha de fin inválida (AAAA-MM-DD)."),
     endTime: z.string().regex(/^\d{2}:\d{2}$/, "Hora de fin inválida (HH:MM)."),
-    customLocation: z.string().trim().min(1, "El escenario o ubicación es requerido."),
+    customLocation: z.string().trim().optional(),
     activityMode: z.enum(["PRESENCIAL", "VIRTUAL", "HIBRIDO"]),
     meetingUrl: z.string().url("El enlace de la reunión no es válido.").or(z.literal("")).or(z.undefined()).optional(),
     speakerId: z.string().uuid("Seleccione un ponente válido o deje vacío.").or(z.literal("")).optional(),
@@ -260,6 +262,16 @@ export function EventActivityFormPage() {
       return
     }
 
+    if (activityMode === "PRESENCIAL" && !customLocation.trim()) {
+      toast.error("El escenario o ubicación es requerido para actividades presenciales.")
+      return
+    }
+
+    if (activityMode === "HIBRIDO" && hasPhysicalLocation && !customLocation.trim()) {
+      toast.error("El escenario o ubicación es requerido si se especifica ubicación física.")
+      return
+    }
+
     const trimmedMeetingUrl = (activityMode !== "PRESENCIAL" && hasMeetingUrl) ? meetingUrl.trim() : ""
     let formattedMeetingUrl = trimmedMeetingUrl
     if (formattedMeetingUrl && !/^https?:\/\//i.test(formattedMeetingUrl)) {
@@ -292,12 +304,18 @@ export function EventActivityFormPage() {
     const isoStart = new Date(`${startDate}T${startTime}:00`).toISOString()
     const isoEnd = new Date(`${endDate}T${endTime}:00`).toISOString()
 
+    const calculatedStage = activityMode === "VIRTUAL"
+      ? (customLocation.trim() || null)
+      : (activityMode === "PRESENCIAL" || (activityMode === "HIBRIDO" && hasPhysicalLocation))
+        ? (customLocation.trim() || "Escenario Principal")
+        : null
+
     const payload = {
       eventId: currentEdition?.id || eventId,
       editionId: currentEdition?.id || null,
       title: activityName,
       description: description || null,
-      stage: customLocation,
+      stage: calculatedStage,
       speakerId: speakerId || "",
       startTime: isoStart,
       endTime: isoEnd,
@@ -522,23 +540,70 @@ export function EventActivityFormPage() {
             {/* Location (Stage) */}
             <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 border-b border-border/50 pb-6">
               <div className="md:w-1/3 space-y-1">
-                <label htmlFor="customLocation" className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-                  <MapPin className="size-4 text-muted-foreground" />
-                  <span>Ubicación / Escenario</span>
-                </label>
+                {activityMode === "HIBRIDO" ? (
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={hasPhysicalLocation}
+                      onChange={(e) => {
+                        setHasPhysicalLocation(e.target.checked)
+                        if (!e.target.checked) {
+                          setCustomLocation("")
+                        }
+                      }}
+                      disabled={isSubmitting}
+                      className="rounded border-input text-primary focus:ring-primary h-4 w-4"
+                    />
+                    <span className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                      <MapPin className="size-4 text-muted-foreground" />
+                      ¿Añadir ubicación física?
+                    </span>
+                  </label>
+                ) : (
+                  <label htmlFor="customLocation" className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                    <MapPin className="size-4 text-muted-foreground" />
+                    <span>Ubicación / Escenario {activityMode === "PRESENCIAL" && <span className="text-destructive">*</span>}</span>
+                  </label>
+                )}
                 <p className="text-xs text-muted-foreground">Escenario, sala o salón donde se llevará a cabo.</p>
               </div>
-              <div className="md:w-2/3 w-full">
-                <Input
-                  id="customLocation"
-                  placeholder="Ej. Salón de Actos, Escenario Principal, Sala B"
-                  value={customLocation}
-                  onChange={(e) => setCustomLocation(e.target.value)}
-                  required
-                  disabled={isSubmitting}
-                />
-                {branches.length > 0 && (
-                  <div className="flex flex-col gap-1.5 mt-2">
+              <div className="md:w-2/3 w-full pl-6 md:pl-0">
+                {activityMode === "PRESENCIAL" && (
+                  <Input
+                    id="customLocation"
+                    placeholder="Ej. Salón de Actos, Escenario Principal, Sala B"
+                    value={customLocation}
+                    onChange={(e) => setCustomLocation(e.target.value)}
+                    required
+                    disabled={isSubmitting}
+                  />
+                )}
+
+                {activityMode === "VIRTUAL" && (
+                  <Input
+                    id="customLocation"
+                    placeholder="Ej. Sala de Zoom 1 o vacío (opcional)"
+                    value={customLocation}
+                    onChange={(e) => setCustomLocation(e.target.value)}
+                    disabled={isSubmitting}
+                  />
+                )}
+
+                {activityMode === "HIBRIDO" && hasPhysicalLocation && (
+                  <div className="animate-in slide-in-from-top-1 duration-150">
+                    <Input
+                      id="customLocation"
+                      placeholder="Ej. Salón de Actos, Escenario Principal, Sala B"
+                      value={customLocation}
+                      onChange={(e) => setCustomLocation(e.target.value)}
+                      required
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                )}
+
+                {(activityMode === "PRESENCIAL" || (activityMode === "HIBRIDO" && hasPhysicalLocation)) && branches.length > 0 && (
+                  <div className="flex flex-col gap-1.5 mt-2 pl-0">
                     <span className="text-[11px] font-medium text-muted-foreground">Sugerencias de sedes de la organización:</span>
                     <div className="flex flex-wrap gap-1.5">
                       {branches.map((branch) => {
