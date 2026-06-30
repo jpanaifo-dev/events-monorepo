@@ -256,8 +256,20 @@ export function EventAgendaSection() {
     return editionDates.length > 0 ? editionDates : sortedDates
   }, [editionDates, sortedDates])
 
-  // Selected date for Agenda Mode
-  const [selectedDate, setSelectedDate] = useState<string>("")
+  // Selected date for Agenda Mode synced with URL searchParams
+  const selectedDate = useMemo(() => {
+    return searchParams.get("date") || ""
+  }, [searchParams])
+
+  const setSelectedDate = (date: string) => {
+    const params = new URLSearchParams(searchParams)
+    if (date) {
+      params.set("date", date)
+    } else {
+      params.delete("date")
+    }
+    setSearchParams(params, { replace: true })
+  }
 
   useEffect(() => {
     if (switcherDates.length > 0 && (!selectedDate || !switcherDates.includes(selectedDate))) {
@@ -733,9 +745,10 @@ export function EventAgendaSection() {
     setStartTime("09:00")
     setEndTime("10:00")
 
-    if (prefilledDate) {
-      setStartDate(prefilledDate)
-      setEndDate(prefilledDate)
+    const dateToPrefill = prefilledDate || selectedDate
+    if (dateToPrefill) {
+      setStartDate(dateToPrefill)
+      setEndDate(dateToPrefill)
     } else if (currentEdition?.startDate) {
       setStartDate(currentEdition.startDate)
       setEndDate(currentEdition.startDate)

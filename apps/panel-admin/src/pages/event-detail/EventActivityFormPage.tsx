@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react"
-import { useParams, useNavigate } from "react-router-dom"
+import { useParams, useNavigate, useSearchParams } from "react-router-dom"
 import { z } from "zod"
 import { useEventStore } from "@/store/event.store"
 import { Button } from "@/components/ui/button"
@@ -20,6 +20,7 @@ import { PageHeader } from "@/components/page-header"
 export function EventActivityFormPage() {
   const { id: eventId, activityId } = useParams<{ id: string; activityId?: string }>()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const {
     events,
     editions,
@@ -112,9 +113,15 @@ export function EventActivityFormPage() {
     }
   }, [startDate, startTime, endDate, endTime])
 
-  // Initialize dates from current/first edition or today
+  // Initialize dates from query param, current/first edition or today
   useEffect(() => {
     if (!isEditMode && editions.length > 0) {
+      const queryDate = searchParams.get("date")
+      if (queryDate && /^\d{4}-\d{2}-\d{2}$/.test(queryDate)) {
+        setStartDate(queryDate)
+        setEndDate(queryDate)
+        return
+      }
       const currentEdition = editions.find((ed) => ed.mainEventId === eventId && ed.isCurrent) || editions.find((ed) => ed.mainEventId === eventId)
       if (currentEdition?.startDate) {
         setStartDate(currentEdition.startDate)
@@ -125,7 +132,7 @@ export function EventActivityFormPage() {
         setEndDate(todayStr)
       }
     }
-  }, [eventId, editions, isEditMode])
+  }, [eventId, editions, isEditMode, searchParams])
 
   // Load existing details in Edit Mode
   useEffect(() => {
