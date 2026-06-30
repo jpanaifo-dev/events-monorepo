@@ -599,6 +599,7 @@ export function EventAgendaSection() {
   const [customLocation, setCustomLocation] = useState("")
   const [activityMode, setActivityMode] = useState<"PRESENCIAL" | "VIRTUAL" | "HIBRIDO">("PRESENCIAL")
   const [meetingUrl, setMeetingUrl] = useState("")
+  const [hasMeetingUrl, setHasMeetingUrl] = useState(false)
   const [speakerId, setSpeakerId] = useState("")
   const [status, setStatus] = useState<"PUBLIC" | "DRAFT" | "ARCHIVED">("PUBLIC")
   const [orderIndex, setOrderIndex] = useState(0)
@@ -726,6 +727,7 @@ export function EventAgendaSection() {
     setSpeakerId("")
     setActivityMode("PRESENCIAL")
     setMeetingUrl("")
+    setHasMeetingUrl(false)
     setStatus("PUBLIC")
     setOrderIndex(0)
     setStartTime("09:00")
@@ -753,6 +755,7 @@ export function EventAgendaSection() {
     setSpeakerId(item.speakerId || "")
     setActivityMode(item.activityMode || "PRESENCIAL")
     setMeetingUrl(item.meetingUrl || "")
+    setHasMeetingUrl(!!item.meetingUrl)
     setStatus(item.status || "PUBLIC")
     setOrderIndex(item.orderIndex ?? 0)
 
@@ -809,6 +812,12 @@ export function EventAgendaSection() {
       return
     }
 
+    const trimmedMeetingUrl = (activityMode !== "PRESENCIAL" && hasMeetingUrl) ? meetingUrl.trim() : ""
+    let formattedMeetingUrl = trimmedMeetingUrl
+    if (formattedMeetingUrl && !/^https?:\/\//i.test(formattedMeetingUrl)) {
+      formattedMeetingUrl = `https://${formattedMeetingUrl}`
+    }
+
     const validation = eventActivitySchema.safeParse({
       activityName,
       description,
@@ -818,7 +827,7 @@ export function EventAgendaSection() {
       endTime,
       customLocation,
       activityMode,
-      meetingUrl,
+      meetingUrl: formattedMeetingUrl || undefined,
       speakerId: speakerId || undefined,
       status,
       orderIndex,
@@ -843,7 +852,7 @@ export function EventAgendaSection() {
       speakerId: speakerId || "",
       startTime: isoStart,
       endTime: isoEnd,
-      meetingUrl: activityMode !== "PRESENCIAL" ? (meetingUrl || null) : null,
+      meetingUrl: (activityMode !== "PRESENCIAL" && hasMeetingUrl) ? (formattedMeetingUrl || null) : null,
       activityMode,
       status,
       orderIndex,
@@ -1714,22 +1723,42 @@ export function EventAgendaSection() {
 
             {/* Conditionally rendered Zoom/Meet link */}
             {activityMode !== "PRESENCIAL" && (
-              <div className="space-y-1.5 animate-in slide-in-from-top-1 duration-200">
-                <label htmlFor="modalMeetingUrl" className="text-xs font-semibold text-foreground flex items-center gap-1">
-                  <Video className="size-3.5 text-muted-foreground" />
-                  <span>Enlace de Videollamada <span className="text-muted-foreground font-normal">(opcional)</span></span>
+              <div className="space-y-3 animate-in slide-in-from-top-1 duration-200">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={hasMeetingUrl}
+                    onChange={(e) => {
+                      setHasMeetingUrl(e.target.checked)
+                      if (!e.target.checked) {
+                        setMeetingUrl("")
+                      }
+                    }}
+                    disabled={isSubmitting}
+                    className="rounded border-input text-primary focus:ring-primary h-4 w-4"
+                  />
+                  <span className="text-xs font-semibold text-foreground flex items-center gap-1">
+                    <Video className="size-3.5 text-muted-foreground" />
+                    ¿Añadir enlace de videollamada / transmisión?
+                  </span>
                 </label>
-                <Input
-                  id="modalMeetingUrl"
-                  type="url"
-                  placeholder="https://zoom.us/j/12345678"
-                  value={meetingUrl}
-                  onChange={(e) => setMeetingUrl(e.target.value)}
-                  disabled={isSubmitting}
-                />
-                <p className="text-[10px] text-muted-foreground">
-                  Si aún no tienes el enlace, puedes dejarlo vacío. Se mostrará como <em>Aún no disponible</em>.
-                </p>
+
+                {hasMeetingUrl && (
+                  <div className="space-y-1.5 pl-6 animate-in slide-in-from-top-1 duration-150">
+                    <Input
+                      id="modalMeetingUrl"
+                      type="url"
+                      placeholder="https://zoom.us/j/12345678"
+                      value={meetingUrl}
+                      onChange={(e) => setMeetingUrl(e.target.value)}
+                      disabled={isSubmitting}
+                      className="text-xs"
+                    />
+                    <p className="text-[10px] text-muted-foreground">
+                      El enlace debe comenzar con http:// o https://. Si lo dejas vacío, se enviará como vacío (null).
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
