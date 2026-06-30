@@ -612,6 +612,7 @@ export function EventAgendaSection() {
   const [activityMode, setActivityMode] = useState<"PRESENCIAL" | "VIRTUAL" | "HIBRIDO">("PRESENCIAL")
   const [meetingUrl, setMeetingUrl] = useState("")
   const [hasMeetingUrl, setHasMeetingUrl] = useState(false)
+  const [hasPhysicalLocation, setHasPhysicalLocation] = useState(true)
   const [speakerId, setSpeakerId] = useState("")
   const [status, setStatus] = useState<"PUBLIC" | "DRAFT" | "ARCHIVED">("PUBLIC")
   const [orderIndex, setOrderIndex] = useState(0)
@@ -700,7 +701,7 @@ export function EventAgendaSection() {
     startTime: z.string().regex(/^\d{2}:\d{2}$/, "Hora de inicio inválida (HH:MM)."),
     endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha de fin inválida (AAAA-MM-DD)."),
     endTime: z.string().regex(/^\d{2}:\d{2}$/, "Hora de fin inválida (HH:MM)."),
-    customLocation: z.string().trim().min(1, "El escenario o ubicación es requerido."),
+    customLocation: z.string().trim().optional(),
     activityMode: z.enum(["PRESENCIAL", "VIRTUAL", "HIBRIDO"]),
     meetingUrl: z.string().url("El enlace de la reunión no es válido.").or(z.literal("")).or(z.undefined()).optional(),
     speakerId: z.string().uuid("Seleccione un ponente válido o deje vacío.").or(z.literal("")).optional(),
@@ -740,6 +741,7 @@ export function EventAgendaSection() {
     setActivityMode("PRESENCIAL")
     setMeetingUrl("")
     setHasMeetingUrl(false)
+    setHasPhysicalLocation(true)
     setStatus("PUBLIC")
     setOrderIndex(0)
     setStartTime("09:00")
@@ -769,6 +771,7 @@ export function EventAgendaSection() {
     setActivityMode(item.activityMode || "PRESENCIAL")
     setMeetingUrl(item.meetingUrl || "")
     setHasMeetingUrl(!!item.meetingUrl)
+    setHasPhysicalLocation(item.activityMode === "HIBRIDO" ? !!item.stage : true)
     setStatus(item.status || "PUBLIC")
     setOrderIndex(item.orderIndex ?? 0)
 
@@ -825,6 +828,16 @@ export function EventAgendaSection() {
       return
     }
 
+    if (activityMode === "PRESENCIAL" && !customLocation.trim()) {
+      toast.error("El escenario o ubicación es requerido para actividades presenciales.")
+      return
+    }
+
+    if (activityMode === "HIBRIDO" && hasPhysicalLocation && !customLocation.trim()) {
+      toast.error("El escenario o ubicación es requerido si se especifica ubicación física.")
+      return
+    }
+
     const trimmedMeetingUrl = (activityMode !== "PRESENCIAL" && hasMeetingUrl) ? meetingUrl.trim() : ""
     let formattedMeetingUrl = trimmedMeetingUrl
     if (formattedMeetingUrl && !/^https?:\/\//i.test(formattedMeetingUrl)) {
@@ -856,12 +869,18 @@ export function EventAgendaSection() {
     const isoStart = new Date(`${startDate}T${startTime}:00`).toISOString()
     const isoEnd = new Date(`${endDate}T${endTime}:00`).toISOString()
 
+    const calculatedStage = activityMode === "VIRTUAL"
+      ? (customLocation.trim() || null)
+      : (activityMode === "PRESENCIAL" || (activityMode === "HIBRIDO" && hasPhysicalLocation))
+        ? (customLocation.trim() || "Escenario Principal")
+        : null
+
     const payload = {
       eventId: currentEdition?.id || eventId!,
       editionId: currentEdition?.id || null,
       title: activityName,
       description: description || null,
-      stage: customLocation,
+      stage: calculatedStage,
       speakerId: speakerId || "",
       startTime: isoStart,
       endTime: isoEnd,
@@ -1660,20 +1679,78 @@ export function EventAgendaSection() {
 
             {/* 5. Custom location (Escenario / Sala) (Full Width) */}
             <div className="space-y-1.5">
-              <label htmlFor="modalLocation" className="text-xs font-semibold text-foreground flex items-center gap-1">
-                <MapPin className="size-3.5 text-muted-foreground" />
-                <span>Escenario / Sala</span>
-              </label>
-              <Input
-                id="modalLocation"
-                placeholder="Ej. Escenario Principal o Sala A"
-                value={customLocation}
-                onChange={(e) => setCustomLocation(e.target.value)}
-                required
-                disabled={isSubmitting}
-              />
-              {branches.length > 0 && (
-                <div className="flex flex-col gap-1 mt-1">
+              {activityMode === "PRESENCIAL" && (
+                <>
+                  <label htmlFor="modalLocation" className="text-xs font-semibold text-foreground flex items-center gap-1">
+                    <MapPin className="size-3.5 text-muted-foreground" />
+                    <span>Escenario / Sala <span className="text-destructive">*</span></span>
+                  </label>
+                  <Input
+                    id="modalLocation"
+                    placeholder="Ej. Escenario Principal o Sala A"
+                    value={customLocation}
+                    onChange={(e) => setCustomLocation(e.target.value)}
+                    required
+                    disabled={isSubmitting}
+                  />
+                </>
+              )}
+
+              {activityMode === "VIRTUAL" && (
+                <>
+                  <label htmlFor="modalLocation" className="text-xs font-semibold text-foreground flex items-center gap-1">
+                    <MapPin className="size-3.5 text-muted-foreground" />
+                    <span>Escenario / Sala <span className="text-muted-foreground font-normal">(opcional)</span></span>
+                  </label>
+                  <Input
+                    id="modalLocation"
+                    placeholder="Ej. Sala de Zoom 1 o vacío"
+                    value={customLocation}
+                    onChange={(e) => setCustomLocation(e.target.value)}
+                    disabled={isSubmitting}
+                  />
+                </>
+              )}
+
+              {activityMode === "HIBRIDO" && (
+                <div className="space-y-3">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={hasPhysicalLocation}
+                      onChange={(e) => {
+                        setHasPhysicalLocation(e.target.checked)
+                        if (!e.target.checked) {
+                          setCustomLocation("")
+                        }
+                      }}
+                      disabled={isSubmitting}
+                      className="rounded border-input text-primary focus:ring-primary h-4 w-4"
+                    />
+                    <span className="text-xs font-semibold text-foreground flex items-center gap-1">
+                      <MapPin className="size-3.5 text-muted-foreground" />
+                      ¿Añadir ubicación física / escenario?
+                    </span>
+                  </label>
+
+                  {hasPhysicalLocation && (
+                    <div className="space-y-1.5 pl-6 animate-in slide-in-from-top-1 duration-150">
+                      <Input
+                        id="modalLocation"
+                        placeholder="Ej. Escenario Principal o Sala A"
+                        value={customLocation}
+                        onChange={(e) => setCustomLocation(e.target.value)}
+                        required
+                        disabled={isSubmitting}
+                        className="text-xs"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {(activityMode === "PRESENCIAL" || (activityMode === "HIBRIDO" && hasPhysicalLocation)) && branches.length > 0 && (
+                <div className="flex flex-col gap-1 mt-1 pl-6">
                   <span className="text-[10px] font-medium text-muted-foreground">Sugerencias de sedes:</span>
                   <div className="flex flex-wrap gap-1">
                     {branches.map((branch) => {
