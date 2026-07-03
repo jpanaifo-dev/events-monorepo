@@ -445,6 +445,72 @@ export function CertificateDesignEditor({
     }
   }
 
+  // Keyboard Shortcuts & Navigation handler
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // 1. Avoid blocking standard input typing
+      const target = e.target as HTMLElement
+      const isInput = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable
+
+      // Ctrl+S / Cmd+S to Save Certificate
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault()
+        handleSave()
+        return
+      }
+
+      // If user is actively typing in a form input, do not trigger shortcuts
+      if (isInput) return
+
+      // Delete / Backspace to Delete Element
+      if (activeElementId && (e.key === "Delete" || e.key === "Backspace")) {
+        e.preventDefault()
+        if (schema.elements.length <= 1) {
+          toast.error("Debe haber al menos un elemento en el certificado.")
+          return
+        }
+        const filtered = schema.elements.filter((el) => el.id !== activeElementId)
+        setSchema((prev) => ({ ...prev, elements: filtered }))
+        setActiveElementId(filtered[0]?.id || "")
+        toast.success("Elemento eliminado")
+        return
+      }
+
+      // Arrow keys to nudge active element position
+      if (activeElementId && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+        e.preventDefault()
+        const step = e.shiftKey ? 2 : 0.5 // Shift for bigger steps
+        const element = schema.elements.find((el) => el.id === activeElementId)
+        if (!element) return
+
+        let newX = element.x
+        let newY = element.y
+
+        if (e.key === "ArrowLeft") newX = Math.max(0, element.x - step)
+        if (e.key === "ArrowRight") newX = Math.min(100, element.x + step)
+        if (e.key === "ArrowUp") newY = Math.max(0, element.y - step)
+        if (e.key === "ArrowDown") newY = Math.min(100, element.y + step)
+
+        handleUpdateActiveElement({
+          x: Number(newX.toFixed(2)),
+          y: Number(newY.toFixed(2))
+        })
+        return
+      }
+
+      // Escape to clear selection
+      if (e.key === "Escape") {
+        setActiveElementId("")
+        return
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown)
+    }
+  }, [activeElementId, schema.elements, bgUrl])
+
   // Client-side download function
   const handleTestDownload = (format: "png" | "pdf") => {
     if (!bgUrl) {
@@ -872,8 +938,33 @@ export function CertificateDesignEditor({
 
                 {/* Left group: Font, Size, Color, Weight, Align */}
                 <div className="flex items-center gap-3">
+                  {/* Custom Layer/Element Name */}
+                  <div className="flex items-center gap-1.5 pr-3 border-r border-slate-800/80 animate-in slide-in-from-left-2 duration-200">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Nombre:</span>
+                    <input
+                      type="text"
+                      className="h-8 px-2.5 w-28 text-xs border border-slate-800 bg-slate-900 text-slate-200 rounded-lg focus:outline-hidden focus:border-indigo-500 font-semibold"
+                      value={activeElement.label}
+                      onChange={(e) => handleUpdateActiveElement({ label: e.target.value })}
+                      placeholder="Nombre..."
+                      title="Editar nombre personalizado de la capa"
+                    />
+                  </div>
+
                   {activeElement.id !== "qr" ? (
                     <>
+                      {/* Custom Text Content */}
+                      <div className="flex items-center gap-1.5 pr-3 border-r border-slate-800/80 animate-in slide-in-from-left-2 duration-200">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Texto:</span>
+                        <input
+                          type="text"
+                          className="h-8 px-2.5 w-40 text-xs border border-slate-800 bg-slate-900 text-slate-200 rounded-lg focus:outline-hidden focus:border-indigo-500 font-semibold"
+                          value={activeElement.text}
+                          onChange={(e) => handleUpdateActiveElement({ text: e.target.value })}
+                          placeholder="Texto..."
+                          title="Editar el contenido del texto"
+                        />
+                      </div>
                       {/* Font Family select */}
                       <select
                         className="rounded-lg border border-slate-800 bg-slate-900 text-xs font-semibold text-slate-200 px-3 py-1.5 focus:outline-hidden focus:border-indigo-500 cursor-pointer"
