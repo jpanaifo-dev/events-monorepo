@@ -1,8 +1,23 @@
 import React, { useState, useEffect, useRef } from "react"
-import { Award, Save, X, Move, Download, Sparkles, Trash2 } from "lucide-react"
+import {
+  Award,
+  Save,
+  X,
+  Move,
+  Download,
+  Sparkles,
+  Trash2,
+  Type,
+  Layers,
+  Plus,
+  Search,
+  Image as ImageIcon,
+  Bold,
+  AlignLeft,
+  AlignCenter,
+  AlignRight
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { ImageUploadWithPreview } from "@/components/ImageUploadWithPreview"
 import { toast } from "sonner"
 import {
@@ -34,6 +49,7 @@ interface TextElement {
 interface DesignSchema {
   width: number
   height: number
+  pageSize?: "a4" | "a5"
   elements: TextElement[]
 }
 
@@ -46,8 +62,9 @@ interface CertificateDesignEditorProps {
 }
 
 const DEFAULT_SCHEMA: DesignSchema = {
-  width: 1920,
-  height: 1080,
+  width: 1414,
+  height: 1000,
+  pageSize: "a4",
   elements: [
     {
       id: "title",
@@ -55,12 +72,13 @@ const DEFAULT_SCHEMA: DesignSchema = {
       text: "Certificado de Participación",
       x: 50,
       y: 25,
-      fontSize: 50,
+      fontSize: 42,
       fontFamily: "Outfit",
       color: "#1e1b4b",
       align: "center",
       fontWeight: "bold",
-      maxWidth: 80
+      maxWidth: 80,
+      autoWidth: true
     },
     {
       id: "recipient",
@@ -68,12 +86,13 @@ const DEFAULT_SCHEMA: DesignSchema = {
       text: "{{name}}",
       x: 50,
       y: 45,
-      fontSize: 56,
+      fontSize: 48,
       fontFamily: "Playfair Display",
       color: "#4338ca",
       align: "center",
       fontWeight: "bold",
-      maxWidth: 85
+      maxWidth: 85,
+      autoWidth: true
     },
     {
       id: "description",
@@ -81,12 +100,13 @@ const DEFAULT_SCHEMA: DesignSchema = {
       text: "Por completar exitosamente la edición anual de nuestro congreso de tecnología.",
       x: 50,
       y: 60,
-      fontSize: 24,
+      fontSize: 20,
       fontFamily: "Inter",
       color: "#4b5563",
       align: "center",
       fontWeight: "normal",
-      maxWidth: 75
+      maxWidth: 75,
+      autoWidth: true
     },
     {
       id: "date",
@@ -94,12 +114,13 @@ const DEFAULT_SCHEMA: DesignSchema = {
       text: "Emitido el {{date}}",
       x: 50,
       y: 75,
-      fontSize: 18,
+      fontSize: 16,
       fontFamily: "Inter",
       color: "#6b7280",
       align: "center",
       fontWeight: "normal",
-      maxWidth: 80
+      maxWidth: 80,
+      autoWidth: true
     },
     {
       id: "qr",
@@ -305,7 +326,7 @@ export function drawProfessionalQR(
         const globalCol = startCol + c
         const isOuterBorder = r === 0 || r === 6 || c === 0 || c === 6
         const isInnerSquare = r >= 2 && r <= 4 && c >= 2 && c <= 4
-        
+
         if (isOuterBorder) {
           drawModule(globalRow, globalCol, color)
         } else if (isInnerSquare) {
@@ -388,6 +409,79 @@ export function CertificateDesignEditor({
   const [isSaving, setIsSaving] = useState(false)
   const canvasRef = useRef<HTMLDivElement>(null)
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState<"background" | "text" | "layers">("text")
+
+  const selectedFormat = schema.pageSize || "a4"
+
+  const handleFormatChange = (format: "a4" | "a5") => {
+    setSchema(prev => ({
+      ...prev,
+      pageSize: format
+    }))
+  }
+
+  const handleAddTextElement = (text: string, fontSize: number, fontWeight: "normal" | "bold") => {
+    const newId = `custom_${Date.now()}`
+    const labelNum = schema.elements.filter(e => e.id.startsWith("custom")).length + 1
+    const newElement: TextElement = {
+      id: newId,
+      label: `Texto ${labelNum}`,
+      text: text,
+      x: 50,
+      y: 50,
+      fontSize: fontSize,
+      fontFamily: "Poppins",
+      color: "#1e293b",
+      align: "center",
+      fontWeight: fontWeight,
+      maxWidth: 80,
+      autoWidth: true
+    }
+    setSchema((prev) => ({
+      ...prev,
+      elements: [...prev.elements, newElement]
+    }))
+    setActiveElementId(newId)
+    toast.success(`Elemento "${newElement.label}" añadido.`)
+  }
+
+  const handleToggleQR = () => {
+    const qrExists = schema.elements.some(el => el.id === "qr")
+    if (qrExists) {
+      setSchema(prev => ({
+        ...prev,
+        elements: prev.elements.map(el => {
+          if (el.id === "qr") {
+            const nextShow = !el.showQr
+            toast.success(nextShow ? "QR de validación activado" : "QR de validación desactivado")
+            return { ...el, showQr: nextShow }
+          }
+          return el
+        })
+      }))
+    } else {
+      const newQr: TextElement = {
+        id: "qr",
+        label: "QR de Validación",
+        text: "{{qr_code}}",
+        x: 82,
+        y: 80,
+        fontSize: 14,
+        fontFamily: "Courier",
+        color: "#1e293b",
+        align: "center",
+        fontWeight: "normal",
+        showQr: true,
+        qrSize: 120
+      }
+      setSchema(prev => ({
+        ...prev,
+        elements: [...prev.elements, newQr]
+      }))
+      setActiveElementId("qr")
+      toast.success("QR de validación añadido al diseño.")
+    }
+  }
 
   // Dynamically load Google Fonts for the preview
   useEffect(() => {
@@ -505,15 +599,18 @@ export function CertificateDesignEditor({
         toast.success("Muestra de certificado descargada como imagen (PNG).", { id: "rendering-cert" })
       } else {
         const { jsPDF } = await import("jspdf")
+        const pageSize = schema.pageSize || "a4"
         const doc = new jsPDF({
           orientation: "landscape",
-          unit: "px",
-          format: [schema.width, schema.height]
+          unit: "mm",
+          format: pageSize
         })
         const imgData = canvas.toDataURL("image/png")
-        doc.addImage(imgData, "PNG", 0, 0, schema.width, schema.height)
+        const pdfWidth = pageSize === "a5" ? 210 : 297
+        const pdfHeight = pageSize === "a5" ? 148.5 : 210
+        doc.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight)
         doc.save(`CERT-PRUEBA-${templateName.replace(/\s+/g, "_").toUpperCase()}.pdf`)
-        toast.success("Muestra de certificado descargada como PDF.", { id: "rendering-cert" })
+        toast.success(`Muestra de certificado descargada como PDF (${pageSize.toUpperCase()}).`, { id: "rendering-cert" })
       }
     }
 
@@ -558,471 +655,631 @@ export function CertificateDesignEditor({
   }
 
   return (
-    <div className="fixed inset-0 bg-background/95 z-50 flex flex-col animate-in fade-in duration-300">
+    <div className="fixed inset-0 bg-[#0f172a]/95 text-slate-100 z-50 flex flex-col animate-in fade-in duration-300 font-sans selection:bg-indigo-500/30 selection:text-white">
       {/* Editor Header */}
-      <header className="h-16 border-b border-border bg-card px-8 flex items-center justify-between">
+      <header className="h-16 border-b border-slate-800 bg-[#1e293b]/90 backdrop-blur-md px-6 flex items-center justify-between shrink-0 shadow-lg relative z-20">
         <div className="flex items-center gap-3">
-          <div className="size-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary border border-primary/20">
-            <Award className="size-5" />
-          </div>
           <div>
-            <h1 className="font-bold text-sm text-foreground">Editor de Diseño Visual</h1>
-            <p className="text-[10px] text-muted-foreground mt-0.5 font-medium uppercase tracking-wider">
-              {templateName}
+            <h1 className="font-bold text-sm text-slate-100">Diseñador de Certificados</h1>
+            <p className="text-[10px] text-indigo-400 mt-0.5 font-bold uppercase tracking-wider flex items-center gap-1.5">
+              <span>{templateName}</span>
+              <span className="h-1 w-1 rounded-full bg-slate-600"></span>
+              <span className="bg-indigo-500/20 px-1.5 py-0.5 rounded text-[8px] border border-indigo-500/20">
+                {selectedFormat.toUpperCase()} Horizontal
+              </span>
             </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" onClick={() => setIsDownloadModalOpen(true)} className="text-xs gap-1.5 cursor-pointer">
-            <Download className="size-4" />
-            Descargar Prueba
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsDownloadModalOpen(true)}
+            className="text-xs gap-1.5 cursor-pointer border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white"
+          >
+            <Download className="size-4 text-indigo-450" />
+            Descargar Muestra
           </Button>
-          <Button size="sm" onClick={handleSave} disabled={isSaving} className="text-xs gap-1.5 cursor-pointer">
+          <Button
+            size="sm"
+            onClick={handleSave}
+            disabled={isSaving}
+            className="text-xs gap-1.5 cursor-pointer bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20 border-0"
+          >
             <Save className="size-4" />
             {isSaving ? "Guardando..." : "Guardar Diseño"}
           </Button>
-          <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full size-8">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="rounded-full size-8 hover:bg-slate-800 text-slate-450 hover:text-slate-200"
+          >
             <X className="size-4" />
           </Button>
         </div>
       </header>
 
       {/* Editor Body */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Visual Canvas Area */}
-        <div className="flex-1 bg-muted/20 p-8 flex flex-col items-center justify-center overflow-auto relative">
-          <div className="absolute top-4 left-4 bg-card/80 backdrop-blur-xs border border-border/60 rounded-lg px-3 py-1.5 text-xs text-muted-foreground flex items-center gap-1.5 pointer-events-none shadow-xs">
-            <Sparkles className="size-3.5 text-indigo-500" />
-            Arrastra los textos sobre el certificado para cambiar su ubicación
-          </div>
+      <div className="flex-1 flex overflow-hidden bg-[#090d16] relative z-10">
 
-          <div
-            ref={canvasRef}
-            className="w-full max-w-4xl aspect-video rounded-xl bg-card border border-border shadow-2xl relative overflow-hidden select-none select-none flex items-center justify-center"
-            style={{
-              backgroundImage: bgUrl ? `url(${bgUrl})` : "none",
-              backgroundSize: "contain",
-              backgroundPosition: "center",
-              backgroundRepeat: "no-repeat"
-            }}
+        {/* Leftmost Narrow Icon Sidebar */}
+        <div className="w-20 bg-[#111827] border-r border-slate-800/80 flex flex-col items-center py-6 gap-6 shrink-0 select-none">
+          <button
+            onClick={() => setActiveTab("background")}
+            className={`flex flex-col items-center gap-2 w-full py-3.5 text-center cursor-pointer transition-all relative ${activeTab === "background"
+              ? "text-indigo-450 font-bold bg-[#1f2937]/50"
+              : "text-slate-500 hover:text-slate-300"
+              }`}
           >
-            {!bgUrl && (
-              <div className="text-center p-8 space-y-2">
-                <Award className="size-16 mx-auto text-muted-foreground/30 animate-pulse" />
-                <p className="text-muted-foreground text-sm font-medium">Sube una imagen de fondo en el panel derecho para comenzar.</p>
-              </div>
+            {activeTab === "background" && (
+              <span className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500 rounded-r" />
             )}
+            <ImageIcon className="size-5" />
+            <span className="text-[9px] tracking-wider uppercase font-semibold">Lienzo</span>
+          </button>
 
-            {bgUrl &&
-              schema.elements.map((el) => {
-                if (el.id === "qr" && !el.showQr) return null
-                const isActive = el.id === activeElementId
+          <button
+            onClick={() => setActiveTab("text")}
+            className={`flex flex-col items-center gap-2 w-full py-3.5 text-center cursor-pointer transition-all relative ${activeTab === "text"
+              ? "text-indigo-450 font-bold bg-[#1f2937]/50"
+              : "text-slate-500 hover:text-slate-300"
+              }`}
+          >
+            {activeTab === "text" && (
+              <span className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500 rounded-r" />
+            )}
+            <Type className="size-5" />
+            <span className="text-[9px] tracking-wider uppercase font-semibold">Textos</span>
+          </button>
 
-                // Render QR or Text
-                return (
-                  <div
-                    key={el.id}
-                    onMouseDown={(e) => handleDragStart(e, el.id)}
-                    className={`absolute p-2 rounded cursor-grab active:cursor-grabbing group transition-all ${
-                      isActive ? "border-2 border-primary bg-primary/5 ring-4 ring-primary/10" : "hover:border border-border/80 hover:bg-card/40"
-                    }`}
-                    style={{
-                      left: `${el.x}%`,
-                      top: `${el.y}%`,
-                      transform: getTransform(el.align),
-                      width: (el.autoWidth ?? true) ? "auto" : `${el.maxWidth || 80}%`,
-                      textAlign: el.align,
-                      wordBreak: (el.autoWidth ?? true) ? "normal" : "break-word",
-                      whiteSpace: (el.autoWidth ?? true) ? "nowrap" : "normal"
-                    }}
-                  >
-                    {/* Drag Handle */}
-                    <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 hidden group-hover:flex items-center gap-0.5 bg-primary text-[9px] text-primary-foreground font-bold px-1.5 py-0.5 rounded shadow-xs pointer-events-none">
-                      <Move className="size-2.5" />
-                      <span>{el.label}</span>
-                    </div>
-
-                    {el.id === "qr" ? (
-                      <div
-                        style={{
-                          width: `${(el.qrSize || 120) * 0.5}px`,
-                          height: `${(el.qrSize || 120) * 0.5}px`
-                        }}
-                      >
-                        <QrPreviewSvg size={el.qrSize || 120} color={el.color || "#000000"} seed="preview-seed-code" />
-                      </div>
-                    ) : (
-                      <span
-                        style={{
-                          fontFamily: el.fontFamily,
-                          fontSize: `${el.fontSize * 0.5}px`, // Proportional scale for preview
-                          color: el.color,
-                          fontWeight: el.fontWeight,
-                          textAlign: el.align,
-                          display: "block",
-                          whiteSpace: (el.autoWidth ?? true) ? "nowrap" : "normal",
-                          wordBreak: (el.autoWidth ?? true) ? "normal" : "break-word"
-                        }}
-                      >
-                        {el.text.includes("{{name}}")
-                          ? "JUAN GOMEZ PEREZ"
-                          : el.text.includes("{{date}}")
-                          ? "03/07/2026"
-                          : el.text}
-                      </span>
-                    )}
-                  </div>
-                )
-              })}
-          </div>
+          <button
+            onClick={() => setActiveTab("layers")}
+            className={`flex flex-col items-center gap-2 w-full py-3.5 text-center cursor-pointer transition-all relative ${activeTab === "layers"
+              ? "text-indigo-450 font-bold bg-[#1f2937]/50"
+              : "text-slate-500 hover:text-slate-300"
+              }`}
+          >
+            {activeTab === "layers" && (
+              <span className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500 rounded-r" />
+            )}
+            <Layers className="size-5" />
+            <span className="text-[9px] tracking-wider uppercase font-semibold">Capas</span>
+          </button>
         </div>
 
-        {/* Sidebar Controls Area */}
-        <aside className="w-80 border-l border-border bg-card p-6 flex flex-col gap-6 overflow-y-auto flex-shrink-0">
-          {/* Upload Background */}
-          <div className="space-y-3">
-            <h3 className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Fondo del Certificado</h3>
-            <ImageUploadWithPreview
-              label="Imagen de Fondo (Aspecto 16:9)"
-              value={bgUrl}
-              onChange={setBgUrl}
-              aspectRatio="banner"
-              folder="certificates"
-              identifier="bg"
-              placeholder="Sube la plantilla de fondo (PNG/JPG)"
-            />
-          </div>
+        {/* Control Panel Details Sidebar */}
+        <aside className="w-80 bg-[#1f2937]/65 backdrop-blur-md border-r border-slate-800/80 p-5 flex flex-col gap-6 overflow-y-auto shrink-0 relative">
+          {activeTab === "background" && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-200">
+              <div className="space-y-2">
+                <h3 className="font-bold text-xs uppercase tracking-wider text-slate-400">Tamaño del Certificado</h3>
+                <p className="text-[10px] text-slate-500 leading-normal">Determina las proporciones físicas para la exportación y visualización.</p>
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  <button
+                    onClick={() => handleFormatChange("a4")}
+                    className={`flex flex-col justify-center items-center py-4 rounded-xl border text-center transition-all cursor-pointer ${selectedFormat === "a4"
+                      ? "border-indigo-500 bg-indigo-500/15 text-indigo-400 font-bold shadow-md shadow-indigo-500/5"
+                      : "border-slate-800 bg-slate-900/60 hover:bg-slate-800/80 text-slate-400 hover:text-slate-200"
+                      }`}
+                  >
+                    <span className="text-xs">A4 Horizontal</span>
+                    <span className="text-[8px] opacity-80 mt-0.5">297 x 210 mm (A4)</span>
+                  </button>
+                  <button
+                    onClick={() => handleFormatChange("a5")}
+                    className={`flex flex-col justify-center items-center py-4 rounded-xl border text-center transition-all cursor-pointer ${selectedFormat === "a5"
+                      ? "border-indigo-500 bg-indigo-500/15 text-indigo-400 font-bold shadow-md shadow-indigo-500/5"
+                      : "border-slate-800 bg-slate-900/60 hover:bg-slate-800/80 text-slate-400 hover:text-slate-200"
+                      }`}
+                  >
+                    <span className="text-xs">A5 Horizontal</span>
+                    <span className="text-[8px] opacity-80 mt-0.5">210 x 148 mm (A5)</span>
+                  </button>
+                </div>
+              </div>
 
-          <hr className="border-border/60" />
+              <div className="border-t border-slate-800/60 pt-6 space-y-3">
+                <h3 className="font-bold text-xs uppercase tracking-wider text-slate-400">Fondo del Certificado</h3>
+                <p className="text-[10px] text-slate-500 leading-normal">Carga la plantilla de diseño base sin los textos dinámicos.</p>
+                <div className="bg-slate-900/60 border border-slate-800/80 p-3 rounded-xl">
+                  <ImageUploadWithPreview
+                    label="Imagen de Fondo"
+                    value={bgUrl}
+                    onChange={setBgUrl}
+                    aspectRatio="banner"
+                    folder="certificates"
+                    identifier="bg"
+                    placeholder="Sube el archivo base"
+                  />
+                </div>
+                <div className="text-[10px] text-slate-505 bg-indigo-950/20 border border-indigo-900/30 rounded-lg p-3 leading-relaxed">
+                  <span className="font-bold text-indigo-400 block mb-0.5">Recomendación técnica:</span>
+                  Usa imágenes en formato PNG o JPG de alta resolución con proporción **1.414** (por ejemplo, 1414 x 1000 píxeles) para que encaje perfectamente con las hojas A4/A5.
+                </div>
+              </div>
+            </div>
+          )}
 
-          {/* Element Selector */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Elementos de Texto</h3>
-              <Button
-                variant="outline"
-                size="xs"
-                className="text-[10px] h-6 px-2 cursor-pointer border-primary/30 text-primary hover:bg-primary/5"
-                onClick={() => {
-                  const newId = `custom_${Date.now()}`
-                  const newElement: TextElement = {
-                    id: newId,
-                    label: `Texto ${schema.elements.filter(e => e.id.startsWith("custom")).length + 1}`,
-                    text: "Texto Personalizado",
-                    x: 50,
-                    y: 50,
-                    fontSize: 24,
-                    fontFamily: "Poppins",
-                    color: "#1e293b",
-                    align: "center",
-                    fontWeight: "normal",
-                    maxWidth: 80
-                  }
-                  setSchema((prev) => ({
-                    ...prev,
-                    elements: [...prev.elements, newElement]
-                  }))
-                  setActiveElementId(newId)
-                  toast.success("Elemento de texto personalizado añadido.")
-                }}
+          {activeTab === "text" && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-200">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-slate-500" />
+                <input
+                  type="text"
+                  placeholder="Busca fuentes y combinaciones"
+                  className="w-full h-9 rounded-lg border border-slate-800 bg-slate-900/60 pl-9 pr-3 text-xs text-slate-300 focus:outline-hidden focus:border-indigo-500 placeholder:text-slate-600"
+                  disabled
+                />
+              </div>
+
+              <button
+                onClick={() => handleAddTextElement("Texto de Muestra", 24, "normal")}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-all hover:scale-101 hover:shadow-lg hover:shadow-indigo-600/15 text-xs border-0"
               >
-                + Añadir Texto
-              </Button>
-            </div>
-            <div className="grid grid-cols-2 gap-1.5">
-              {schema.elements.map((el) => (
-                <Button
-                  key={el.id}
-                  variant={el.id === activeElementId ? "default" : "outline"}
-                  className="justify-start text-xs font-semibold px-2 py-1.5 h-8 truncate cursor-pointer"
-                  onClick={() => setActiveElementId(el.id)}
-                >
-                  <Award className="size-3.5 mr-1.5 shrink-0" />
-                  <span className="truncate">{el.label}</span>
-                </Button>
-              ))}
-            </div>
-          </div>
+                <Plus className="size-4" />
+                Agregar caja de texto
+              </button>
 
-          {/* Properties Panel */}
-          {activeElement && (
-            <div className="space-y-4 border border-border/60 p-4 rounded-xl bg-muted/10">
-              <div className="flex items-center justify-between pb-2 border-b border-border/40">
-                <span className="text-xs font-bold text-foreground">{activeElement.label}</span>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    className="text-destructive hover:bg-destructive/10 cursor-pointer h-7 w-7"
-                    title="Eliminar elemento de la plantilla"
+              <div className="space-y-3">
+                <h3 className="font-bold text-xs uppercase tracking-wider text-slate-400">Estilos de texto predeterminados</h3>
+
+                <button
+                  onClick={() => handleAddTextElement("Agregar un título", 48, "bold")}
+                  className="w-full text-left p-3.5 bg-slate-900/50 border border-slate-800 rounded-xl hover:border-indigo-500 hover:bg-indigo-500/5 transition-all text-slate-100 cursor-pointer group"
+                >
+                  <span className="block font-bold text-base leading-none group-hover:text-indigo-400 transition-colors">Agregar un título</span>
+                </button>
+
+                <button
+                  onClick={() => handleAddTextElement("Agregar un subtítulo", 28, "normal")}
+                  className="w-full text-left p-3 bg-slate-900/50 border border-slate-800 rounded-xl hover:border-indigo-500 hover:bg-indigo-500/5 transition-all text-slate-100 cursor-pointer group"
+                >
+                  <span className="block font-medium text-xs leading-none group-hover:text-indigo-400 transition-colors">Agregar un subtítulo</span>
+                </button>
+
+                <button
+                  onClick={() => handleAddTextElement("Agregar algo de texto", 18, "normal")}
+                  className="w-full text-left p-2.5 bg-slate-900/50 border border-slate-800 rounded-xl hover:border-indigo-500 hover:bg-indigo-500/5 transition-all text-slate-400 hover:text-slate-200 cursor-pointer group"
+                >
+                  <span className="block text-[10px] leading-none transition-colors">Agregar texto de cuerpo</span>
+                </button>
+              </div>
+
+              <div className="border-t border-slate-800/60 pt-5 space-y-3">
+                <h3 className="font-bold text-xs uppercase tracking-wider text-slate-400">Campos Dinámicos (Zynqro)</h3>
+                <p className="text-[10px] text-slate-500 leading-normal">Variables de autocompletado en certificados reales:</p>
+
+                <div className="grid grid-cols-1 gap-2">
+                  <button
+                    onClick={() => handleAddTextElement("{{name}}", 48, "bold")}
+                    className="flex items-center justify-between text-left p-2.5 bg-slate-900/40 border border-slate-800/80 hover:border-indigo-500 hover:bg-indigo-500/5 rounded-xl text-xs text-slate-300 cursor-pointer transition-colors"
+                  >
+                    <span>Nombre del Participante</span>
+                    <span className="font-mono text-[9px] bg-indigo-500/20 text-indigo-400 px-1.5 py-0.5 rounded-md border border-indigo-500/20 font-bold uppercase">NAME</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleAddTextElement("Emitido el {{date}}", 18, "normal")}
+                    className="flex items-center justify-between text-left p-2.5 bg-slate-900/40 border border-slate-800/80 hover:border-indigo-500 hover:bg-indigo-500/5 rounded-xl text-xs text-slate-300 cursor-pointer transition-colors"
+                  >
+                    <span>Fecha de Emisión</span>
+                    <span className="font-mono text-[9px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded-md border border-amber-500/20 font-bold uppercase">DATE</span>
+                  </button>
+
+                  <button
+                    onClick={handleToggleQR}
+                    className={`flex items-center justify-between text-left p-2.5 bg-slate-900/40 border rounded-xl text-xs cursor-pointer transition-all ${schema.elements.some(el => el.id === "qr" && el.showQr)
+                      ? "border-emerald-500 bg-emerald-500/5 text-emerald-450 font-bold"
+                      : "border-slate-800 hover:border-indigo-500 hover:bg-indigo-500/5 text-slate-300"
+                      }`}
+                  >
+                    <span>{schema.elements.some(el => el.id === "qr" && el.showQr) ? "QR de Validación (Activo)" : "Activar QR de Validación"}</span>
+                    <span className={`font-mono text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase border ${schema.elements.some(el => el.id === "qr" && el.showQr)
+                      ? "bg-emerald-500/25 border-emerald-500/20 text-emerald-300"
+                      : "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                      }`}>QR</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "layers" && (
+            <div className="space-y-4 animate-in fade-in slide-in-from-left-4 duration-200">
+              <h3 className="font-bold text-xs uppercase tracking-wider text-slate-400">Capas de la Plantilla</h3>
+              {schema.elements.length === 0 ? (
+                <p className="text-xs text-slate-600 italic">No hay capas agregadas en esta plantilla.</p>
+              ) : (
+                <div className="space-y-2">
+                  {schema.elements.map((el) => {
+                    const isActive = el.id === activeElementId
+                    return (
+                      <div
+                        key={el.id}
+                        onClick={() => setActiveElementId(el.id)}
+                        className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer ${isActive
+                          ? "border-indigo-500 bg-indigo-500/10 font-bold shadow-md"
+                          : "border-slate-800 bg-slate-900/30 hover:bg-slate-800/40"
+                          }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${el.id === "qr"
+                            ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/20"
+                            : "bg-indigo-500/20 text-indigo-400 border border-indigo-500/20"
+                            }`}>
+                            {el.id === "qr" ? "QR" : "TXT"}
+                          </span>
+                          <span className="text-xs text-slate-200 truncate">{el.label}</span>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            if (schema.elements.length <= 1) {
+                              toast.error("Debe haber al menos un elemento en el certificado.")
+                              return
+                            }
+                            const filtered = schema.elements.filter((item) => item.id !== el.id)
+                            setSchema(prev => ({ ...prev, elements: filtered }))
+                            if (isActive) {
+                              setActiveElementId(filtered[0].id)
+                            }
+                            toast.success("Elemento eliminado de la plantilla.")
+                          }}
+                          className="h-6 w-6 rounded-md hover:bg-destructive/10 text-slate-500 hover:text-red-400 flex items-center justify-center cursor-pointer transition-colors"
+                          title="Eliminar elemento"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </aside>
+
+        {/* Visual Canvas Area */}
+        <div className="flex-1 flex flex-col overflow-hidden relative">
+
+          {/* Horizontal Contextual Toolbar */}
+          <div className="h-14 border-b border-slate-800/80 bg-[#111827] px-6 flex items-center justify-between gap-4 select-none shrink-0 shadow-md relative z-10">
+            {activeElement ? (
+              <div className="flex items-center gap-4 text-xs w-full justify-between animate-in fade-in duration-200">
+
+                {/* Left group: Font, Size, Color, Weight, Align */}
+                <div className="flex items-center gap-3">
+                  {activeElement.id !== "qr" ? (
+                    <>
+                      {/* Font Family select */}
+                      <select
+                        className="rounded-lg border border-slate-800 bg-slate-900 text-xs font-semibold text-slate-200 px-3 py-1.5 focus:outline-hidden focus:border-indigo-500 cursor-pointer"
+                        value={activeElement.fontFamily}
+                        onChange={(e) => handleUpdateActiveElement({ fontFamily: e.target.value })}
+                      >
+                        {FONT_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+
+                      {/* Font Size controls */}
+                      <div className="flex items-center border border-slate-800 rounded-lg overflow-hidden bg-slate-900 h-8">
+                        <button
+                          className="px-2.5 hover:bg-slate-800 text-slate-300 font-bold h-full border-r border-slate-800 cursor-pointer active:bg-slate-700 transition-colors"
+                          onClick={() => handleUpdateActiveElement({ fontSize: Math.max(10, activeElement.fontSize - 2) })}
+                        >
+                          -
+                        </button>
+                        <input
+                          type="number"
+                          className="w-10 text-center text-xs h-full border-0 focus:ring-0 bg-transparent text-slate-200 font-bold focus:outline-hidden"
+                          value={activeElement.fontSize}
+                          onChange={(e) => handleUpdateActiveElement({ fontSize: parseInt(e.target.value) || 12 })}
+                        />
+                        <button
+                          className="px-2.5 hover:bg-slate-800 text-slate-300 font-bold h-full border-l border-slate-800 cursor-pointer active:bg-slate-700 transition-colors"
+                          onClick={() => handleUpdateActiveElement({ fontSize: Math.min(150, activeElement.fontSize + 2) })}
+                        >
+                          +
+                        </button>
+                      </div>
+
+                      {/* Bold button */}
+                      <button
+                        onClick={() => handleUpdateActiveElement({ fontWeight: activeElement.fontWeight === "bold" ? "normal" : "bold" })}
+                        className={`h-8 w-8 rounded-lg border flex items-center justify-center cursor-pointer transition-all ${activeElement.fontWeight === "bold"
+                          ? "bg-indigo-600 text-white border-indigo-600 font-bold shadow-md shadow-indigo-600/10"
+                          : "border-slate-800 bg-slate-900 hover:bg-slate-800 text-slate-300"
+                          }`}
+                        title="Negrita"
+                      >
+                        <Bold className="size-4" />
+                      </button>
+
+                      {/* Alignment toggles */}
+                      <div className="flex border border-slate-800 rounded-lg overflow-hidden bg-slate-900 h-8">
+                        {(["left", "center", "right"] as const).map((align) => (
+                          <button
+                            key={align}
+                            onClick={() => handleUpdateActiveElement({ align })}
+                            className={`px-2.5 h-full hover:bg-slate-800 flex items-center justify-center border-r last:border-r-0 border-slate-800 cursor-pointer transition-colors ${activeElement.align === align ? "bg-indigo-550/20 text-indigo-400 font-bold" : "text-slate-500"
+                              }`}
+                            title={`Alinear a la ${align === "left" ? "izquierda" : align === "center" ? "centro" : "derecha"}`}
+                          >
+                            {align === "left" ? <AlignLeft className="size-3.5" /> : align === "center" ? <AlignCenter className="size-3.5" /> : <AlignRight className="size-3.5" />}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      {/* QR Size control */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold text-slate-505 uppercase tracking-wide">Tamaño QR:</span>
+                        <div className="flex items-center border border-slate-800 rounded-lg overflow-hidden bg-slate-900 h-8">
+                          <button
+                            className="px-2.5 hover:bg-slate-800 text-slate-300 font-bold h-full border-r border-slate-800 cursor-pointer active:bg-slate-700 transition-colors"
+                            onClick={() => handleUpdateActiveElement({ qrSize: Math.max(50, (activeElement.qrSize || 120) - 10) })}
+                          >
+                            -
+                          </button>
+                          <span className="w-12 text-center text-xs font-bold text-slate-200">{activeElement.qrSize || 120}px</span>
+                          <button
+                            className="px-2.5 hover:bg-slate-800 text-slate-300 font-bold h-full border-l border-slate-800 cursor-pointer active:bg-slate-700 transition-colors"
+                            onClick={() => handleUpdateActiveElement({ qrSize: Math.min(300, (activeElement.qrSize || 120) + 10) })}
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Color picker */}
+                  <div className="flex items-center gap-2 pl-3 border-l border-slate-800/80">
+                    <div className="relative flex items-center h-8">
+                      <input
+                        type="color"
+                        className="size-6 p-0 border border-slate-705 cursor-pointer rounded-md overflow-hidden bg-transparent shrink-0"
+                        value={activeElement.color}
+                        onChange={(e) => handleUpdateActiveElement({ color: e.target.value })}
+                      />
+                    </div>
+                    <div className="flex gap-1.5">
+                      {COLOR_PRESETS.slice(0, 4).map((color) => (
+                        <button
+                          key={color}
+                          type="button"
+                          className="size-4.5 rounded-full border border-white/10 shadow-xs cursor-pointer hover:scale-110 active:scale-90 transition-transform"
+                          style={{ backgroundColor: color }}
+                          onClick={() => handleUpdateActiveElement({ color })}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right group: Width adjustment & coordinates fine-tuning */}
+                <div className="flex items-center gap-4">
+                  {activeElement.id !== "qr" && (
+                    <div className="flex items-center gap-2 border-l border-slate-800/85 pl-4">
+                      <button
+                        onClick={() => handleUpdateActiveElement({ autoWidth: !(activeElement.autoWidth ?? true) })}
+                        className={`text-[10px] font-bold uppercase h-8 px-2.5 rounded-lg border cursor-pointer transition-all ${!(activeElement.autoWidth ?? true)
+                          ? "bg-indigo-655 text-white border-indigo-650 shadow-md shadow-indigo-600/10"
+                          : "border-slate-800 bg-slate-900 hover:bg-slate-800 text-slate-300"
+                          }`}
+                      >
+                        {(activeElement.autoWidth ?? true) ? "Ancho Automático" : "Ancho Manual"}
+                      </button>
+                      {!(activeElement.autoWidth ?? true) && (
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="range"
+                            min="10"
+                            max="100"
+                            value={activeElement.maxWidth || 80}
+                            onChange={(e) => handleUpdateActiveElement({ maxWidth: parseFloat(e.target.value) })}
+                            className="w-18 accent-indigo-500 cursor-pointer"
+                          />
+                          <span className="text-[10px] font-mono text-slate-400 w-7 text-right">{activeElement.maxWidth || 80}%</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* X & Y position fine-tuning */}
+                  <div className="flex items-center gap-2.5 border-l border-slate-800/85 pl-4">
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] font-mono text-slate-500 font-bold">X:</span>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.5"
+                        value={activeElement.x}
+                        onChange={(e) => handleUpdateActiveElement({ x: Math.max(0, Math.min(100, parseFloat(e.target.value) || 0)) })}
+                        className="w-11 h-8 text-center text-xs border border-slate-800 bg-slate-900 text-slate-200 rounded-lg focus:outline-hidden focus:border-indigo-500 font-semibold"
+                      />
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] font-mono text-slate-500 font-bold">Y:</span>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.5"
+                        value={activeElement.y}
+                        onChange={(e) => handleUpdateActiveElement({ y: Math.max(0, Math.min(100, parseFloat(e.target.value) || 0)) })}
+                        className="w-11 h-8 text-center text-xs border border-slate-800 bg-slate-900 text-slate-200 rounded-lg focus:outline-hidden focus:border-indigo-500 font-semibold"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Trash element */}
+                  <button
                     onClick={() => {
                       if (schema.elements.length <= 1) {
                         toast.error("Debe haber al menos un elemento en el certificado.")
                         return
                       }
                       const filtered = schema.elements.filter((el) => el.id !== activeElementId)
-                      setSchema((prev) => ({ ...prev, elements: filtered }))
+                      setSchema(prev => ({ ...prev, elements: filtered }))
                       setActiveElementId(filtered[0].id)
                       toast.success("Elemento eliminado de la plantilla.")
                     }}
+                    className="h-8 w-8 rounded-lg border border-slate-800 bg-slate-900 hover:bg-red-950/30 hover:border-red-900 text-red-400 hover:text-red-350 flex items-center justify-center cursor-pointer transition-colors"
+                    title="Eliminar elemento"
                   >
-                    <Trash2 className="size-3.5" />
-                  </Button>
-
-                  {activeElement.id === "qr" && (
-                    <div className="flex items-center gap-1.5">
-                      <Label htmlFor="toggleQr" className="text-[10px] font-semibold text-muted-foreground uppercase cursor-pointer">Activo</Label>
-                      <input
-                        id="toggleQr"
-                        type="checkbox"
-                        className="size-3.5 rounded accent-primary"
-                        checked={activeElement.showQr ?? true}
-                        onChange={(e) => handleUpdateActiveElement({ showQr: e.target.checked })}
-                      />
-                    </div>
-                  )}
+                    <Trash2 className="size-4" />
+                  </button>
                 </div>
+
               </div>
-
-              {/* Text Input (Skip for QR) */}
-              {activeElement.id !== "qr" && (
-                <div className="space-y-1.5">
-                  <Label htmlFor="elText" className="text-xs font-semibold text-muted-foreground">Texto de Muestra / Plantilla</Label>
-                  <Input
-                    id="elText"
-                    value={activeElement.text}
-                    onChange={(e) => handleUpdateActiveElement({ text: e.target.value })}
-                    className="h-8 text-xs"
-                    placeholder="Escribe texto..."
-                  />
-                  <p className="text-[10px] text-muted-foreground italic">
-                    {activeElement.id === "recipient" && "Usa {{name}} para el nombre."}
-                    {activeElement.id === "date" && "Usa {{date}} para la fecha de emisión."}
-                  </p>
-                </div>
-              )}
-
-              {/* Position coordinates */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label className="text-[10px] font-bold text-muted-foreground uppercase">Posición X (%)</Label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={activeElement.x}
-                      onChange={(e) => handleUpdateActiveElement({ x: parseFloat(e.target.value) })}
-                      className="w-full accent-primary"
-                    />
-                    <span className="text-xs font-semibold w-8 text-right">{activeElement.x}%</span>
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-[10px] font-bold text-muted-foreground uppercase">Posición Y (%)</Label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={activeElement.y}
-                      onChange={(e) => handleUpdateActiveElement({ y: parseFloat(e.target.value) })}
-                      className="w-full accent-primary"
-                    />
-                    <span className="text-xs font-semibold w-8 text-right">{activeElement.y}%</span>
-                  </div>
-                </div>
+            ) : (
+              <div className="text-xs text-slate-400 italic flex items-center gap-2">
+                <Sparkles className="size-3.5 text-indigo-400" />
+                Haz clic en cualquier texto del certificado para ajustar su tipografía, tamaño y color.
               </div>
+            )}
+          </div>
 
-              {/* Type of Width */}
-              {activeElement.id !== "qr" && (
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-muted-foreground">Ajuste de Ancho</Label>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    <Button
-                      type="button"
-                      variant={(activeElement.autoWidth ?? true) ? "default" : "outline"}
-                      className="h-7 text-[10px] font-bold uppercase cursor-pointer"
-                      onClick={() => handleUpdateActiveElement({ autoWidth: true })}
-                    >
-                      Automático
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={!(activeElement.autoWidth ?? true) ? "default" : "outline"}
-                      className="h-7 text-[10px] font-bold uppercase cursor-pointer"
-                      onClick={() => handleUpdateActiveElement({ autoWidth: false, maxWidth: activeElement.maxWidth || 80 })}
-                    >
-                      Ancho Manual
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {/* Max Width coordinates */}
-              {activeElement.id !== "qr" && !(activeElement.autoWidth ?? true) && (
-                <div className="space-y-1">
-                  <Label className="text-[10px] font-bold text-muted-foreground uppercase">Ancho Máximo (%)</Label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="range"
-                      min="10"
-                      max="100"
-                      value={activeElement.maxWidth || 80}
-                      onChange={(e) => handleUpdateActiveElement({ maxWidth: parseFloat(e.target.value) })}
-                      className="w-full accent-primary"
-                    />
-                    <span className="text-xs font-semibold w-8 text-right">{activeElement.maxWidth || 80}%</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Fonts (Skip for QR) */}
-              {activeElement.id !== "qr" && (
-                <>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-muted-foreground">Tipografía</Label>
-                    <select
-                      className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                      value={activeElement.fontFamily}
-                      onChange={(e) => handleUpdateActiveElement({ fontFamily: e.target.value })}
-                    >
-                      {FONT_OPTIONS.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-semibold text-muted-foreground">Tamaño de Letra (px)</Label>
-                      <Input
-                        type="number"
-                        min="10"
-                        max="120"
-                        value={activeElement.fontSize}
-                        onChange={(e) => handleUpdateActiveElement({ fontSize: parseInt(e.target.value) || 12 })}
-                        className="h-8 text-xs"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-semibold text-muted-foreground">Estilo / Peso</Label>
-                      <select
-                        className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs ring-offset-background focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
-                        value={activeElement.fontWeight}
-                        onChange={(e) => handleUpdateActiveElement({ fontWeight: e.target.value as "normal" | "bold" })}
-                      >
-                        <option value="normal">Normal</option>
-                        <option value="bold">Negrita</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-muted-foreground">Alineación</Label>
-                    <div className="grid grid-cols-3 gap-1">
-                      {(["left", "center", "right"] as const).map((align) => (
-                        <Button
-                          key={align}
-                          type="button"
-                          variant={activeElement.align === align ? "default" : "outline"}
-                          className="h-7 text-[10px] font-bold uppercase cursor-pointer"
-                          onClick={() => handleUpdateActiveElement({ align })}
-                        >
-                          {align === "left" ? "Izquierda" : align === "center" ? "Centro" : "Derecha"}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {/* QR Size for QR element */}
-              {activeElement.id === "qr" && (
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-muted-foreground">Tamaño del Código QR (px)</Label>
-                  <Input
-                    type="number"
-                    min="50"
-                    max="300"
-                    value={activeElement.qrSize || 120}
-                    onChange={(e) => handleUpdateActiveElement({ qrSize: parseInt(e.target.value) || 100 })}
-                    className="h-8 text-xs"
-                  />
-                </div>
-              )}
-
-              {/* Color Selection */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-muted-foreground">Color del Texto / Código</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="color"
-                    value={activeElement.color}
-                    onChange={(e) => handleUpdateActiveElement({ color: e.target.value })}
-                    className="size-8 p-0 border border-border/80 cursor-pointer shrink-0"
-                  />
-                  <div className="flex gap-1 flex-wrap">
-                    {COLOR_PRESETS.map((color) => (
-                      <button
-                        key={color}
-                        type="button"
-                        className="size-5 rounded-full border border-white/20 shadow-xs cursor-pointer active:scale-95 transition-transform"
-                        style={{ backgroundColor: color }}
-                        onClick={() => handleUpdateActiveElement({ color })}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
+          {/* Central canvas presentation layer */}
+          <div className="flex-1 bg-[#1e293b]/20 p-8 flex flex-col items-center justify-center overflow-auto relative">
+            <div className="absolute top-4 left-4 bg-slate-900/60 backdrop-blur-xs border border-slate-800/80 rounded-lg px-3 py-1.5 text-[10px] text-slate-405 flex items-center gap-1.5 pointer-events-none shadow-md">
+              <Sparkles className="size-3.5 text-indigo-400 animate-pulse" />
+              Arrastra los textos sobre la hoja para recolocarlos visualmente
             </div>
-          )}
-        </aside>
+
+            {/* Simulated A4/A5 Document Sheet */}
+            <div
+              ref={canvasRef}
+              className="w-full max-w-3xl aspect-[1.414] bg-white border border-slate-800/70 shadow-2xl relative overflow-hidden select-none flex items-center justify-center transition-all duration-300 rounded-lg"
+              style={{
+                backgroundImage: bgUrl ? `url(${bgUrl})` : "none",
+                backgroundSize: "contain",
+                backgroundPosition: "center",
+                backgroundRepeat: "no-repeat"
+              }}
+            >
+              {!bgUrl && (
+                <div className="text-center p-8 space-y-3 bg-[#111827]/40 backdrop-blur-xs border border-slate-800/60 rounded-2xl max-w-sm">
+                  <Award className="size-16 mx-auto text-indigo-400/30 animate-pulse" />
+                  <p className="text-slate-300 text-sm font-semibold">Diseño de Certificado</p>
+                  <p className="text-xs text-slate-500 leading-normal">Configura las dimensiones e importa una imagen de fondo en la pestaña **Lienzo** para comenzar.</p>
+                </div>
+              )}
+
+              {bgUrl &&
+                schema.elements.map((el) => {
+                  if (el.id === "qr" && !el.showQr) return null
+                  const isActive = el.id === activeElementId
+
+                  return (
+                    <div
+                      key={el.id}
+                      onMouseDown={(e) => handleDragStart(e, el.id)}
+                      className={`absolute p-2 rounded cursor-grab active:cursor-grabbing group transition-all duration-150 ${isActive
+                        ? "border-2 border-indigo-500 bg-indigo-500/5 ring-4 ring-indigo-500/10 shadow-lg shadow-indigo-500/5"
+                        : "hover:border hover:border-slate-400 hover:bg-white/10"
+                        }`}
+                      style={{
+                        left: `${el.x}%`,
+                        top: `${el.y}%`,
+                        transform: getTransform(el.align),
+                        width: (el.autoWidth ?? true) ? "auto" : `${el.maxWidth || 80}%`,
+                        textAlign: el.align,
+                        wordBreak: (el.autoWidth ?? true) ? "normal" : "break-word",
+                        whiteSpace: (el.autoWidth ?? true) ? "nowrap" : "normal"
+                      }}
+                    >
+                      {/* Drag Handle Tag */}
+                      <div className="absolute -top-4.5 left-1/2 -translate-x-1/2 hidden group-hover:flex items-center gap-1 bg-indigo-600 text-[8px] text-white font-bold px-1.5 py-0.5 rounded shadow-md pointer-events-none tracking-wider uppercase">
+                        <Move className="size-2.5" />
+                        <span>{el.label}</span>
+                      </div>
+
+                      {el.id === "qr" ? (
+                        <div
+                          style={{
+                            width: `${(el.qrSize || 120) * 0.5}px`,
+                            height: `${(el.qrSize || 120) * 0.5}px`
+                          }}
+                        >
+                          <QrPreviewSvg size={el.qrSize || 120} color={el.color || "#000000"} seed="preview-seed-code" />
+                        </div>
+                      ) : (
+                        <span
+                          style={{
+                            fontFamily: el.fontFamily,
+                            fontSize: `${el.fontSize * 0.5}px`, // Scaled for screen preview
+                            color: el.color,
+                            fontWeight: el.fontWeight,
+                            textAlign: el.align,
+                            display: "block",
+                            whiteSpace: (el.autoWidth ?? true) ? "nowrap" : "normal",
+                            wordBreak: (el.autoWidth ?? true) ? "normal" : "break-word"
+                          }}
+                        >
+                          {el.text.includes("{{name}}")
+                            ? "JUAN GOMEZ PEREZ"
+                            : el.text.includes("{{date}}")
+                              ? "03/07/2026"
+                              : el.text}
+                        </span>
+                      )}
+                    </div>
+                  )
+                })}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Format Selection Dialog */}
       <Dialog open={isDownloadModalOpen} onOpenChange={setIsDownloadModalOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md bg-slate-900 border-slate-800 text-slate-100">
           <DialogHeader>
-            <DialogTitle>Descargar Certificado de Prueba</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-slate-100">Descargar Certificado de Prueba</DialogTitle>
+            <DialogDescription className="text-slate-400">
               Selecciona el formato en el que deseas descargar la muestra del certificado.
             </DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-4 py-4">
             <Button
               variant="outline"
-              className="flex flex-col items-center gap-3 py-6 h-auto cursor-pointer border-border hover:border-primary hover:bg-primary/5 transition-all duration-300"
+              className="flex flex-col items-center gap-3 py-6 h-auto cursor-pointer border-slate-800 hover:border-indigo-500 bg-slate-950 hover:bg-slate-900 text-slate-300 hover:text-white transition-all duration-300"
               onClick={() => {
                 setIsDownloadModalOpen(false)
                 handleTestDownload("png")
               }}
             >
-              <Award className="size-8 text-primary" />
+              <Award className="size-8 text-indigo-400" />
               <div className="text-center">
                 <div className="font-bold text-xs">Descargar Imagen</div>
-                <div className="text-[10px] text-muted-foreground mt-0.5">Formato PNG en alta resolución</div>
+                <div className="text-[10px] text-slate-500 mt-0.5">Formato PNG en alta resolución</div>
               </div>
             </Button>
             <Button
               variant="outline"
-              className="flex flex-col items-center gap-3 py-6 h-auto cursor-pointer border-border hover:border-indigo-500 hover:bg-indigo-500/5 transition-all duration-300"
+              className="flex flex-col items-center gap-3 py-6 h-auto cursor-pointer border-slate-800 hover:border-indigo-500 bg-slate-950 hover:bg-slate-900 text-slate-300 hover:text-white transition-all duration-300"
               onClick={() => {
                 setIsDownloadModalOpen(false)
                 handleTestDownload("pdf")
               }}
             >
-              <Download className="size-8 text-indigo-550" />
+              <Download className="size-8 text-indigo-400" />
               <div className="text-center">
                 <div className="font-bold text-xs">Descargar PDF</div>
-                <div className="text-[10px] text-muted-foreground mt-0.5">Documento vectorial listo para imprimir</div>
+                <div className="text-[10px] text-slate-500 mt-0.5">Documento vectorial listo para imprimir</div>
               </div>
             </Button>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setIsDownloadModalOpen(false)} className="text-xs cursor-pointer">
+            <Button variant="ghost" onClick={() => setIsDownloadModalOpen(false)} className="text-xs cursor-pointer hover:bg-slate-800 text-slate-400 hover:text-slate-200">
               Cancelar
             </Button>
           </DialogFooter>

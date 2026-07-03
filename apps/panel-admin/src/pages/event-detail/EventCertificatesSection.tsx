@@ -355,8 +355,8 @@ export function EventCertificatesSection() {
     img.onload = async () => {
       const canvas = document.createElement("canvas")
       const schema = template.design_schema || {}
-      const width = schema.width || 1920
-      const height = schema.height || 1080
+      const width = schema.width || 1414
+      const height = schema.height || 1000
       canvas.width = width
       canvas.height = height
 
@@ -414,13 +414,16 @@ export function EventCertificatesSection() {
         link.click()
       } else {
         const { jsPDF } = await import("jspdf")
+        const pageSize = schema.pageSize || "a4"
         const doc = new jsPDF({
           orientation: "landscape",
-          unit: "px",
-          format: [width, height]
+          unit: "mm",
+          format: pageSize
         })
         const imgData = canvas.toDataURL("image/png")
-        doc.addImage(imgData, "PNG", 0, 0, width, height)
+        const pdfWidth = pageSize === "a5" ? 210 : 297
+        const pdfHeight = pageSize === "a5" ? 148.5 : 210
+        doc.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight)
         doc.save(`CERTIFICADO-${cert.validation_code}.pdf`)
       }
 
