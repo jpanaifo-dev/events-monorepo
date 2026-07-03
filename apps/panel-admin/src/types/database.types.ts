@@ -655,3 +655,41 @@ export interface SessionSpeaker {
   order_index: number | null
   created_at: string | null
 }
+
+export interface CertificateTemplate {
+  id: string
+  edition_id: string
+  name: string
+  description: string | null
+  background_image_url: string
+  design_schema: Record<string, any>
+  is_active: boolean
+  is_published: boolean
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface ParticipantCertificate {
+  id: string
+  participant_id: string
+  template_id: string
+  session_id: string | null
+  validation_code: string
+  validation_url: string
+  is_revoked: boolean
+  pdf_file_url: string | null
+  downloads_count: number
+  validations_count: number
+  issued_at: string | null
+}
+
+export type CertificateActionType = "view" | "download" | "validation"
+
+export interface CertificateTrackingLog {
+  id: string
+  certificate_id: string
+  action_type: CertificateActionType
+  ip_address: string | null
+  user_agent: string | null
+  created_at: string | null
+}

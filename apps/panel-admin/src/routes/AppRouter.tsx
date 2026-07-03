@@ -38,7 +38,9 @@ import {
   EventTicketsSection,
   EventAttendeeFormPage,
   EventSpeakersImportPage,
+  EventCertificatesSection,
 } from "@/pages/event-detail"
+import { GlobalCertificatesPage } from "@/pages/GlobalCertificatesPage"
 import {
   ProfilesPage,
   ProfileManageLayout,
@@ -138,6 +140,9 @@ export function AppRouter() {
           <Route path="profiles" element={<ProfilesPage />} />
           <Route path="profiles/new" element={<CreateProfilePage />} />
 
+          {/* Certificates Catalog */}
+          <Route path="certificates" element={<GlobalCertificatesPage />} />
+
           {/* Settings Page */}
           <Route path="settings/business" element={<OrganizationSettingsPage />} />
 
@@ -222,6 +227,7 @@ export function AppRouter() {
           <Route path="roles" element={<EventRolesSection />} />
           <Route path="thematic-lines" element={<EventThematicLinesSection />} />
           <Route path="tickets" element={<EventTicketsSection />} />
+          <Route path="certificates" element={<EventCertificatesSection />} />
         </Route>
 
         {/* Profiles Detail - Standalone (no admin layout) */}

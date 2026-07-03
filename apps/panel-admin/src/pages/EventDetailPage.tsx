@@ -17,6 +17,7 @@ const NAV_ITEMS = [
   { to: "roles", label: "Roles" },
   { to: "thematic-lines", label: "Líneas Temáticas" },
   { to: "tickets", label: "Tickets" },
+  { to: "certificates", label: "Certificados" },
 ]
 
 export function EventDetailPage() {
