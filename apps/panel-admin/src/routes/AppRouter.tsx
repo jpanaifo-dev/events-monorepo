@@ -38,7 +38,9 @@ import {
   EventTicketsSection,
   EventAttendeeFormPage,
   EventSpeakersImportPage,
+  EventCertificatesSection,
 } from "@/pages/event-detail"
+import { GlobalCertificatesPage } from "@/pages/GlobalCertificatesPage"
 import {
   ProfilesPage,
   ProfileManageLayout,
@@ -50,6 +52,7 @@ import {
   CreateProfilePage,
   ProfileManageAccountSection,
 } from "@/pages/profiles"
+import { VerifyCertificatePage } from "@/pages/VerifyCertificatePage"
 
 function HashHandler() {
   const navigate = useNavigate()
@@ -84,6 +87,7 @@ export function AppRouter() {
         {/* Public Routes */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/validar/:code" element={<VerifyCertificatePage />} />
 
         {/* Dashboard Routes requiring Authentication but NO Selected Organization yet */}
         <Route
@@ -137,6 +141,9 @@ export function AppRouter() {
           {/* Registered Profiles Catalog */}
           <Route path="profiles" element={<ProfilesPage />} />
           <Route path="profiles/new" element={<CreateProfilePage />} />
+
+          {/* Certificates Catalog */}
+          <Route path="certificates" element={<GlobalCertificatesPage />} />
 
           {/* Settings Page */}
           <Route path="settings/business" element={<OrganizationSettingsPage />} />
@@ -222,6 +229,7 @@ export function AppRouter() {
           <Route path="roles" element={<EventRolesSection />} />
           <Route path="thematic-lines" element={<EventThematicLinesSection />} />
           <Route path="tickets" element={<EventTicketsSection />} />
+          <Route path="certificates" element={<EventCertificatesSection />} />
         </Route>
 
         {/* Profiles Detail - Standalone (no admin layout) */}
