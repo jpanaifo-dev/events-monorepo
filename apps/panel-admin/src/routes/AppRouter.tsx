@@ -52,6 +52,7 @@ import {
   CreateProfilePage,
   ProfileManageAccountSection,
 } from "@/pages/profiles"
+import { VerifyCertificatePage } from "@/pages/VerifyCertificatePage"
 
 function HashHandler() {
   const navigate = useNavigate()
@@ -86,6 +87,7 @@ export function AppRouter() {
         {/* Public Routes */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/validar/:code" element={<VerifyCertificatePage />} />
 
         {/* Dashboard Routes requiring Authentication but NO Selected Organization yet */}
         <Route

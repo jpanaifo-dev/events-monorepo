@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { useParams } from "react-router-dom"
 import { useEventStore } from "@/store/event.store"
+import QRCode from "qrcode"
 import { useCertificateStore } from "@/store/certificate.store"
 import { useSEO } from "@/hooks/use-seo"
 import { PageHeader } from "@/components/page-header"
@@ -64,81 +65,51 @@ function drawTextWithWrap(
   }
 }
 
-function seededRandom(seed: string) {
-  let h = 0
-  for (let i = 0; i < seed.length; i++) {
-    h = Math.imul(31, h) + seed.charCodeAt(i) | 0
-  }
-  return function() {
-    h = Math.imul(h ^ h >>> 16, 2246822507) | 0
-    h = Math.imul(h ^ h >>> 13, 3266489909) | 0
-    return ((h ^= h >>> 16) >>> 0) / 4294967296
-  }
-}
-
 function drawProfessionalQR(
   ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  size: number,
+  xPx: number,
+  yPx: number,
+  qrSize: number,
   color: string,
-  seed: string = "default"
+  qrValue: string,
+  label: string
 ) {
-  const qrX = x - size / 2
-  const qrY = y - size / 2
+  try {
+    const qr = QRCode.create(qrValue, { errorCorrectionLevel: "M" })
+    const gridCount = qr.modules.size
+    const qrData = qr.modules.data
+    const moduleSize = qrSize / gridCount
 
-  // 1. White Background
-  ctx.fillStyle = "#ffffff"
-  ctx.fillRect(qrX, qrY, size, size)
+    const qrX = xPx - qrSize / 2
+    const qrY = yPx - qrSize / 2
 
-  // 2. Draw border
-  ctx.strokeStyle = color
-  ctx.lineWidth = 2
-  ctx.strokeRect(qrX, qrY, size, size)
-
-  const rand = seededRandom(seed)
-
-  // 3. Draw finder patterns
-  const finderSize = Math.round(size * 0.28) // 7/25 of size
-  const drawFinder = (fx: number, fy: number) => {
-    const step = finderSize / 7
-    ctx.fillStyle = color
-    ctx.fillRect(fx, fy, finderSize, finderSize)
+    // Draw background white box
     ctx.fillStyle = "#ffffff"
-    ctx.fillRect(fx + step, fy + step, finderSize - 2 * step, finderSize - 2 * step)
+    ctx.fillRect(qrX, qrY, qrSize, qrSize)
+
+    // Draw dark modules
     ctx.fillStyle = color
-    ctx.fillRect(fx + 2 * step, fy + 2 * step, finderSize - 4 * step, finderSize - 4 * step)
-  }
-
-  // Top Left
-  drawFinder(qrX + 4, qrY + 4)
-  // Top Right
-  drawFinder(qrX + size - finderSize - 4, qrY + 4)
-  // Bottom Left
-  drawFinder(qrX + 4, qrY + size - finderSize - 4)
-
-  // 4. Draw detailed grains (25x25 grid)
-  const gridSize = 25
-  const cellSize = size / gridSize
-
-  ctx.fillStyle = color
-  for (let r = 0; r < gridSize; r++) {
-    for (let c = 0; c < gridSize; c++) {
-      // Skip finder pattern areas (top-left, top-right, bottom-left)
-      const inTopLeft = r < 8 && c < 8
-      const inTopRight = r < 8 && c >= gridSize - 8
-      const inBottomLeft = r >= gridSize - 8 && c < 8
-      if (inTopLeft || inTopRight || inBottomLeft) continue
-
-      if (rand() > 0.45) {
-        ctx.fillRect(
-          Math.round(qrX + c * cellSize),
-          Math.round(qrY + r * cellSize),
-          Math.ceil(cellSize),
-          Math.ceil(cellSize)
-        )
+    for (let r = 0; r < gridCount; r++) {
+      for (let c = 0; c < gridCount; c++) {
+        const isDark = qrData[r * gridCount + c] === 1
+        if (isDark) {
+          ctx.fillRect(
+            Math.round(qrX + c * moduleSize),
+            Math.round(qrY + r * moduleSize),
+            Math.ceil(moduleSize),
+            Math.ceil(moduleSize)
+          )
+        }
       }
     }
+
+    // Draw validation code underneath the QR code
+    ctx.font = `12px monospace`
+    ctx.fillStyle = color
+    ctx.textAlign = "center"
+    ctx.fillText(label, xPx, qrY + qrSize + 18)
+  } catch (err) {
+    console.error("Error generating scannable QR: ", err)
   }
 }
 
@@ -378,7 +349,9 @@ export function EventCertificatesSection() {
 
         if (el.id === "qr" && el.showQr) {
           const qrSize = el.qrSize || 120
-          drawProfessionalQR(ctx, xPx, yPx, qrSize, el.color || "#000000", cert.validation_code)
+          const validationCode = cert.validation_code
+          const validationUrl = `${window.location.origin}/validar/${validationCode}`
+          drawProfessionalQR(ctx, xPx, yPx, qrSize, el.color || "#000000", validationUrl, validationCode)
           return
         }
 

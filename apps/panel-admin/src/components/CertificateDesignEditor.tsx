@@ -20,6 +20,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { ImageUploadWithPreview } from "@/components/ImageUploadWithPreview"
 import { toast } from "sonner"
+import QRCode from "qrcode"
 import {
   Dialog,
   DialogContent,
@@ -206,85 +207,60 @@ interface QrPreviewSvgProps {
   seed: string
 }
 
-export function QrPreviewSvg({ size, color, seed: code }: QrPreviewSvgProps) {
-  const gridCount = 21
-  const moduleSize = size / gridCount
+export function QrPreviewSvg({ color, seed: code }: QrPreviewSvgProps) {
+  try {
+    const validationUrl = `${window.location.origin}/validar/${code}`
+    const qr = QRCode.create(validationUrl, { errorCorrectionLevel: "M" })
+    const gridCount = qr.modules.size
+    const qrData = qr.modules.data
 
-  // Draw timing/finder patterns and modules
-  const finderPatterns = [
-    { r: 0, c: 0 },
-    { r: 0, c: 14 },
-    { r: 14, c: 0 },
-  ]
+    const rects: React.ReactNode[] = []
 
-  // Helper to check if a module is part of a finder pattern
-  const getFinderColor = (r: number, c: number): string | null => {
-    for (const f of finderPatterns) {
-      if (r >= f.r && r < f.r + 7 && c >= f.c && c < f.c + 7) {
-        const localR = r - f.r
-        const localC = c - f.c
-        const isOuterBorder = localR === 0 || localR === 6 || localC === 0 || localC === 6
-        const isInnerSquare = localR >= 2 && localR <= 4 && localC >= 2 && localC <= 4
-        return (isOuterBorder || isInnerSquare) ? color : "#ffffff"
+    for (let r = 0; r < gridCount; r++) {
+      for (let c = 0; c < gridCount; c++) {
+        const isDark = qrData[r * gridCount + c] === 1
+        if (isDark) {
+          rects.push(
+            <rect
+              key={`${r}-${c}`}
+              x={c}
+              y={r}
+              width={1}
+              height={1}
+              fill={color}
+            />
+          )
+        }
       }
     }
+
+    return (
+      <div className="flex flex-col items-center select-none w-full h-full">
+        <svg
+          width="100%"
+          height="100%"
+          viewBox={`0 0 ${gridCount} ${gridCount}`}
+          style={{ display: "block", backgroundColor: "#ffffff" }}
+        >
+          {rects}
+        </svg>
+        <span
+          className="font-mono mt-1 text-center block select-none pointer-events-none"
+          style={{
+            color: color,
+            fontSize: "6px",
+            lineHeight: "1.2",
+            fontWeight: "bold"
+          }}
+        >
+          {code}
+        </span>
+      </div>
+    )
+  } catch (err) {
+    console.error("Error generating preview QR SVG:", err)
     return null
   }
-
-  // Deterministic random generator
-  let hash = 0
-  for (let i = 0; i < code.length; i++) {
-    hash = (hash << 5) - hash + code.charCodeAt(i)
-    hash |= 0
-  }
-  let currentSeed = Math.abs(hash) || 12345
-  const pseudoRandom = () => {
-    currentSeed = (currentSeed * 9301 + 49297) % 233280
-    return currentSeed / 233280
-  }
-
-  const rects: React.ReactNode[] = []
-
-  for (let r = 0; r < gridCount; r++) {
-    for (let c = 0; c < gridCount; c++) {
-      const finderColor = getFinderColor(r, c)
-      let moduleColor = "#ffffff"
-
-      if (finderColor !== null) {
-        moduleColor = finderColor
-      } else if (r === 6 || c === 6) {
-        // Timing pattern
-        moduleColor = ((r === 6 && c % 2 === 0) || (c === 6 && r % 2 === 0)) ? color : "#ffffff"
-      } else {
-        // Random modules
-        moduleColor = pseudoRandom() > 0.45 ? color : "#ffffff"
-      }
-
-      if (moduleColor !== "#ffffff") {
-        rects.push(
-          <rect
-            key={`${r}-${c}`}
-            x={c * moduleSize}
-            y={r * moduleSize}
-            width={moduleSize}
-            height={moduleSize}
-            fill={color}
-          />
-        )
-      }
-    }
-  }
-
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox={`0 0 ${size} ${size}`}
-      style={{ display: "block", backgroundColor: "#ffffff" }}
-    >
-      {rects}
-    </svg>
-  )
 }
 
 export function drawProfessionalQR(
@@ -293,102 +269,46 @@ export function drawProfessionalQR(
   yPx: number,
   qrSize: number,
   color: string,
-  code: string
+  qrValue: string,
+  label: string
 ) {
-  // Center is at (xPx, yPx). Calculate top-left of the QR box:
-  const qrX = xPx - qrSize / 2
-  const qrY = yPx - qrSize / 2
+  try {
+    const qr = QRCode.create(qrValue, { errorCorrectionLevel: "M" })
+    const gridCount = qr.modules.size
+    const qrData = qr.modules.data
+    const moduleSize = qrSize / gridCount
 
-  // Draw background white box
-  ctx.fillStyle = "#ffffff"
-  ctx.fillRect(qrX, qrY, qrSize, qrSize)
+    const qrX = xPx - qrSize / 2
+    const qrY = yPx - qrSize / 2
 
-  // QR grid dimensions: 21x21 (Version 1 QR code)
-  const gridCount = 21
-  const moduleSize = qrSize / gridCount
+    // Draw background white box
+    ctx.fillStyle = "#ffffff"
+    ctx.fillRect(qrX, qrY, qrSize, qrSize)
 
-  // Helper to draw a square module
-  const drawModule = (r: number, c: number, fillStyle: string) => {
-    ctx.fillStyle = fillStyle
-    ctx.fillRect(
-      Math.round(qrX + c * moduleSize),
-      Math.round(qrY + r * moduleSize),
-      Math.ceil(moduleSize),
-      Math.ceil(moduleSize)
-    )
-  }
-
-  // Draw standard QR finder patterns
-  const drawFinderPattern = (startRow: number, startCol: number) => {
-    for (let r = 0; r < 7; r++) {
-      for (let c = 0; c < 7; c++) {
-        const globalRow = startRow + r
-        const globalCol = startCol + c
-        const isOuterBorder = r === 0 || r === 6 || c === 0 || c === 6
-        const isInnerSquare = r >= 2 && r <= 4 && c >= 2 && c <= 4
-
-        if (isOuterBorder) {
-          drawModule(globalRow, globalCol, color)
-        } else if (isInnerSquare) {
-          drawModule(globalRow, globalCol, color)
-        } else {
-          drawModule(globalRow, globalCol, "#ffffff")
+    // Draw dark modules
+    ctx.fillStyle = color
+    for (let r = 0; r < gridCount; r++) {
+      for (let c = 0; c < gridCount; c++) {
+        const isDark = qrData[r * gridCount + c] === 1
+        if (isDark) {
+          ctx.fillRect(
+            Math.round(qrX + c * moduleSize),
+            Math.round(qrY + r * moduleSize),
+            Math.ceil(moduleSize),
+            Math.ceil(moduleSize)
+          )
         }
       }
     }
+
+    // Draw validation code underneath the QR code
+    ctx.font = `12px monospace`
+    ctx.fillStyle = color
+    ctx.textAlign = "center"
+    ctx.fillText(label, xPx, qrY + qrSize + 18)
+  } catch (err) {
+    console.error("Error generating scannable QR: ", err)
   }
-
-  drawFinderPattern(0, 0)         // Top-left
-  drawFinderPattern(0, 14)        // Top-right
-  drawFinderPattern(14, 0)        // Bottom-left
-
-  // Generate deterministic QR data modules based on the code hash
-  let hash = 0
-  for (let i = 0; i < code.length; i++) {
-    hash = (hash << 5) - hash + code.charCodeAt(i)
-    hash |= 0 // 32bit int
-  }
-  let seed = Math.abs(hash) || 12345
-  const pseudoRandom = () => {
-    seed = (seed * 9301 + 49297) % 233280
-    return seed / 233280
-  }
-
-  // Draw the remaining cells of the 21x21 grid
-  for (let r = 0; r < gridCount; r++) {
-    for (let c = 0; c < gridCount; c++) {
-      // Skip finder pattern areas
-      const isTopLeftFinder = r < 8 && c < 8
-      const isTopRightFinder = r < 8 && c >= 13
-      const isBottomLeftFinder = r >= 13 && c < 8
-      if (isTopLeftFinder || isTopRightFinder || isBottomLeftFinder) {
-        continue
-      }
-
-      // Draw timing patterns (row 6 and col 6) as alternating black/white modules
-      if (r === 6 || c === 6) {
-        if ((r === 6 && c % 2 === 0) || (c === 6 && r % 2 === 0)) {
-          drawModule(r, c, color)
-        } else {
-          drawModule(r, c, "#ffffff")
-        }
-        continue
-      }
-
-      // Fill in remaining modules deterministically
-      if (pseudoRandom() > 0.45) {
-        drawModule(r, c, color)
-      } else {
-        drawModule(r, c, "#ffffff")
-      }
-    }
-  }
-
-  // Draw validation code underneath the QR code
-  ctx.font = `12px monospace`
-  ctx.fillStyle = color
-  ctx.textAlign = "center"
-  ctx.fillText(code, xPx, yPx + qrSize / 2 + 18)
 }
 
 export function CertificateDesignEditor({
@@ -560,7 +480,9 @@ export function CertificateDesignEditor({
 
         if (el.id === "qr" && el.showQr) {
           const qrSize = el.qrSize || 120
-          drawProfessionalQR(ctx, xPx, yPx, qrSize, el.color || "#000000", "test-validation-code")
+          const validationCode = "TEST-VALIDATION"
+          const validationUrl = `${window.location.origin}/validar/${validationCode}`
+          drawProfessionalQR(ctx, xPx, yPx, qrSize, el.color || "#000000", validationUrl, validationCode)
           return
         }
 
@@ -1196,7 +1118,6 @@ export function CertificateDesignEditor({
                         whiteSpace: (el.autoWidth ?? true) ? "nowrap" : "normal"
                       }}
                     >
-                      {/* Drag Handle Tag */}
                       <div className="absolute -top-4.5 left-1/2 -translate-x-1/2 hidden group-hover:flex items-center gap-1 bg-indigo-600 text-[8px] text-white font-bold px-1.5 py-0.5 rounded shadow-md pointer-events-none tracking-wider uppercase">
                         <Move className="size-2.5" />
                         <span>{el.label}</span>
@@ -1205,11 +1126,11 @@ export function CertificateDesignEditor({
                       {el.id === "qr" ? (
                         <div
                           style={{
-                            width: `${(el.qrSize || 120) * 0.5}px`,
-                            height: `${(el.qrSize || 120) * 0.5}px`
+                            width: `${(el.qrSize || 120) * 0.5}px`
                           }}
+                          className="bg-white p-1 rounded-sm shadow-xs"
                         >
-                          <QrPreviewSvg size={el.qrSize || 120} color={el.color || "#000000"} seed="preview-seed-code" />
+                          <QrPreviewSvg size={el.qrSize || 120} color={el.color || "#000000"} seed="VAL-ZYNQRO" />
                         </div>
                       ) : (
                         <span
