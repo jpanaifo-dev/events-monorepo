@@ -99,6 +99,7 @@ export interface Attendee {
   avatarUrl?: string | null
   identityDocumentType?: string | null
   identityDocumentNumber?: string | null
+  roleId?: string
 }
 
 export interface ParticipantRole {
@@ -508,6 +509,7 @@ export const useEventStore = create<EventState>((set, get) => ({
                 avatarUrl: profile.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fullName)}`,
                 identityDocumentType: profile.identity_document_type || null,
                 identityDocumentNumber: profile.identity_document_number || null,
+                roleId: roleId,
               })
             }
           })

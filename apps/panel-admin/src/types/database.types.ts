@@ -659,6 +659,7 @@ export interface SessionSpeaker {
 export interface CertificateTemplate {
   id: string
   edition_id: string
+  role_id: string | null
   name: string
   description: string | null
   background_image_url: string

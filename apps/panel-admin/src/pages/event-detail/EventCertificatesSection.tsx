@@ -157,7 +157,7 @@ function CertificatesSkeleton() {
 
 export function EventCertificatesSection() {
   const { id: eventId } = useParams<{ id: string }>()
-  const { events, editions, attendees, speakers } = useEventStore()
+  const { events, editions, attendees, speakers, roles } = useEventStore()
   const {
     templates,
     certificates,
@@ -215,6 +215,7 @@ export function EventCertificatesSection() {
   const [newTemplateName, setNewTemplateName] = useState("")
   const [newTemplateDescription, setNewTemplateDescription] = useState("")
   const [newTemplateEditionId, setNewTemplateEditionId] = useState("")
+  const [newTemplateRoleId, setNewTemplateRoleId] = useState("")
   const [newTemplateIsActive, setNewTemplateIsActive] = useState(true)
 
   // Filter editions belonging to this event
@@ -240,7 +241,8 @@ export function EventCertificatesSection() {
       email: at.email,
       editionId: at.editionId,
       type: "Participante",
-      checkedIn: at.checkedIn
+      checkedIn: at.checkedIn,
+      roleId: at.roleId
     })),
     ...eventSpeakers.map((sp) => ({
       id: sp.id,
@@ -248,7 +250,8 @@ export function EventCertificatesSection() {
       email: sp.email,
       editionId: sp.editionId,
       type: "Ponente",
-      checkedIn: !!sp.checkedIn
+      checkedIn: !!sp.checkedIn,
+      roleId: sp.roleId
     }))
   ]
 
@@ -281,7 +284,14 @@ export function EventCertificatesSection() {
   // Filter participants of the edition matching the active template
   const filteredParticipants = participants.filter((p) => {
     if (!activeTemplate) return false
-    return p.editionId === activeTemplate.edition_id
+    const matchesEdition = p.editionId === activeTemplate.edition_id
+    if (!matchesEdition) return false
+
+    // Filter by template's linked role if any
+    if (activeTemplate.role_id && p.roleId !== activeTemplate.role_id) {
+      return false
+    }
+    return true
   })
 
   // Handle template creation
@@ -301,6 +311,7 @@ export function EventCertificatesSection() {
         name: newTemplateName,
         description: newTemplateDescription,
         edition_id: newTemplateEditionId,
+        role_id: newTemplateRoleId || null,
         background_image_url: "", // Start empty, visual designer will fill it
         design_schema: {},
         is_active: newTemplateIsActive,
@@ -311,6 +322,7 @@ export function EventCertificatesSection() {
       // Reset form
       setNewTemplateName("")
       setNewTemplateDescription("")
+      setNewTemplateRoleId("")
       setNewTemplateIsActive(true)
     } catch (err) {
       toast.error("Error al crear la plantilla.")
@@ -494,6 +506,15 @@ export function EventCertificatesSection() {
           </div>
         </div>
       )
+    },
+    {
+      header: "Rol Vinculado",
+      className: "p-3 text-xs",
+      cell: (row) => {
+        const role = roles.find((r) => r.id === row.role_id)
+        const nameStr = role ? (role.name.es || role.name.en || Object.values(role.name)[0] || "") : "Cualquier Rol"
+        return <span className="font-semibold text-slate-350">{nameStr}</span>
+      }
     },
     {
       header: "Edición Vinculada",
@@ -871,6 +892,23 @@ export function EventCertificatesSection() {
                   {eventEditions.map((ed) => (
                     <option key={ed.id} value={ed.id}>
                       {ed.name} ({ed.year})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="templateRole">Rol del Participante (Opcional)</Label>
+                <select
+                  id="templateRole"
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs ring-offset-background focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+                  value={newTemplateRoleId}
+                  onChange={(e) => setNewTemplateRoleId(e.target.value)}
+                >
+                  <option value="">Cualquier Rol (Sin Restricción)</option>
+                  {roles.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name.es || r.name.en || Object.values(r.name)[0] || ""}
                     </option>
                   ))}
                 </select>
