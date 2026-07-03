@@ -11,7 +11,6 @@ import { Card, CardContent } from "@/components/ui/card"
 import {
   Award,
   Download,
-  Eye,
   FileCheck,
   Globe,
   Search,
@@ -34,7 +33,6 @@ export function GlobalCertificatesPage() {
   } = useCertificateStore()
 
   const [searchQuery, setSearchQuery] = useState("")
-  const [selectedEventId, setSelectedEventId] = useState("all")
   const [selectedStatus, setSelectedStatus] = useState("all")
   const [activeTab, setActiveTab] = useState<"templates" | "issued" | "logs">("templates")
 
@@ -67,16 +65,6 @@ export function GlobalCertificatesPage() {
       cert.validation_code.toLowerCase().includes(searchQuery.toLowerCase()) ||
       cert.id.toLowerCase().includes(searchQuery.toLowerCase())
 
-    // Event filter
-    let matchEvent = true
-    if (selectedEventId !== "all") {
-      const ed = editions.find((e) => e.mainEventId === selectedEventId && e.id === cert.participant_id)
-      // Since certificates link to participant_id, we need to map participant to event.
-      // We can look at editions mapping or just filter if editions match.
-      // Wait, let's look up the participant inside event.store attendees list.
-      // Let's resolve the attendee/speaker.
-    }
-
     // Status filter
     let matchStatus = true
     if (selectedStatus === "revoked") {
@@ -85,7 +73,7 @@ export function GlobalCertificatesPage() {
       matchStatus = cert.is_revoked === false
     }
 
-    return matchSearch && matchEvent && matchStatus
+    return matchSearch && matchStatus
   })
 
   // Compute metrics

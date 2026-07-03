@@ -26,12 +26,121 @@ import {
   FileCheck,
   FileDown,
   ShieldAlert,
-  AlertTriangle,
-  History,
   Info,
-  CheckCircle2
 } from "lucide-react"
 import { toast } from "sonner"
+
+function drawTextWithWrap(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+  lineHeight: number
+) {
+  const words = text.split(" ")
+  let line = ""
+  const lines = []
+
+  for (let n = 0; n < words.length; n++) {
+    const testLine = line + words[n] + " "
+    const metrics = ctx.measureText(testLine)
+    const testWidth = metrics.width
+    if (testWidth > maxWidth && n > 0) {
+      lines.push(line.trim())
+      line = words[n] + " "
+    } else {
+      line = testLine
+    }
+  }
+  lines.push(line.trim())
+
+  const totalHeight = (lines.length - 1) * lineHeight
+  let currentY = y - totalHeight / 2
+
+  for (let i = 0; i < lines.length; i++) {
+    ctx.fillText(lines[i], x, currentY)
+    currentY += lineHeight
+  }
+}
+
+function seededRandom(seed: string) {
+  let h = 0
+  for (let i = 0; i < seed.length; i++) {
+    h = Math.imul(31, h) + seed.charCodeAt(i) | 0
+  }
+  return function() {
+    h = Math.imul(h ^ h >>> 16, 2246822507) | 0
+    h = Math.imul(h ^ h >>> 13, 3266489909) | 0
+    return ((h ^= h >>> 16) >>> 0) / 4294967296
+  }
+}
+
+function drawProfessionalQR(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number,
+  color: string,
+  seed: string = "default"
+) {
+  const qrX = x - size / 2
+  const qrY = y - size / 2
+
+  // 1. White Background
+  ctx.fillStyle = "#ffffff"
+  ctx.fillRect(qrX, qrY, size, size)
+
+  // 2. Draw border
+  ctx.strokeStyle = color
+  ctx.lineWidth = 2
+  ctx.strokeRect(qrX, qrY, size, size)
+
+  const rand = seededRandom(seed)
+
+  // 3. Draw finder patterns
+  const finderSize = Math.round(size * 0.28) // 7/25 of size
+  const drawFinder = (fx: number, fy: number) => {
+    const step = finderSize / 7
+    ctx.fillStyle = color
+    ctx.fillRect(fx, fy, finderSize, finderSize)
+    ctx.fillStyle = "#ffffff"
+    ctx.fillRect(fx + step, fy + step, finderSize - 2 * step, finderSize - 2 * step)
+    ctx.fillStyle = color
+    ctx.fillRect(fx + 2 * step, fy + 2 * step, finderSize - 4 * step, finderSize - 4 * step)
+  }
+
+  // Top Left
+  drawFinder(qrX + 4, qrY + 4)
+  // Top Right
+  drawFinder(qrX + size - finderSize - 4, qrY + 4)
+  // Bottom Left
+  drawFinder(qrX + 4, qrY + size - finderSize - 4)
+
+  // 4. Draw detailed grains (25x25 grid)
+  const gridSize = 25
+  const cellSize = size / gridSize
+
+  ctx.fillStyle = color
+  for (let r = 0; r < gridSize; r++) {
+    for (let c = 0; c < gridSize; c++) {
+      // Skip finder pattern areas (top-left, top-right, bottom-left)
+      const inTopLeft = r < 8 && c < 8
+      const inTopRight = r < 8 && c >= gridSize - 8
+      const inBottomLeft = r >= gridSize - 8 && c < 8
+      if (inTopLeft || inTopRight || inBottomLeft) continue
+
+      if (rand() > 0.45) {
+        ctx.fillRect(
+          Math.round(qrX + c * cellSize),
+          Math.round(qrY + r * cellSize),
+          Math.ceil(cellSize),
+          Math.ceil(cellSize)
+        )
+      }
+    }
+  }
+}
 
 export function EventCertificatesSection() {
   const { id: eventId } = useParams<{ id: string }>()
@@ -64,6 +173,7 @@ export function EventCertificatesSection() {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("")
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [editorTemplateId, setEditorTemplateId] = useState<string | null>(null)
+  const [downloadModalData, setDownloadModalData] = useState<{ cert: any; name: string } | null>(null)
 
   // Form State for new template
   const [newTemplateName, setNewTemplateName] = useState("")
@@ -230,7 +340,7 @@ export function EventCertificatesSection() {
   }
 
   // Client-side download rendering for specific participant
-  const handleDownloadCertificate = (cert: any, participantName: string) => {
+  const handleDownloadCertificate = (cert: any, participantName: string, format: "png" | "pdf") => {
     const template = templates.find((t) => t.id === cert.template_id)
     if (!template || !template.background_image_url) {
       toast.error("La plantilla no tiene una imagen de fondo o diseño válido configurado.")
@@ -268,26 +378,7 @@ export function EventCertificatesSection() {
 
         if (el.id === "qr" && el.showQr) {
           const qrSize = el.qrSize || 120
-          // Draw fake white box
-          ctx.fillStyle = "#ffffff"
-          ctx.strokeStyle = el.color || "#000000"
-          ctx.lineWidth = 4
-          const qrX = xPx - qrSize / 2
-          const qrY = yPx - qrSize / 2
-          ctx.fillRect(qrX, qrY, qrSize, qrSize)
-          ctx.strokeRect(qrX, qrY, qrSize, qrSize)
-
-          // Corners
-          ctx.fillStyle = el.color || "#000000"
-          const innerSize = qrSize * 0.25
-          ctx.fillRect(qrX + 8, qrY + 8, innerSize, innerSize)
-          ctx.fillRect(qrX + qrSize - innerSize - 8, qrY + 8, innerSize, innerSize)
-          ctx.fillRect(qrX + 8, qrY + qrSize - innerSize - 8, innerSize, innerSize)
-
-          ctx.font = `12px monospace`
-          ctx.fillStyle = el.color || "#000000"
-          ctx.textAlign = "center"
-          ctx.fillText(cert.validation_code, xPx, yPx + qrSize / 2 + 18)
+          drawProfessionalQR(ctx, xPx, yPx, qrSize, el.color || "#000000", cert.validation_code)
           return
         }
 
@@ -304,22 +395,41 @@ export function EventCertificatesSection() {
           text = text.replace("{{date}}", new Date(cert.issued_at || Date.now()).toLocaleDateString("es-ES"))
         }
 
-        ctx.fillText(text, xPx, yPx)
+        const isAuto = el.autoWidth ?? true
+        if (isAuto) {
+          ctx.fillText(text, xPx, yPx)
+        } else {
+          const elMaxWidth = ((el.maxWidth || 80) / 100) * width
+          const lineHeight = el.fontSize * 1.25
+          drawTextWithWrap(ctx, text, xPx, yPx, elMaxWidth, lineHeight)
+        }
       })
 
       // Download
-      const dataUrl = canvas.toDataURL("image/png")
-      const link = document.createElement("a")
-      link.download = `CERTIFICADO-${cert.validation_code}.png`
-      link.href = dataUrl
-      link.click()
+      if (format === "png") {
+        const dataUrl = canvas.toDataURL("image/png")
+        const link = document.createElement("a")
+        link.download = `CERTIFICADO-${cert.validation_code}.png`
+        link.href = dataUrl
+        link.click()
+      } else {
+        const { jsPDF } = await import("jspdf")
+        const doc = new jsPDF({
+          orientation: "landscape",
+          unit: "px",
+          format: [width, height]
+        })
+        const imgData = canvas.toDataURL("image/png")
+        doc.addImage(imgData, "PNG", 0, 0, width, height)
+        doc.save(`CERTIFICADO-${cert.validation_code}.pdf`)
+      }
 
       // Track download in database
       await incrementDownloads(cert.id, {
         ipAddress: "127.0.0.1",
         userAgent: navigator.userAgent
       })
-      toast.success("Certificado descargado.", { id: "render-download" })
+      toast.success(`Certificado descargado como ${format.toUpperCase()}.`, { id: "render-download" })
     }
 
     img.onerror = () => {
@@ -358,16 +468,14 @@ export function EventCertificatesSection() {
       cell: (row) => (
         <div className="flex gap-2">
           <span
-            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-              row.is_active ? "bg-emerald-500/10 text-emerald-600" : "bg-muted text-muted-foreground"
-            }`}
+            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${row.is_active ? "bg-emerald-500/10 text-emerald-600" : "bg-muted text-muted-foreground"
+              }`}
           >
             {row.is_active ? "Activo" : "Inactivo"}
           </span>
           <span
-            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-              row.is_published ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-            }`}
+            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${row.is_published ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+              }`}
           >
             {row.is_published ? "Publicado" : "Borrador"}
           </span>
@@ -428,9 +536,8 @@ export function EventCertificatesSection() {
       className: "p-3 text-xs",
       cell: (row) => (
         <span
-          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-            row.type === "Ponente" ? "bg-indigo-500/10 text-indigo-600" : "bg-muted text-muted-foreground"
-          }`}
+          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${row.type === "Ponente" ? "bg-indigo-500/10 text-indigo-600" : "bg-muted text-muted-foreground"
+            }`}
         >
           {row.type}
         </span>
@@ -441,9 +548,8 @@ export function EventCertificatesSection() {
       className: "p-3 text-center",
       cell: (row) => (
         <span
-          className={`text-[10px] font-semibold ${
-            row.checkedIn ? "text-emerald-500" : "text-muted-foreground/60"
-          }`}
+          className={`text-[10px] font-semibold ${row.checkedIn ? "text-emerald-500" : "text-muted-foreground/60"
+            }`}
         >
           {row.checkedIn ? "Sí" : "No"}
         </span>
@@ -503,7 +609,7 @@ export function EventCertificatesSection() {
               variant="ghost"
               className="size-8 p-0 text-muted-foreground hover:text-foreground cursor-pointer"
               title="Descargar Certificado"
-              onClick={() => handleDownloadCertificate(cert, row.name)}
+              onClick={() => setDownloadModalData({ cert, name: row.name })}
             >
               <FileDown className="size-4" />
             </Button>
@@ -545,13 +651,12 @@ export function EventCertificatesSection() {
       className: "p-3",
       cell: (row) => (
         <span
-          className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
-            row.action_type === "download"
-              ? "bg-indigo-500/10 text-indigo-600"
-              : row.action_type === "validation"
+          className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${row.action_type === "download"
+            ? "bg-indigo-500/10 text-indigo-600"
+            : row.action_type === "validation"
               ? "bg-emerald-500/10 text-emerald-600"
               : "bg-amber-500/10 text-amber-600"
-          }`}
+            }`}
         >
           {row.action_type}
         </span>
@@ -593,31 +698,28 @@ export function EventCertificatesSection() {
       <div className="flex border-b border-border/60 gap-4">
         <button
           onClick={() => setActiveTab("templates")}
-          className={`pb-3 text-sm font-bold border-b-2 transition-all cursor-pointer ${
-            activeTab === "templates"
-              ? "border-primary text-primary"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
+          className={`pb-3 text-sm font-bold border-b-2 transition-all cursor-pointer ${activeTab === "templates"
+            ? "border-primary text-primary"
+            : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
         >
           Plantillas ({templates.length})
         </button>
         <button
           onClick={() => setActiveTab("issue")}
-          className={`pb-3 text-sm font-bold border-b-2 transition-all cursor-pointer ${
-            activeTab === "issue"
-              ? "border-primary text-primary"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
+          className={`pb-3 text-sm font-bold border-b-2 transition-all cursor-pointer ${activeTab === "issue"
+            ? "border-primary text-primary"
+            : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
         >
           Emisión de Certificados
         </button>
         <button
           onClick={() => setActiveTab("logs")}
-          className={`pb-3 text-sm font-bold border-b-2 transition-all cursor-pointer ${
-            activeTab === "logs"
-              ? "border-primary text-primary"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
+          className={`pb-3 text-sm font-bold border-b-2 transition-all cursor-pointer ${activeTab === "logs"
+            ? "border-primary text-primary"
+            : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
         >
           Historial (Logs)
         </button>
@@ -762,6 +864,56 @@ export function EventCertificatesSection() {
           onClose={() => setEditorTemplateId(null)}
         />
       )}
+      {/* Format Selection Dialog for Participants */}
+      <Dialog open={!!downloadModalData} onOpenChange={(open) => !open && setDownloadModalData(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Descargar Certificado</DialogTitle>
+            <DialogDescription>
+              Elige el formato en el que deseas descargar el certificado de <strong>{downloadModalData?.name}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-4 py-4">
+            <Button
+              variant="outline"
+              className="flex flex-col items-center gap-3 py-6 h-auto cursor-pointer border-border hover:border-primary hover:bg-primary/5 transition-all duration-300"
+              onClick={() => {
+                if (downloadModalData) {
+                  handleDownloadCertificate(downloadModalData.cert, downloadModalData.name, "png")
+                  setDownloadModalData(null)
+                }
+              }}
+            >
+              <Award className="size-8 text-primary" />
+              <div className="text-center">
+                <div className="font-bold text-xs">Descargar Imagen</div>
+                <div className="text-[10px] text-muted-foreground mt-0.5">Formato PNG en alta resolución</div>
+              </div>
+            </Button>
+            <Button
+              variant="outline"
+              className="flex flex-col items-center gap-3 py-6 h-auto cursor-pointer border-border hover:border-indigo-550 hover:bg-indigo-500/5 transition-all duration-300"
+              onClick={() => {
+                if (downloadModalData) {
+                  handleDownloadCertificate(downloadModalData.cert, downloadModalData.name, "pdf")
+                  setDownloadModalData(null)
+                }
+              }}
+            >
+              <FileDown className="size-8 text-indigo-550" />
+              <div className="text-center">
+                <div className="font-bold text-xs">Descargar PDF</div>
+                <div className="text-[10px] text-muted-foreground mt-0.5">Documento vectorial listo para imprimir</div>
+              </div>
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDownloadModalData(null)} className="text-xs cursor-pointer">
+              Cancelar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

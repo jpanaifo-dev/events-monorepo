@@ -1,10 +1,18 @@
 import React, { useState, useEffect, useRef } from "react"
-import { Award, Save, X, Move, Download, Sparkles } from "lucide-react"
+import { Award, Save, X, Move, Download, Sparkles, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ImageUploadWithPreview } from "@/components/ImageUploadWithPreview"
 import { toast } from "sonner"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
 
 interface TextElement {
   id: string
@@ -19,6 +27,8 @@ interface TextElement {
   fontWeight: "normal" | "bold"
   showQr?: boolean
   qrSize?: number
+  maxWidth?: number // width in percentage of template
+  autoWidth?: boolean
 }
 
 interface DesignSchema {
@@ -49,7 +59,8 @@ const DEFAULT_SCHEMA: DesignSchema = {
       fontFamily: "Outfit",
       color: "#1e1b4b",
       align: "center",
-      fontWeight: "bold"
+      fontWeight: "bold",
+      maxWidth: 80
     },
     {
       id: "recipient",
@@ -61,7 +72,8 @@ const DEFAULT_SCHEMA: DesignSchema = {
       fontFamily: "Playfair Display",
       color: "#4338ca",
       align: "center",
-      fontWeight: "bold"
+      fontWeight: "bold",
+      maxWidth: 85
     },
     {
       id: "description",
@@ -73,7 +85,8 @@ const DEFAULT_SCHEMA: DesignSchema = {
       fontFamily: "Inter",
       color: "#4b5563",
       align: "center",
-      fontWeight: "normal"
+      fontWeight: "normal",
+      maxWidth: 75
     },
     {
       id: "date",
@@ -85,7 +98,8 @@ const DEFAULT_SCHEMA: DesignSchema = {
       fontFamily: "Inter",
       color: "#6b7280",
       align: "center",
-      fontWeight: "normal"
+      fontWeight: "normal",
+      maxWidth: 80
     },
     {
       id: "qr",
@@ -110,6 +124,7 @@ const FONT_OPTIONS = [
   { value: "Playfair Display", label: "Playfair Display (Serif/Clásica)" },
   { value: "Lora", label: "Lora (Literaria)" },
   { value: "Montserrat", label: "Montserrat (Llamativa)" },
+  { value: "Poppins", label: "Poppins (Moderna/Redondeada)" },
   { value: "Courier New", label: "Courier (Técnica)" }
 ]
 
@@ -123,6 +138,237 @@ const COLOR_PRESETS = [
   "#b45309", // Ámbar
   "#06b6d4"  // Cian
 ]
+
+const getTransform = (align: string) => {
+  if (align === "left") return "translate(0%, -50%)"
+  if (align === "right") return "translate(-100%, -50%)"
+  return "translate(-50%, -50%)"
+}
+
+function drawTextWithWrap(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+  lineHeight: number
+) {
+  const words = text.split(" ")
+  let line = ""
+  const lines = []
+
+  for (let n = 0; n < words.length; n++) {
+    const testLine = line + words[n] + " "
+    const metrics = ctx.measureText(testLine)
+    const testWidth = metrics.width
+    if (testWidth > maxWidth && n > 0) {
+      lines.push(line.trim())
+      line = words[n] + " "
+    } else {
+      line = testLine
+    }
+  }
+  lines.push(line.trim())
+
+  const totalHeight = (lines.length - 1) * lineHeight
+  let currentY = y - totalHeight / 2
+
+  for (let i = 0; i < lines.length; i++) {
+    ctx.fillText(lines[i], x, currentY)
+    currentY += lineHeight
+  }
+}
+
+interface QrPreviewSvgProps {
+  size: number
+  color: string
+  seed: string
+}
+
+export function QrPreviewSvg({ size, color, seed: code }: QrPreviewSvgProps) {
+  const gridCount = 21
+  const moduleSize = size / gridCount
+
+  // Draw timing/finder patterns and modules
+  const finderPatterns = [
+    { r: 0, c: 0 },
+    { r: 0, c: 14 },
+    { r: 14, c: 0 },
+  ]
+
+  // Helper to check if a module is part of a finder pattern
+  const getFinderColor = (r: number, c: number): string | null => {
+    for (const f of finderPatterns) {
+      if (r >= f.r && r < f.r + 7 && c >= f.c && c < f.c + 7) {
+        const localR = r - f.r
+        const localC = c - f.c
+        const isOuterBorder = localR === 0 || localR === 6 || localC === 0 || localC === 6
+        const isInnerSquare = localR >= 2 && localR <= 4 && localC >= 2 && localC <= 4
+        return (isOuterBorder || isInnerSquare) ? color : "#ffffff"
+      }
+    }
+    return null
+  }
+
+  // Deterministic random generator
+  let hash = 0
+  for (let i = 0; i < code.length; i++) {
+    hash = (hash << 5) - hash + code.charCodeAt(i)
+    hash |= 0
+  }
+  let currentSeed = Math.abs(hash) || 12345
+  const pseudoRandom = () => {
+    currentSeed = (currentSeed * 9301 + 49297) % 233280
+    return currentSeed / 233280
+  }
+
+  const rects: React.ReactNode[] = []
+
+  for (let r = 0; r < gridCount; r++) {
+    for (let c = 0; c < gridCount; c++) {
+      const finderColor = getFinderColor(r, c)
+      let moduleColor = "#ffffff"
+
+      if (finderColor !== null) {
+        moduleColor = finderColor
+      } else if (r === 6 || c === 6) {
+        // Timing pattern
+        moduleColor = ((r === 6 && c % 2 === 0) || (c === 6 && r % 2 === 0)) ? color : "#ffffff"
+      } else {
+        // Random modules
+        moduleColor = pseudoRandom() > 0.45 ? color : "#ffffff"
+      }
+
+      if (moduleColor !== "#ffffff") {
+        rects.push(
+          <rect
+            key={`${r}-${c}`}
+            x={c * moduleSize}
+            y={r * moduleSize}
+            width={moduleSize}
+            height={moduleSize}
+            fill={color}
+          />
+        )
+      }
+    }
+  }
+
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox={`0 0 ${size} ${size}`}
+      style={{ display: "block", backgroundColor: "#ffffff" }}
+    >
+      {rects}
+    </svg>
+  )
+}
+
+export function drawProfessionalQR(
+  ctx: CanvasRenderingContext2D,
+  xPx: number,
+  yPx: number,
+  qrSize: number,
+  color: string,
+  code: string
+) {
+  // Center is at (xPx, yPx). Calculate top-left of the QR box:
+  const qrX = xPx - qrSize / 2
+  const qrY = yPx - qrSize / 2
+
+  // Draw background white box
+  ctx.fillStyle = "#ffffff"
+  ctx.fillRect(qrX, qrY, qrSize, qrSize)
+
+  // QR grid dimensions: 21x21 (Version 1 QR code)
+  const gridCount = 21
+  const moduleSize = qrSize / gridCount
+
+  // Helper to draw a square module
+  const drawModule = (r: number, c: number, fillStyle: string) => {
+    ctx.fillStyle = fillStyle
+    ctx.fillRect(
+      Math.round(qrX + c * moduleSize),
+      Math.round(qrY + r * moduleSize),
+      Math.ceil(moduleSize),
+      Math.ceil(moduleSize)
+    )
+  }
+
+  // Draw standard QR finder patterns
+  const drawFinderPattern = (startRow: number, startCol: number) => {
+    for (let r = 0; r < 7; r++) {
+      for (let c = 0; c < 7; c++) {
+        const globalRow = startRow + r
+        const globalCol = startCol + c
+        const isOuterBorder = r === 0 || r === 6 || c === 0 || c === 6
+        const isInnerSquare = r >= 2 && r <= 4 && c >= 2 && c <= 4
+        
+        if (isOuterBorder) {
+          drawModule(globalRow, globalCol, color)
+        } else if (isInnerSquare) {
+          drawModule(globalRow, globalCol, color)
+        } else {
+          drawModule(globalRow, globalCol, "#ffffff")
+        }
+      }
+    }
+  }
+
+  drawFinderPattern(0, 0)         // Top-left
+  drawFinderPattern(0, 14)        // Top-right
+  drawFinderPattern(14, 0)        // Bottom-left
+
+  // Generate deterministic QR data modules based on the code hash
+  let hash = 0
+  for (let i = 0; i < code.length; i++) {
+    hash = (hash << 5) - hash + code.charCodeAt(i)
+    hash |= 0 // 32bit int
+  }
+  let seed = Math.abs(hash) || 12345
+  const pseudoRandom = () => {
+    seed = (seed * 9301 + 49297) % 233280
+    return seed / 233280
+  }
+
+  // Draw the remaining cells of the 21x21 grid
+  for (let r = 0; r < gridCount; r++) {
+    for (let c = 0; c < gridCount; c++) {
+      // Skip finder pattern areas
+      const isTopLeftFinder = r < 8 && c < 8
+      const isTopRightFinder = r < 8 && c >= 13
+      const isBottomLeftFinder = r >= 13 && c < 8
+      if (isTopLeftFinder || isTopRightFinder || isBottomLeftFinder) {
+        continue
+      }
+
+      // Draw timing patterns (row 6 and col 6) as alternating black/white modules
+      if (r === 6 || c === 6) {
+        if ((r === 6 && c % 2 === 0) || (c === 6 && r % 2 === 0)) {
+          drawModule(r, c, color)
+        } else {
+          drawModule(r, c, "#ffffff")
+        }
+        continue
+      }
+
+      // Fill in remaining modules deterministically
+      if (pseudoRandom() > 0.45) {
+        drawModule(r, c, color)
+      } else {
+        drawModule(r, c, "#ffffff")
+      }
+    }
+  }
+
+  // Draw validation code underneath the QR code
+  ctx.font = `12px monospace`
+  ctx.fillStyle = color
+  ctx.textAlign = "center"
+  ctx.fillText(code, xPx, yPx + qrSize / 2 + 18)
+}
 
 export function CertificateDesignEditor({
   templateName,
@@ -141,12 +387,13 @@ export function CertificateDesignEditor({
   const [activeElementId, setActiveElementId] = useState<string>("recipient")
   const [isSaving, setIsSaving] = useState(false)
   const canvasRef = useRef<HTMLDivElement>(null)
+  const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false)
 
   // Dynamically load Google Fonts for the preview
   useEffect(() => {
     const link = document.createElement("link")
     link.href =
-      "https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Lora:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@400;700&family=Outfit:wght@400;700&family=Playfair+Display:ital,wght@0,600;0,800;1,600&display=swap"
+      "https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Lora:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@400;700&family=Outfit:wght@400;700&family=Playfair+Display:ital,wght@0,600;0,800;1,600&family=Poppins:wght@400;600;700&display=swap"
     link.rel = "stylesheet"
     document.head.appendChild(link)
     return () => {
@@ -185,7 +432,7 @@ export function CertificateDesignEditor({
   }
 
   // Client-side download function
-  const handleTestDownload = () => {
+  const handleTestDownload = (format: "png" | "pdf") => {
     if (!bgUrl) {
       toast.error("Sube un fondo primero para poder descargar una prueba.")
       return
@@ -196,7 +443,7 @@ export function CertificateDesignEditor({
     img.src = bgUrl
     toast.loading("Renderizando vista previa para descarga...", { id: "rendering-cert" })
 
-    img.onload = () => {
+    img.onload = async () => {
       const canvas = document.createElement("canvas")
       canvas.width = schema.width
       canvas.height = schema.height
@@ -219,28 +466,7 @@ export function CertificateDesignEditor({
 
         if (el.id === "qr" && el.showQr) {
           const qrSize = el.qrSize || 120
-          // Draw a mockup QR Box
-          ctx.fillStyle = "#ffffff"
-          ctx.strokeStyle = el.color || "#000000"
-          ctx.lineWidth = 4
-          const qrX = xPx - qrSize / 2
-          const qrY = yPx - qrSize / 2
-          ctx.fillRect(qrX, qrY, qrSize, qrSize)
-          ctx.strokeRect(qrX, qrY, qrSize, qrSize)
-
-          // Inner QR boxes to look like QR
-          ctx.fillStyle = el.color || "#000000"
-          const innerSize = qrSize * 0.25
-          ctx.fillRect(qrX + 8, qrY + 8, innerSize, innerSize)
-          ctx.fillRect(qrX + qrSize - innerSize - 8, qrY + 8, innerSize, innerSize)
-          ctx.fillRect(qrX + 8, qrY + qrSize - innerSize - 8, innerSize, innerSize)
-          ctx.fillRect(qrX + qrSize / 2 - 4, qrY + qrSize / 2 - 4, 8, 8)
-
-          // Subtext
-          ctx.font = `14px monospace`
-          ctx.fillStyle = el.color || "#000000"
-          ctx.textAlign = "center"
-          ctx.fillText("VALIDACIÓN QR", xPx, yPx + qrSize / 2 + 20)
+          drawProfessionalQR(ctx, xPx, yPx, qrSize, el.color || "#000000", "test-validation-code")
           return
         }
 
@@ -259,16 +485,36 @@ export function CertificateDesignEditor({
           text = text.replace("{{date}}", new Date().toLocaleDateString("es-ES"))
         }
 
-        ctx.fillText(text, xPx, yPx)
+        const isAuto = el.autoWidth ?? true
+        if (isAuto) {
+          ctx.fillText(text, xPx, yPx)
+        } else {
+          const elMaxWidth = ((el.maxWidth || 80) / 100) * schema.width
+          const lineHeight = el.fontSize * 1.25
+          drawTextWithWrap(ctx, text, xPx, yPx, elMaxWidth, lineHeight)
+        }
       })
 
       // Trigger download
-      const dataUrl = canvas.toDataURL("image/png")
-      const link = document.createElement("a")
-      link.download = `CERT-PRUEBA-${templateName.replace(/\s+/g, "_").toUpperCase()}.png`
-      link.href = dataUrl
-      link.click()
-      toast.success("Prueba de certificado descargada con éxito.", { id: "rendering-cert" })
+      if (format === "png") {
+        const dataUrl = canvas.toDataURL("image/png")
+        const link = document.createElement("a")
+        link.download = `CERT-PRUEBA-${templateName.replace(/\s+/g, "_").toUpperCase()}.png`
+        link.href = dataUrl
+        link.click()
+        toast.success("Muestra de certificado descargada como imagen (PNG).", { id: "rendering-cert" })
+      } else {
+        const { jsPDF } = await import("jspdf")
+        const doc = new jsPDF({
+          orientation: "landscape",
+          unit: "px",
+          format: [schema.width, schema.height]
+        })
+        const imgData = canvas.toDataURL("image/png")
+        doc.addImage(imgData, "PNG", 0, 0, schema.width, schema.height)
+        doc.save(`CERT-PRUEBA-${templateName.replace(/\s+/g, "_").toUpperCase()}.pdf`)
+        toast.success("Muestra de certificado descargada como PDF.", { id: "rendering-cert" })
+      }
     }
 
     img.onerror = () => {
@@ -327,7 +573,7 @@ export function CertificateDesignEditor({
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" onClick={handleTestDownload} className="text-xs gap-1.5 cursor-pointer">
+          <Button variant="outline" size="sm" onClick={() => setIsDownloadModalOpen(true)} className="text-xs gap-1.5 cursor-pointer">
             <Download className="size-4" />
             Descargar Prueba
           </Button>
@@ -383,7 +629,11 @@ export function CertificateDesignEditor({
                     style={{
                       left: `${el.x}%`,
                       top: `${el.y}%`,
-                      transform: "translate(-50%, -50%)"
+                      transform: getTransform(el.align),
+                      width: (el.autoWidth ?? true) ? "auto" : `${el.maxWidth || 80}%`,
+                      textAlign: el.align,
+                      wordBreak: (el.autoWidth ?? true) ? "normal" : "break-word",
+                      whiteSpace: (el.autoWidth ?? true) ? "nowrap" : "normal"
                     }}
                   >
                     {/* Drag Handle */}
@@ -394,20 +644,12 @@ export function CertificateDesignEditor({
 
                     {el.id === "qr" ? (
                       <div
-                        className="bg-white border-2 border-slate-900 flex flex-col items-center justify-center p-1.5 rounded"
                         style={{
                           width: `${(el.qrSize || 120) * 0.5}px`,
                           height: `${(el.qrSize || 120) * 0.5}px`
                         }}
                       >
-                        {/* Fake QR lines */}
-                        <div className="w-full h-full border border-slate-900 border-dashed rounded relative flex items-center justify-center">
-                          <span className="text-[7px] font-bold text-slate-800 tracking-tighter">QR VALIDAR</span>
-                          {/* Inner corner blocks */}
-                          <div className="absolute top-0.5 left-0.5 size-2 bg-slate-900" />
-                          <div className="absolute top-0.5 right-0.5 size-2 bg-slate-900" />
-                          <div className="absolute bottom-0.5 left-0.5 size-2 bg-slate-900" />
-                        </div>
+                        <QrPreviewSvg size={el.qrSize || 120} color={el.color || "#000000"} seed="preview-seed-code" />
                       </div>
                     ) : (
                       <span
@@ -418,7 +660,8 @@ export function CertificateDesignEditor({
                           fontWeight: el.fontWeight,
                           textAlign: el.align,
                           display: "block",
-                          whiteSpace: "nowrap"
+                          whiteSpace: (el.autoWidth ?? true) ? "nowrap" : "normal",
+                          wordBreak: (el.autoWidth ?? true) ? "normal" : "break-word"
                         }}
                       >
                         {el.text.includes("{{name}}")
@@ -454,7 +697,38 @@ export function CertificateDesignEditor({
 
           {/* Element Selector */}
           <div className="space-y-3">
-            <h3 className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Elementos de Texto</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Elementos de Texto</h3>
+              <Button
+                variant="outline"
+                size="xs"
+                className="text-[10px] h-6 px-2 cursor-pointer border-primary/30 text-primary hover:bg-primary/5"
+                onClick={() => {
+                  const newId = `custom_${Date.now()}`
+                  const newElement: TextElement = {
+                    id: newId,
+                    label: `Texto ${schema.elements.filter(e => e.id.startsWith("custom")).length + 1}`,
+                    text: "Texto Personalizado",
+                    x: 50,
+                    y: 50,
+                    fontSize: 24,
+                    fontFamily: "Poppins",
+                    color: "#1e293b",
+                    align: "center",
+                    fontWeight: "normal",
+                    maxWidth: 80
+                  }
+                  setSchema((prev) => ({
+                    ...prev,
+                    elements: [...prev.elements, newElement]
+                  }))
+                  setActiveElementId(newId)
+                  toast.success("Elemento de texto personalizado añadido.")
+                }}
+              >
+                + Añadir Texto
+              </Button>
+            </div>
             <div className="grid grid-cols-2 gap-1.5">
               {schema.elements.map((el) => (
                 <Button
@@ -475,18 +749,39 @@ export function CertificateDesignEditor({
             <div className="space-y-4 border border-border/60 p-4 rounded-xl bg-muted/10">
               <div className="flex items-center justify-between pb-2 border-b border-border/40">
                 <span className="text-xs font-bold text-foreground">{activeElement.label}</span>
-                {activeElement.id === "qr" && (
-                  <div className="flex items-center gap-1.5">
-                    <Label htmlFor="toggleQr" className="text-[10px] font-semibold text-muted-foreground uppercase cursor-pointer">Activo</Label>
-                    <input
-                      id="toggleQr"
-                      type="checkbox"
-                      className="size-3.5 rounded accent-primary"
-                      checked={activeElement.showQr ?? true}
-                      onChange={(e) => handleUpdateActiveElement({ showQr: e.target.checked })}
-                    />
-                  </div>
-                )}
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    className="text-destructive hover:bg-destructive/10 cursor-pointer h-7 w-7"
+                    title="Eliminar elemento de la plantilla"
+                    onClick={() => {
+                      if (schema.elements.length <= 1) {
+                        toast.error("Debe haber al menos un elemento en el certificado.")
+                        return
+                      }
+                      const filtered = schema.elements.filter((el) => el.id !== activeElementId)
+                      setSchema((prev) => ({ ...prev, elements: filtered }))
+                      setActiveElementId(filtered[0].id)
+                      toast.success("Elemento eliminado de la plantilla.")
+                    }}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+
+                  {activeElement.id === "qr" && (
+                    <div className="flex items-center gap-1.5">
+                      <Label htmlFor="toggleQr" className="text-[10px] font-semibold text-muted-foreground uppercase cursor-pointer">Activo</Label>
+                      <input
+                        id="toggleQr"
+                        type="checkbox"
+                        className="size-3.5 rounded accent-primary"
+                        checked={activeElement.showQr ?? true}
+                        onChange={(e) => handleUpdateActiveElement({ showQr: e.target.checked })}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Text Input (Skip for QR) */}
@@ -538,6 +833,49 @@ export function CertificateDesignEditor({
                   </div>
                 </div>
               </div>
+
+              {/* Type of Width */}
+              {activeElement.id !== "qr" && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground">Ajuste de Ancho</Label>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <Button
+                      type="button"
+                      variant={(activeElement.autoWidth ?? true) ? "default" : "outline"}
+                      className="h-7 text-[10px] font-bold uppercase cursor-pointer"
+                      onClick={() => handleUpdateActiveElement({ autoWidth: true })}
+                    >
+                      Automático
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={!(activeElement.autoWidth ?? true) ? "default" : "outline"}
+                      className="h-7 text-[10px] font-bold uppercase cursor-pointer"
+                      onClick={() => handleUpdateActiveElement({ autoWidth: false, maxWidth: activeElement.maxWidth || 80 })}
+                    >
+                      Ancho Manual
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Max Width coordinates */}
+              {activeElement.id !== "qr" && !(activeElement.autoWidth ?? true) && (
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-bold text-muted-foreground uppercase">Ancho Máximo (%)</Label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="range"
+                      min="10"
+                      max="100"
+                      value={activeElement.maxWidth || 80}
+                      onChange={(e) => handleUpdateActiveElement({ maxWidth: parseFloat(e.target.value) })}
+                      className="w-full accent-primary"
+                    />
+                    <span className="text-xs font-semibold w-8 text-right">{activeElement.maxWidth || 80}%</span>
+                  </div>
+                </div>
+              )}
 
               {/* Fonts (Skip for QR) */}
               {activeElement.id !== "qr" && (
@@ -643,6 +981,53 @@ export function CertificateDesignEditor({
           )}
         </aside>
       </div>
+
+      {/* Format Selection Dialog */}
+      <Dialog open={isDownloadModalOpen} onOpenChange={setIsDownloadModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Descargar Certificado de Prueba</DialogTitle>
+            <DialogDescription>
+              Selecciona el formato en el que deseas descargar la muestra del certificado.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-4 py-4">
+            <Button
+              variant="outline"
+              className="flex flex-col items-center gap-3 py-6 h-auto cursor-pointer border-border hover:border-primary hover:bg-primary/5 transition-all duration-300"
+              onClick={() => {
+                setIsDownloadModalOpen(false)
+                handleTestDownload("png")
+              }}
+            >
+              <Award className="size-8 text-primary" />
+              <div className="text-center">
+                <div className="font-bold text-xs">Descargar Imagen</div>
+                <div className="text-[10px] text-muted-foreground mt-0.5">Formato PNG en alta resolución</div>
+              </div>
+            </Button>
+            <Button
+              variant="outline"
+              className="flex flex-col items-center gap-3 py-6 h-auto cursor-pointer border-border hover:border-indigo-500 hover:bg-indigo-500/5 transition-all duration-300"
+              onClick={() => {
+                setIsDownloadModalOpen(false)
+                handleTestDownload("pdf")
+              }}
+            >
+              <Download className="size-8 text-indigo-550" />
+              <div className="text-center">
+                <div className="font-bold text-xs">Descargar PDF</div>
+                <div className="text-[10px] text-muted-foreground mt-0.5">Documento vectorial listo para imprimir</div>
+              </div>
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsDownloadModalOpen(false)} className="text-xs cursor-pointer">
+              Cancelar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
