@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { useParams } from "react-router-dom"
+import { useParams, useSearchParams } from "react-router-dom"
 import { useEventStore } from "@/store/event.store"
 import QRCode from "qrcode"
 import { useCertificateStore } from "@/store/certificate.store"
@@ -181,11 +181,34 @@ export function EventCertificatesSection() {
     description: "Gestión de diplomas, emisión automática a asistentes y ponentes, revocación y auditoría de descargas."
   })
 
-  // State
-  const [activeTab, setActiveTab] = useState<"templates" | "issue" | "logs">("templates")
+  // Search parameters for visual editor state, menu tab, and sidebar tab
+  const [searchParams, setSearchParams] = useSearchParams()
+  const editorTemplateId = searchParams.get("editTemplate")
+  const setEditorTemplateId = (id: string | null) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (id) {
+        next.set("editTemplate", id)
+      } else {
+        next.delete("editTemplate")
+        next.delete("tab") // clean designer tab
+      }
+      return next
+    })
+  }
+
+  const activeTab = (searchParams.get("view") as "templates" | "issue" | "logs") || "templates"
+  const setActiveTab = (view: "templates" | "issue" | "logs") => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.set("view", view)
+      return next
+    })
+  }
+
+  // Local State
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("")
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
-  const [editorTemplateId, setEditorTemplateId] = useState<string | null>(null)
   const [downloadModalData, setDownloadModalData] = useState<{ cert: any; name: string } | null>(null)
 
   // Form State for new template

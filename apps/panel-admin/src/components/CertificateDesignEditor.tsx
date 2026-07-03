@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button"
 import { ImageUploadWithPreview } from "@/components/ImageUploadWithPreview"
 import { toast } from "sonner"
 import QRCode from "qrcode"
+import { useSearchParams } from "react-router-dom"
 import {
   Dialog,
   DialogContent,
@@ -325,11 +326,22 @@ export function CertificateDesignEditor({
     }
     return DEFAULT_SCHEMA
   })
+  const [searchParams, setSearchParams] = useSearchParams()
+  const activeTab = (searchParams.get("tab") as "background" | "text" | "layers") || "text"
+  const setActiveTab = (tab: "background" | "text" | "layers") => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.set("tab", tab)
+      return next
+    })
+  }
+
   const [activeElementId, setActiveElementId] = useState<string>("recipient")
   const [isSaving, setIsSaving] = useState(false)
   const canvasRef = useRef<HTMLDivElement>(null)
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState<"background" | "text" | "layers">("text")
+  const [copiedElement, setCopiedElement] = useState<TextElement | null>(null)
+  const [editingElementId, setEditingElementId] = useState<string | null>(null)
 
   const selectedFormat = schema.pageSize || "a4"
 
@@ -452,6 +464,8 @@ export function CertificateDesignEditor({
       const target = e.target as HTMLElement
       const isInput = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable
 
+      const activeElement = schema.elements.find((el) => el.id === activeElementId)
+
       // Ctrl+S / Cmd+S to Save Certificate
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
         e.preventDefault()
@@ -461,6 +475,77 @@ export function CertificateDesignEditor({
 
       // If user is actively typing in a form input, do not trigger shortcuts
       if (isInput) return
+
+      // Copy (Ctrl+C / Cmd+C)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c") {
+        if (activeElement) {
+          e.preventDefault()
+          setCopiedElement(activeElement)
+          toast.success(`Copiado: ${activeElement.label}`)
+        }
+        return
+      }
+
+      // Cut (Ctrl+X / Cmd+X)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "x") {
+        if (activeElement) {
+          e.preventDefault()
+          setCopiedElement(activeElement)
+          if (schema.elements.length <= 1) {
+            toast.error("Debe haber al menos un elemento en el certificado.")
+            return
+          }
+          const filtered = schema.elements.filter((el) => el.id !== activeElementId)
+          setSchema((prev) => ({ ...prev, elements: filtered }))
+          setActiveElementId(filtered[0]?.id || "")
+          toast.success(`Cortado: ${activeElement.label}`)
+        }
+        return
+      }
+
+      // Paste (Ctrl+V / Cmd+V)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "v") {
+        if (copiedElement) {
+          e.preventDefault()
+          const newId = `custom_${Date.now()}`
+          const pastedElement: TextElement = {
+            ...copiedElement,
+            id: newId,
+            label: `${copiedElement.label} (Copia)`,
+            x: Math.min(95, copiedElement.x + 2),
+            y: Math.min(95, copiedElement.y + 2)
+          }
+          setSchema((prev) => ({
+            ...prev,
+            elements: [...prev.elements, pastedElement]
+          }))
+          setActiveElementId(newId)
+          toast.success("Elemento pegado")
+        }
+        return
+      }
+
+      // Duplicate (Ctrl+D / Cmd+D)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "d") {
+        if (activeElement) {
+          e.preventDefault()
+          const newId = `custom_${Date.now()}`
+          const duplicatedElement: TextElement = {
+            ...activeElement,
+            id: newId,
+            label: `${activeElement.label} (Copia)`,
+            x: Math.min(95, activeElement.x + 2),
+            y: Math.min(95, activeElement.y + 2)
+          }
+          setSchema((prev) => ({
+            ...prev,
+            elements: [...prev.elements, duplicatedElement]
+          }))
+          setActiveElementId(newId)
+          toast.success("Elemento duplicado")
+        }
+        return
+      }
 
       // Delete / Backspace to Delete Element
       if (activeElementId && (e.key === "Delete" || e.key === "Backspace")) {
@@ -509,7 +594,7 @@ export function CertificateDesignEditor({
     return () => {
       window.removeEventListener("keydown", handleKeyDown)
     }
-  }, [activeElementId, schema.elements, bgUrl])
+  }, [activeElementId, schema.elements, bgUrl, copiedElement])
 
   // Client-side download function
   const handleTestDownload = (format: "png" | "pdf") => {
@@ -1223,8 +1308,37 @@ export function CertificateDesignEditor({
                         >
                           <QrPreviewSvg size={el.qrSize || 120} color={el.color || "#000000"} seed="VAL-ZYNQRO" />
                         </div>
+                      ) : editingElementId === el.id ? (
+                        <input
+                          type="text"
+                          value={el.text}
+                          onChange={(e) => handleUpdateActiveElement({ text: e.target.value })}
+                          onBlur={() => setEditingElementId(null)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              setEditingElementId(null)
+                            }
+                          }}
+                          autoFocus
+                          style={{
+                            fontFamily: el.fontFamily,
+                            fontSize: `${el.fontSize * 0.5}px`,
+                            color: el.color,
+                            fontWeight: el.fontWeight,
+                            textAlign: el.align,
+                            background: "transparent",
+                            border: "none",
+                            outline: "none",
+                            width: "100%",
+                            padding: 0,
+                            margin: 0,
+                            display: "block",
+                            boxShadow: "none"
+                          }}
+                        />
                       ) : (
                         <span
+                          onDoubleClick={() => setEditingElementId(el.id)}
                           style={{
                             fontFamily: el.fontFamily,
                             fontSize: `${el.fontSize * 0.5}px`, // Scaled for screen preview
