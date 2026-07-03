@@ -19,6 +19,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { CertificateDesignEditor } from "@/components/CertificateDesignEditor"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   Award,
   Plus,
@@ -111,6 +112,47 @@ function drawProfessionalQR(
   } catch (err) {
     console.error("Error generating scannable QR: ", err)
   }
+}
+
+function CertificatesSkeleton() {
+  return (
+    <div className="space-y-6 w-full animate-pulse">
+      {/* Search / Filter Controls bar skeleton */}
+      <div className="flex flex-col sm:flex-row gap-3 bg-card p-4 rounded-xl border border-border/60 shadow-xs items-center justify-between">
+        <Skeleton className="h-9 w-full sm:w-64 rounded-lg" />
+        <Skeleton className="h-9 w-full sm:w-48 rounded-lg" />
+      </div>
+
+      {/* Simulated Table header and rows */}
+      <div className="border border-border/60 rounded-xl bg-card overflow-hidden shadow-xs">
+        {/* Table header row */}
+        <div className="border-b border-border/60 bg-muted/30 px-6 py-4 flex items-center justify-between gap-4">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-4 w-28" />
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-4 w-16" />
+        </div>
+
+        {/* Table body rows */}
+        <div className="divide-y divide-border/50">
+          {[1, 2, 3, 4, 5].map((idx) => (
+            <div key={idx} className="px-6 py-5 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <Skeleton className="size-10 rounded-xl shrink-0" />
+                <div className="space-y-1.5">
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-3.5 w-24" />
+                </div>
+              </div>
+              <Skeleton className="h-4 w-32 hidden md:block" />
+              <Skeleton className="h-4 w-28 hidden sm:block" />
+              <Skeleton className="h-8 w-24 rounded-lg" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export function EventCertificatesSection() {
@@ -703,7 +745,7 @@ export function EventCertificatesSection() {
 
       {/* Content Area */}
       {isLoading ? (
-        <div className="text-center p-12 text-sm text-muted-foreground">Cargando módulo de certificados...</div>
+        <CertificatesSkeleton />
       ) : activeTab === "templates" ? (
         templates.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground text-sm border border-dashed border-border rounded-xl">
