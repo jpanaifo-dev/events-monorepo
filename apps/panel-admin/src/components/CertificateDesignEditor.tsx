@@ -15,13 +15,18 @@ import {
   Bold,
   AlignLeft,
   AlignCenter,
-  AlignRight
+  AlignRight,
+  Copy,
+  Lock,
+  Unlock,
+  Edit
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ImageUploadWithPreview } from "@/components/ImageUploadWithPreview"
 import { toast } from "sonner"
 import QRCode from "qrcode"
 import { useSearchParams } from "react-router-dom"
+import { useThemeStore } from "@/store/theme.store"
 import {
   Dialog,
   DialogContent,
@@ -46,6 +51,7 @@ interface TextElement {
   qrSize?: number
   maxWidth?: number // width in percentage of template
   autoWidth?: boolean
+  locked?: boolean
 }
 
 interface DesignSchema {
@@ -320,12 +326,111 @@ export function CertificateDesignEditor({
   onClose
 }: CertificateDesignEditorProps) {
   const [bgUrl, setBgUrl] = useState(initialBgUrl || "")
-  const [schema, setSchema] = useState<DesignSchema>(() => {
+  
+  const theme = useThemeStore((state) => state.theme)
+  const isDark = theme === "dark"
+
+  const [scale, setScale] = useState(0.5)
+  
+  const [schema, setSchemaState] = useState<DesignSchema>(() => {
     if (initialSchema && Array.isArray(initialSchema.elements)) {
       return initialSchema as DesignSchema
     }
     return DEFAULT_SCHEMA
   })
+
+  // Tracking changes for unsaved changes confirmation dialog
+  const [lastSavedBgUrl, setLastSavedBgUrl] = useState(initialBgUrl || "")
+  const [lastSavedSchema, setLastSavedSchema] = useState<DesignSchema>(() => {
+    if (initialSchema && Array.isArray(initialSchema.elements)) {
+      return JSON.parse(JSON.stringify(initialSchema)) as DesignSchema
+    }
+    return JSON.parse(JSON.stringify(DEFAULT_SCHEMA))
+  })
+  const [isCloseConfirmationOpen, setIsCloseConfirmationOpen] = useState(false)
+
+  const hasChanges = bgUrl !== lastSavedBgUrl || JSON.stringify(schema) !== JSON.stringify(lastSavedSchema)
+
+  const handleRequestClose = () => {
+    if (hasChanges) {
+      setIsCloseConfirmationOpen(true)
+    } else {
+      onClose()
+    }
+  }
+
+  // References for managing history (undo/redo stack)
+  const historyRef = useRef<DesignSchema[]>([])
+  const historyIndexRef = useRef<number>(-1)
+
+  const pushToHistory = (newSchema: DesignSchema) => {
+    const currentHistory = historyRef.current
+    const currentIndex = historyIndexRef.current
+
+    // Truncate any future history (for redo after undo)
+    const nextHistory = currentHistory.slice(0, currentIndex + 1)
+    
+    // Avoid pushing duplicate states
+    const lastEntry = nextHistory[nextHistory.length - 1]
+    if (lastEntry && JSON.stringify(lastEntry) === JSON.stringify(newSchema)) {
+      return
+    }
+
+    nextHistory.push(newSchema)
+    historyRef.current = nextHistory
+    historyIndexRef.current = nextHistory.length - 1
+  }
+
+  // Ensure initial history entry is populated with the initial state
+  const ensureInitialHistory = (initialState: DesignSchema) => {
+    if (historyRef.current.length === 0) {
+      historyRef.current = [initialState]
+      historyIndexRef.current = 0
+    }
+  }
+
+  // Schema state update wrapper that records history
+  const setSchema = (
+    value: DesignSchema | ((prev: DesignSchema) => DesignSchema),
+    shouldPushToHistory = true
+  ) => {
+    setSchemaState((prev) => {
+      ensureInitialHistory(prev)
+      const next = typeof value === "function" ? value(prev) : value
+      if (shouldPushToHistory) {
+        pushToHistory(next)
+      }
+      return next
+    })
+  }
+
+  const handleUndo = () => {
+    const currentIndex = historyIndexRef.current
+    if (currentIndex > 0) {
+      const nextIndex = currentIndex - 1
+      const previousState = historyRef.current[nextIndex]
+      historyIndexRef.current = nextIndex
+      setSchemaState(previousState)
+      toast.success("Deshecho")
+    } else {
+      toast.info("No hay más cambios para deshacer")
+    }
+  }
+
+  const handleRedo = () => {
+    const currentIndex = historyIndexRef.current
+    const currentHistory = historyRef.current
+    if (currentIndex < currentHistory.length - 1) {
+      const nextIndex = currentIndex + 1
+      const nextState = currentHistory[nextIndex]
+      historyIndexRef.current = nextIndex
+      setSchemaState(nextState)
+      toast.success("Rehecho")
+    } else {
+      toast.info("No hay cambios para rehacer")
+    }
+  }
+
   const [searchParams, setSearchParams] = useSearchParams()
   const activeTab = (searchParams.get("tab") as "background" | "text" | "layers") || "text"
   const setActiveTab = (tab: "background" | "text" | "layers") => {
@@ -427,13 +532,122 @@ export function CertificateDesignEditor({
     }
   }, [])
 
+  // Dynamically calculate the scale factor of the canvas preview relative to design dimensions
+  useEffect(() => {
+    const handleResize = () => {
+      if (canvasRef.current) {
+        const width = canvasRef.current.clientWidth
+        const currentScale = width / (schema.width || 1414)
+        setScale(currentScale)
+      }
+    }
+
+    handleResize()
+
+    // Observe size changes of the canvas itself (e.g. sidebar toggle, screen resize)
+    let observer: ResizeObserver | null = null
+    if (canvasRef.current && typeof ResizeObserver !== "undefined") {
+      observer = new ResizeObserver(() => {
+        handleResize()
+      })
+      observer.observe(canvasRef.current)
+    }
+
+    window.addEventListener("resize", handleResize)
+    return () => {
+      if (observer) {
+        observer.disconnect()
+      }
+      window.removeEventListener("resize", handleResize)
+    }
+  }, [schema.width, bgUrl])
+
   const activeElement = schema.elements.find((el) => el.id === activeElementId) || schema.elements[0]
+
+  const getNewXForAlignment = (
+    currentX: number,
+    oldAlign: "left" | "center" | "right",
+    newAlign: "left" | "center" | "right",
+    elementId: string
+  ): number => {
+    const canvasEl = canvasRef.current
+    if (!canvasEl) return currentX
+
+    const domEl = canvasEl.querySelector(`[data-element-id="${elementId}"]`)
+    if (!domEl) return currentX
+
+    const rect = domEl.getBoundingClientRect()
+    const canvasRect = canvasEl.getBoundingClientRect()
+    const widthPercent = (rect.width / canvasRect.width) * 100
+
+    // Calculate current visual center (centerX)
+    let centerX = currentX
+    if (oldAlign === "left") {
+      centerX = currentX + widthPercent / 2
+    } else if (oldAlign === "right") {
+      centerX = currentX - widthPercent / 2
+    }
+
+    // Calculate new X based on new alignment
+    let newX = centerX
+    if (newAlign === "left") {
+      newX = centerX - widthPercent / 2
+    } else if (newAlign === "right") {
+      newX = centerX + widthPercent / 2
+    }
+
+    return Math.max(0, Math.min(100, Number(newX.toFixed(2))))
+  }
 
   const handleUpdateActiveElement = (updates: Partial<TextElement>) => {
     setSchema((prev) => ({
       ...prev,
-      elements: prev.elements.map((el) => (el.id === activeElementId ? { ...el, ...updates } : el))
+      elements: prev.elements.map((el) => {
+        if (el.id === activeElementId) {
+          let updatedEl = { ...el, ...updates }
+          if (updates.align && updates.align !== el.align) {
+            const newX = getNewXForAlignment(el.x, el.align, updates.align, el.id)
+            updatedEl.x = newX
+          }
+          return updatedEl
+        }
+        return el
+      })
     }))
+  }
+
+  const handleToggleLockElement = (id: string) => {
+    setSchema((prev) => {
+      const nextElements = prev.elements.map((el) => {
+        if (el.id === id) {
+          const nextLocked = !el.locked
+          toast.success(nextLocked ? `Elemento "${el.label}" bloqueado` : `Elemento "${el.label}" desbloqueado`)
+          return { ...el, locked: nextLocked }
+        }
+        return el
+      })
+      return { ...prev, elements: nextElements }
+    }, true)
+  }
+
+  const handleDuplicateElement = (id: string) => {
+    const element = schema.elements.find((el) => el.id === id)
+    if (!element) return
+    const newId = `custom_${Date.now()}`
+    const duplicatedElement: TextElement = {
+      ...element,
+      id: newId,
+      label: `${element.label} (Copia)`,
+      x: Math.min(95, element.x + 2),
+      y: Math.min(95, element.y + 2),
+      locked: false // Reset locked state for copy
+    }
+    setSchema((prev) => ({
+      ...prev,
+      elements: [...prev.elements, duplicatedElement]
+    }))
+    setActiveElementId(newId)
+    toast.success("Elemento duplicado")
   }
 
   const handleSave = async () => {
@@ -447,8 +661,9 @@ export function CertificateDesignEditor({
         backgroundImageUrl: bgUrl,
         designSchema: schema
       })
+      setLastSavedBgUrl(bgUrl)
+      setLastSavedSchema(schema)
       toast.success("Diseño del certificado guardado correctamente.")
-      onClose()
     } catch (err: any) {
       console.error(err)
       toast.error("Error al guardar el diseño.")
@@ -475,6 +690,23 @@ export function CertificateDesignEditor({
 
       // If user is actively typing in a form input, do not trigger shortcuts
       if (isInput) return
+
+      // Undo (Ctrl+Z / Cmd+Z)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !e.shiftKey) {
+        e.preventDefault()
+        handleUndo()
+        return
+      }
+
+      // Redo (Ctrl+Y / Cmd+Y or Ctrl+Shift+Z / Cmd+Shift+Z)
+      if (
+        (e.ctrlKey || e.metaKey) && 
+        (e.key.toLowerCase() === "y" || (e.shiftKey && e.key.toLowerCase() === "z"))
+      ) {
+        e.preventDefault()
+        handleRedo()
+        return
+      }
 
       // Copy (Ctrl+C / Cmd+C)
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c") {
@@ -609,6 +841,11 @@ export function CertificateDesignEditor({
     toast.loading("Renderizando vista previa para descarga...", { id: "rendering-cert" })
 
     img.onload = async () => {
+      // Ensure all custom fonts are loaded so canvas matches preview typography
+      if (typeof document !== "undefined" && document.fonts) {
+        await document.fonts.ready
+      }
+
       const canvas = document.createElement("canvas")
       canvas.width = schema.width
       canvas.height = schema.height
@@ -699,6 +936,8 @@ export function CertificateDesignEditor({
     if (!element) return
     setActiveElementId(id)
 
+    if (element.locked) return
+
     const canvasBounds = canvasRef.current?.getBoundingClientRect()
     if (!canvasBounds) return
 
@@ -715,12 +954,104 @@ export function CertificateDesignEditor({
         elements: prev.elements.map((el) =>
           el.id === id ? { ...el, x: constrainedX, y: constrainedY } : el
         )
-      }))
+      }), false)
     }
 
     const handleMouseUp = () => {
       window.removeEventListener("mousemove", handleMouseMove)
       window.removeEventListener("mouseup", handleMouseUp)
+      // Save final dragged position to history
+      setSchema((prev) => prev, true)
+    }
+
+    window.addEventListener("mousemove", handleMouseMove)
+    window.addEventListener("mouseup", handleMouseUp)
+  }
+
+  // Handle Resizing font size using corner handles
+  const handleResizeFontSizeStart = (e: React.MouseEvent, id: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const element = schema.elements.find((el) => el.id === id)
+    if (!element || element.locked) return
+
+    const startX = e.clientX
+    const startY = e.clientY
+    const startFontSize = element.fontSize
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const deltaX = moveEvent.clientX - startX
+      const deltaY = moveEvent.clientY - startY
+      // Determine dominant delta to control resizing directionally
+      const delta = Math.abs(deltaX) > Math.abs(deltaY) ? deltaX : deltaY
+      // Convert drag delta back to font size pixels using current scale factor
+      const nextFontSize = Math.round(startFontSize + (delta / scale) * 0.25)
+      const constrainedFontSize = Math.max(8, Math.min(180, nextFontSize))
+
+      setSchema((prev) => ({
+        ...prev,
+        elements: prev.elements.map((el) =>
+          el.id === id ? { ...el, fontSize: constrainedFontSize } : el
+        )
+      }), false)
+    }
+
+    const handleMouseUp = () => {
+      window.removeEventListener("mousemove", handleMouseMove)
+      window.removeEventListener("mouseup", handleMouseUp)
+      setSchema((prev) => prev, true) // Save to history
+    }
+
+    window.addEventListener("mousemove", handleMouseMove)
+    window.addEventListener("mouseup", handleMouseUp)
+  }
+
+  // Handle Resizing width using left/right side handles
+  const handleResizeWidthStart = (e: React.MouseEvent, id: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const element = schema.elements.find((el) => el.id === id)
+    if (!element || element.locked) return
+
+    const canvasBounds = canvasRef.current?.getBoundingClientRect()
+    if (!canvasBounds) return
+
+    // Immediately toggle off autoWidth on resize start
+    setSchema((prev) => ({
+      ...prev,
+      elements: prev.elements.map((el) =>
+        el.id === id ? { ...el, autoWidth: false, maxWidth: el.maxWidth || 80 } : el
+      )
+    }), false)
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const currentMouseXPercent = ((moveEvent.clientX - canvasBounds.left) / canvasBounds.width) * 100
+      
+      // Calculate new width according to alignment
+      let newMaxWidth = element.maxWidth || 80
+      if (element.align === "left") {
+        newMaxWidth = currentMouseXPercent - element.x
+      } else if (element.align === "center") {
+        newMaxWidth = 2 * Math.abs(currentMouseXPercent - element.x)
+      } else if (element.align === "right") {
+        newMaxWidth = element.x - currentMouseXPercent
+      }
+
+      // Constrain width percentage between 10% and 100%
+      const constrainedMaxWidth = Math.max(10, Math.min(100, Math.round(newMaxWidth)))
+
+      setSchema((prev) => ({
+        ...prev,
+        elements: prev.elements.map((el) =>
+          el.id === id ? { ...el, maxWidth: constrainedMaxWidth } : el
+        )
+      }), false)
+    }
+
+    const handleMouseUp = () => {
+      window.removeEventListener("mousemove", handleMouseMove)
+      window.removeEventListener("mouseup", handleMouseUp)
+      setSchema((prev) => prev, true) // Save to history
     }
 
     window.addEventListener("mousemove", handleMouseMove)
@@ -728,12 +1059,12 @@ export function CertificateDesignEditor({
   }
 
   return (
-    <div className="fixed inset-0 bg-[#0f172a]/95 text-slate-100 z-50 flex flex-col animate-in fade-in duration-300 font-sans selection:bg-indigo-500/30 selection:text-white">
+    <div className={`fixed inset-0 z-50 flex flex-col animate-in fade-in duration-300 font-sans selection:bg-indigo-500/30 selection:text-white ${isDark ? "bg-[#0f172a]/95 text-slate-100" : "bg-slate-100 text-slate-900"}`}>
       {/* Editor Header */}
-      <header className="h-16 border-b border-slate-800 bg-[#1e293b]/90 backdrop-blur-md px-6 flex items-center justify-between shrink-0 shadow-lg relative z-20">
+      <header className={`h-16 border-b px-6 flex items-center justify-between shrink-0 shadow-lg relative z-20 backdrop-blur-md ${isDark ? "border-slate-800 bg-[#1e293b]/90 text-slate-100" : "border-slate-200 bg-white text-slate-800"}`}>
         <div className="flex items-center gap-3">
           <div>
-            <h1 className="font-bold text-sm text-slate-100">Diseñador de Certificados</h1>
+            <h1 className={`font-bold text-sm ${isDark ? "text-slate-100" : "text-slate-900"}`}>Diseñador de Certificados</h1>
             <p className="text-[10px] text-indigo-400 mt-0.5 font-bold uppercase tracking-wider flex items-center gap-1.5">
               <span>{templateName}</span>
               <span className="h-1 w-1 rounded-full bg-slate-600"></span>
@@ -748,7 +1079,7 @@ export function CertificateDesignEditor({
             variant="outline"
             size="sm"
             onClick={() => setIsDownloadModalOpen(true)}
-            className="text-xs gap-1.5 cursor-pointer border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white"
+            className={`text-xs gap-1.5 cursor-pointer border ${isDark ? "border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white" : "border-slate-300 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-850"}`}
           >
             <Download className="size-4 text-indigo-450" />
             Descargar Muestra
@@ -765,8 +1096,8 @@ export function CertificateDesignEditor({
           <Button
             variant="ghost"
             size="icon"
-            onClick={onClose}
-            className="rounded-full size-8 hover:bg-slate-800 text-slate-450 hover:text-slate-200"
+            onClick={handleRequestClose}
+            className={`rounded-full size-8 flex items-center justify-center transition-colors ${isDark ? "hover:bg-slate-800 text-slate-400 hover:text-slate-200" : "hover:bg-slate-100 text-slate-500 hover:text-slate-800"}`}
           >
             <X className="size-4" />
           </Button>
@@ -774,16 +1105,18 @@ export function CertificateDesignEditor({
       </header>
 
       {/* Editor Body */}
-      <div className="flex-1 flex overflow-hidden bg-[#090d16] relative z-10">
-
+      <div className={`flex-1 flex overflow-hidden relative z-10 ${isDark ? "bg-[#090d16]" : "bg-slate-200"}`}>
         {/* Leftmost Narrow Icon Sidebar */}
-        <div className="w-20 bg-[#111827] border-r border-slate-800/80 flex flex-col items-center py-6 gap-6 shrink-0 select-none">
+        <div className={`w-20 border-r flex flex-col items-center py-6 gap-6 shrink-0 select-none ${isDark ? "bg-[#111827] border-slate-800/80" : "bg-slate-50 border-slate-200"}`}>
           <button
             onClick={() => setActiveTab("background")}
-            className={`flex flex-col items-center gap-2 w-full py-3.5 text-center cursor-pointer transition-all relative ${activeTab === "background"
-              ? "text-indigo-450 font-bold bg-[#1f2937]/50"
-              : "text-slate-500 hover:text-slate-300"
-              }`}
+            className={`flex flex-col items-center gap-2 w-full py-3.5 text-center cursor-pointer transition-all relative ${
+              activeTab === "background"
+                ? "text-indigo-500 font-bold bg-indigo-500/10"
+                : isDark
+                ? "text-slate-500 hover:text-slate-300"
+                : "text-slate-400 hover:text-slate-700"
+            }`}
           >
             {activeTab === "background" && (
               <span className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500 rounded-r" />
@@ -794,10 +1127,13 @@ export function CertificateDesignEditor({
 
           <button
             onClick={() => setActiveTab("text")}
-            className={`flex flex-col items-center gap-2 w-full py-3.5 text-center cursor-pointer transition-all relative ${activeTab === "text"
-              ? "text-indigo-450 font-bold bg-[#1f2937]/50"
-              : "text-slate-500 hover:text-slate-300"
-              }`}
+            className={`flex flex-col items-center gap-2 w-full py-3.5 text-center cursor-pointer transition-all relative ${
+              activeTab === "text"
+                ? "text-indigo-500 font-bold bg-indigo-500/10"
+                : isDark
+                ? "text-slate-500 hover:text-slate-300"
+                : "text-slate-400 hover:text-slate-700"
+            }`}
           >
             {activeTab === "text" && (
               <span className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500 rounded-r" />
@@ -808,10 +1144,13 @@ export function CertificateDesignEditor({
 
           <button
             onClick={() => setActiveTab("layers")}
-            className={`flex flex-col items-center gap-2 w-full py-3.5 text-center cursor-pointer transition-all relative ${activeTab === "layers"
-              ? "text-indigo-450 font-bold bg-[#1f2937]/50"
-              : "text-slate-500 hover:text-slate-300"
-              }`}
+            className={`flex flex-col items-center gap-2 w-full py-3.5 text-center cursor-pointer transition-all relative ${
+              activeTab === "layers"
+                ? "text-indigo-500 font-bold bg-indigo-500/10"
+                : isDark
+                ? "text-slate-500 hover:text-slate-300"
+                : "text-slate-400 hover:text-slate-700"
+            }`}
           >
             {activeTab === "layers" && (
               <span className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500 rounded-r" />
@@ -822,29 +1161,35 @@ export function CertificateDesignEditor({
         </div>
 
         {/* Control Panel Details Sidebar */}
-        <aside className="w-80 bg-[#1f2937]/65 backdrop-blur-md border-r border-slate-800/80 p-5 flex flex-col gap-6 overflow-y-auto shrink-0 relative">
+        <aside className={`w-80 backdrop-blur-md border-r p-5 flex flex-col gap-6 overflow-y-auto shrink-0 relative ${isDark ? "bg-[#1f2937]/65 border-slate-800/80 text-slate-100" : "bg-white border-slate-200 text-slate-800"}`}>
           {activeTab === "background" && (
             <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-200">
               <div className="space-y-2">
-                <h3 className="font-bold text-xs uppercase tracking-wider text-slate-400">Tamaño del Certificado</h3>
-                <p className="text-[10px] text-slate-500 leading-normal">Determina las proporciones físicas para la exportación y visualización.</p>
+                <h3 className={`font-bold text-xs uppercase tracking-wider ${isDark ? "text-slate-400" : "text-slate-500"}`}>Tamaño del Certificado</h3>
+                <p className={`text-[10px] leading-normal ${isDark ? "text-slate-500" : "text-slate-600"}`}>Determina las proporciones físicas para la exportación y visualización.</p>
                 <div className="grid grid-cols-2 gap-2 mt-2">
                   <button
                     onClick={() => handleFormatChange("a4")}
-                    className={`flex flex-col justify-center items-center py-4 rounded-xl border text-center transition-all cursor-pointer ${selectedFormat === "a4"
-                      ? "border-indigo-500 bg-indigo-500/15 text-indigo-400 font-bold shadow-md shadow-indigo-500/5"
-                      : "border-slate-800 bg-slate-900/60 hover:bg-slate-800/80 text-slate-400 hover:text-slate-200"
-                      }`}
+                    className={`flex flex-col justify-center items-center py-4 rounded-xl border text-center transition-all cursor-pointer ${
+                      selectedFormat === "a4"
+                        ? "border-indigo-500 bg-indigo-500/15 text-indigo-500 font-bold shadow-md shadow-indigo-500/5"
+                        : isDark
+                        ? "border-slate-800 bg-slate-900/60 hover:bg-slate-800/80 text-slate-400 hover:text-slate-200"
+                        : "border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-slate-900"
+                    }`}
                   >
                     <span className="text-xs">A4 Horizontal</span>
                     <span className="text-[8px] opacity-80 mt-0.5">297 x 210 mm (A4)</span>
                   </button>
                   <button
                     onClick={() => handleFormatChange("a5")}
-                    className={`flex flex-col justify-center items-center py-4 rounded-xl border text-center transition-all cursor-pointer ${selectedFormat === "a5"
-                      ? "border-indigo-500 bg-indigo-500/15 text-indigo-400 font-bold shadow-md shadow-indigo-500/5"
-                      : "border-slate-800 bg-slate-900/60 hover:bg-slate-800/80 text-slate-400 hover:text-slate-200"
-                      }`}
+                    className={`flex flex-col justify-center items-center py-4 rounded-xl border text-center transition-all cursor-pointer ${
+                      selectedFormat === "a5"
+                        ? "border-indigo-500 bg-indigo-500/15 text-indigo-500 font-bold shadow-md shadow-indigo-500/5"
+                        : isDark
+                        ? "border-slate-800 bg-slate-900/60 hover:bg-slate-800/80 text-slate-400 hover:text-slate-200"
+                        : "border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-slate-900"
+                    }`}
                   >
                     <span className="text-xs">A5 Horizontal</span>
                     <span className="text-[8px] opacity-80 mt-0.5">210 x 148 mm (A5)</span>
@@ -852,10 +1197,10 @@ export function CertificateDesignEditor({
                 </div>
               </div>
 
-              <div className="border-t border-slate-800/60 pt-6 space-y-3">
-                <h3 className="font-bold text-xs uppercase tracking-wider text-slate-400">Fondo del Certificado</h3>
-                <p className="text-[10px] text-slate-500 leading-normal">Carga la plantilla de diseño base sin los textos dinámicos.</p>
-                <div className="bg-slate-900/60 border border-slate-800/80 p-3 rounded-xl">
+              <div className={`border-t pt-6 space-y-3 ${isDark ? "border-slate-800/60" : "border-slate-200"}`}>
+                <h3 className={`font-bold text-xs uppercase tracking-wider ${isDark ? "text-slate-400" : "text-slate-500"}`}>Fondo del Certificado</h3>
+                <p className={`text-[10px] leading-normal ${isDark ? "text-slate-500" : "text-slate-600"}`}>Carga la plantilla de diseño base sin los textos dinámicos.</p>
+                <div className={`p-3 rounded-xl border ${isDark ? "bg-slate-900/60 border-slate-800/80" : "bg-slate-50 border-slate-200"}`}>
                   <ImageUploadWithPreview
                     label="Imagen de Fondo"
                     value={bgUrl}
@@ -866,7 +1211,7 @@ export function CertificateDesignEditor({
                     placeholder="Sube el archivo base"
                   />
                 </div>
-                <div className="text-[10px] text-slate-505 bg-indigo-950/20 border border-indigo-900/30 rounded-lg p-3 leading-relaxed">
+                <div className={`text-[10px] border rounded-lg p-3 leading-relaxed ${isDark ? "text-slate-350 bg-indigo-950/20 border-indigo-900/30" : "text-indigo-900 bg-indigo-50/50 border-indigo-100"}`}>
                   <span className="font-bold text-indigo-400 block mb-0.5">Recomendación técnica:</span>
                   Usa imágenes en formato PNG o JPG de alta resolución con proporción **1.414** (por ejemplo, 1414 x 1000 píxeles) para que encaje perfectamente con las hojas A4/A5.
                 </div>
@@ -881,7 +1226,7 @@ export function CertificateDesignEditor({
                 <input
                   type="text"
                   placeholder="Busca fuentes y combinaciones"
-                  className="w-full h-9 rounded-lg border border-slate-800 bg-slate-900/60 pl-9 pr-3 text-xs text-slate-300 focus:outline-hidden focus:border-indigo-500 placeholder:text-slate-600"
+                  className={`w-full h-9 rounded-lg border pl-9 pr-3 text-xs focus:outline-hidden focus:border-indigo-500 ${isDark ? "border-slate-800 bg-slate-900/60 text-slate-300 placeholder:text-slate-600" : "border-slate-200 bg-white text-slate-700 placeholder:text-slate-400"}`}
                   disabled
                 />
               </div>
@@ -895,38 +1240,38 @@ export function CertificateDesignEditor({
               </button>
 
               <div className="space-y-3">
-                <h3 className="font-bold text-xs uppercase tracking-wider text-slate-400">Estilos de texto predeterminados</h3>
+                <h3 className={`font-bold text-xs uppercase tracking-wider ${isDark ? "text-slate-400" : "text-slate-500"}`}>Estilos de texto predeterminados</h3>
 
                 <button
                   onClick={() => handleAddTextElement("Agregar un título", 48, "bold")}
-                  className="w-full text-left p-3.5 bg-slate-900/50 border border-slate-800 rounded-xl hover:border-indigo-500 hover:bg-indigo-500/5 transition-all text-slate-100 cursor-pointer group"
+                  className={`w-full text-left p-3.5 border rounded-xl hover:border-indigo-500 hover:bg-indigo-500/5 transition-all cursor-pointer group ${isDark ? "bg-slate-900/50 border-slate-800 text-slate-100" : "bg-slate-50 border-slate-200 text-slate-800"}`}
                 >
                   <span className="block font-bold text-base leading-none group-hover:text-indigo-400 transition-colors">Agregar un título</span>
                 </button>
 
                 <button
                   onClick={() => handleAddTextElement("Agregar un subtítulo", 28, "normal")}
-                  className="w-full text-left p-3 bg-slate-900/50 border border-slate-800 rounded-xl hover:border-indigo-500 hover:bg-indigo-500/5 transition-all text-slate-100 cursor-pointer group"
+                  className={`w-full text-left p-3 border rounded-xl hover:border-indigo-500 hover:bg-indigo-500/5 transition-all cursor-pointer group ${isDark ? "bg-slate-900/50 border-slate-800 text-slate-100" : "bg-slate-50 border-slate-200 text-slate-800"}`}
                 >
                   <span className="block font-medium text-xs leading-none group-hover:text-indigo-400 transition-colors">Agregar un subtítulo</span>
                 </button>
 
                 <button
                   onClick={() => handleAddTextElement("Agregar algo de texto", 18, "normal")}
-                  className="w-full text-left p-2.5 bg-slate-900/50 border border-slate-800 rounded-xl hover:border-indigo-500 hover:bg-indigo-500/5 transition-all text-slate-400 hover:text-slate-200 cursor-pointer group"
+                  className={`w-full text-left p-2.5 border rounded-xl hover:border-indigo-500 hover:bg-indigo-500/5 transition-all cursor-pointer group ${isDark ? "bg-slate-900/50 border-slate-800 text-slate-400 hover:text-slate-200" : "bg-slate-50 border-slate-200 text-slate-505 hover:text-slate-700"}`}
                 >
                   <span className="block text-[10px] leading-none transition-colors">Agregar texto de cuerpo</span>
                 </button>
               </div>
 
-              <div className="border-t border-slate-800/60 pt-5 space-y-3">
-                <h3 className="font-bold text-xs uppercase tracking-wider text-slate-400">Campos Dinámicos (Zynqro)</h3>
-                <p className="text-[10px] text-slate-500 leading-normal">Variables de autocompletado en certificados reales:</p>
+              <div className={`border-t pt-5 space-y-3 ${isDark ? "border-slate-800/60" : "border-slate-200"}`}>
+                <h3 className={`font-bold text-xs uppercase tracking-wider ${isDark ? "text-slate-400" : "text-slate-500"}`}>Campos Dinámicos (Zynqro)</h3>
+                <p className={`text-[10px] leading-normal ${isDark ? "text-slate-500" : "text-slate-600"}`}>Variables de autocompletado en certificados reales:</p>
 
                 <div className="grid grid-cols-1 gap-2">
                   <button
                     onClick={() => handleAddTextElement("{{name}}", 48, "bold")}
-                    className="flex items-center justify-between text-left p-2.5 bg-slate-900/40 border border-slate-800/80 hover:border-indigo-500 hover:bg-indigo-500/5 rounded-xl text-xs text-slate-300 cursor-pointer transition-colors"
+                    className={`flex items-center justify-between text-left p-2.5 border hover:border-indigo-500 hover:bg-indigo-500/5 rounded-xl text-xs cursor-pointer transition-colors ${isDark ? "bg-slate-900/40 border-slate-800/80 text-slate-300" : "bg-slate-50 border-slate-200 text-slate-700"}`}
                   >
                     <span>Nombre del Participante</span>
                     <span className="font-mono text-[9px] bg-indigo-500/20 text-indigo-400 px-1.5 py-0.5 rounded-md border border-indigo-500/20 font-bold uppercase">NAME</span>
@@ -934,7 +1279,7 @@ export function CertificateDesignEditor({
 
                   <button
                     onClick={() => handleAddTextElement("Emitido el {{date}}", 18, "normal")}
-                    className="flex items-center justify-between text-left p-2.5 bg-slate-900/40 border border-slate-800/80 hover:border-indigo-500 hover:bg-indigo-500/5 rounded-xl text-xs text-slate-300 cursor-pointer transition-colors"
+                    className={`flex items-center justify-between text-left p-2.5 border hover:border-indigo-500 hover:bg-indigo-500/5 rounded-xl text-xs cursor-pointer transition-colors ${isDark ? "bg-slate-900/40 border-slate-800/80 text-slate-300" : "bg-slate-50 border-slate-200 text-slate-700"}`}
                   >
                     <span>Fecha de Emisión</span>
                     <span className="font-mono text-[9px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded-md border border-amber-500/20 font-bold uppercase">DATE</span>
@@ -942,16 +1287,20 @@ export function CertificateDesignEditor({
 
                   <button
                     onClick={handleToggleQR}
-                    className={`flex items-center justify-between text-left p-2.5 bg-slate-900/40 border rounded-xl text-xs cursor-pointer transition-all ${schema.elements.some(el => el.id === "qr" && el.showQr)
-                      ? "border-emerald-500 bg-emerald-500/5 text-emerald-450 font-bold"
-                      : "border-slate-800 hover:border-indigo-500 hover:bg-indigo-500/5 text-slate-300"
-                      }`}
+                    className={`flex items-center justify-between text-left p-2.5 border rounded-xl text-xs cursor-pointer transition-all ${
+                      schema.elements.some(el => el.id === "qr" && el.showQr)
+                        ? "border-emerald-500 bg-emerald-500/5 text-emerald-450 font-bold"
+                        : isDark
+                        ? "border-slate-800 bg-slate-900/40 hover:border-indigo-500 hover:bg-indigo-500/5 text-slate-300"
+                        : "border-slate-200 bg-slate-50 hover:border-indigo-500 hover:bg-indigo-500/5 text-slate-700"
+                    }`}
                   >
                     <span>{schema.elements.some(el => el.id === "qr" && el.showQr) ? "QR de Validación (Activo)" : "Activar QR de Validación"}</span>
-                    <span className={`font-mono text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase border ${schema.elements.some(el => el.id === "qr" && el.showQr)
-                      ? "bg-emerald-500/25 border-emerald-500/20 text-emerald-300"
-                      : "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-                      }`}>QR</span>
+                    <span className={`font-mono text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase border ${
+                      schema.elements.some(el => el.id === "qr" && el.showQr)
+                        ? "bg-emerald-500/25 border-emerald-500/20 text-emerald-300"
+                        : "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                    }`}>QR</span>
                   </button>
                 </div>
               </div>
@@ -960,9 +1309,9 @@ export function CertificateDesignEditor({
 
           {activeTab === "layers" && (
             <div className="space-y-4 animate-in fade-in slide-in-from-left-4 duration-200">
-              <h3 className="font-bold text-xs uppercase tracking-wider text-slate-400">Capas de la Plantilla</h3>
+              <h3 className={`font-bold text-xs uppercase tracking-wider ${isDark ? "text-slate-400" : "text-slate-500"}`}>Capas de la Plantilla</h3>
               {schema.elements.length === 0 ? (
-                <p className="text-xs text-slate-600 italic">No hay capas agregadas en esta plantilla.</p>
+                <p className={`text-xs italic ${isDark ? "text-slate-600" : "text-slate-400"}`}>No hay capas agregadas en esta plantilla.</p>
               ) : (
                 <div className="space-y-2">
                   {schema.elements.map((el) => {
@@ -971,10 +1320,13 @@ export function CertificateDesignEditor({
                       <div
                         key={el.id}
                         onClick={() => setActiveElementId(el.id)}
-                        className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer ${isActive
-                          ? "border-indigo-500 bg-indigo-500/10 font-bold shadow-md"
-                          : "border-slate-800 bg-slate-900/30 hover:bg-slate-800/40"
-                          }`}
+                        className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer ${
+                          isActive
+                            ? "border-indigo-500 bg-indigo-500/10 font-bold shadow-md"
+                            : isDark
+                            ? "border-slate-800 bg-slate-900/30 hover:bg-slate-850"
+                            : "border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700"
+                        }`}
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
                           <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${el.id === "qr"
@@ -983,7 +1335,7 @@ export function CertificateDesignEditor({
                             }`}>
                             {el.id === "qr" ? "QR" : "TXT"}
                           </span>
-                          <span className="text-xs text-slate-200 truncate">{el.label}</span>
+                          <span className={`text-xs truncate ${isDark ? "text-slate-200" : "text-slate-700"}`}>{el.label}</span>
                         </div>
                         <button
                           onClick={(e) => {
@@ -1017,18 +1369,18 @@ export function CertificateDesignEditor({
         <div className="flex-1 flex flex-col overflow-hidden relative">
 
           {/* Horizontal Contextual Toolbar */}
-          <div className="h-14 border-b border-slate-800/80 bg-[#111827] px-6 flex items-center justify-between gap-4 select-none shrink-0 shadow-md relative z-10">
+          <div className={`h-14 border-b px-6 flex items-center justify-between gap-4 select-none shrink-0 shadow-md relative z-10 ${isDark ? "border-slate-800/80 bg-[#111827]" : "border-slate-200 bg-slate-50"}`}>
             {activeElement ? (
               <div className="flex items-center gap-4 text-xs w-full justify-between animate-in fade-in duration-200">
 
                 {/* Left group: Font, Size, Color, Weight, Align */}
                 <div className="flex items-center gap-3">
                   {/* Custom Layer/Element Name */}
-                  <div className="flex items-center gap-1.5 pr-3 border-r border-slate-800/80 animate-in slide-in-from-left-2 duration-200">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Nombre:</span>
+                  <div className={`flex items-center gap-1.5 pr-3 border-r animate-in slide-in-from-left-2 duration-200 ${isDark ? "border-slate-800/80" : "border-slate-200"}`}>
+                    <span className={`text-[10px] font-bold uppercase tracking-wide ${isDark ? "text-slate-500" : "text-slate-400"}`}>Nombre:</span>
                     <input
                       type="text"
-                      className="h-8 px-2.5 w-28 text-xs border border-slate-800 bg-slate-900 text-slate-200 rounded-lg focus:outline-hidden focus:border-indigo-500 font-semibold"
+                      className={`h-8 px-2.5 w-28 text-xs border rounded-lg focus:outline-hidden focus:border-indigo-500 font-semibold ${isDark ? "border-slate-800 bg-slate-900 text-slate-200" : "border-slate-250 bg-white text-slate-850"}`}
                       value={activeElement.label}
                       onChange={(e) => handleUpdateActiveElement({ label: e.target.value })}
                       placeholder="Nombre..."
@@ -1039,20 +1391,21 @@ export function CertificateDesignEditor({
                   {activeElement.id !== "qr" ? (
                     <>
                       {/* Custom Text Content */}
-                      <div className="flex items-center gap-1.5 pr-3 border-r border-slate-800/80 animate-in slide-in-from-left-2 duration-200">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Texto:</span>
+                      <div className={`flex items-center gap-1.5 pr-3 border-r animate-in slide-in-from-left-2 duration-200 ${isDark ? "border-slate-800/80" : "border-slate-200"}`}>
+                        <span className={`text-[10px] font-bold uppercase tracking-wide ${isDark ? "text-slate-500" : "text-slate-400"}`}>Texto:</span>
                         <input
                           type="text"
-                          className="h-8 px-2.5 w-40 text-xs border border-slate-800 bg-slate-900 text-slate-200 rounded-lg focus:outline-hidden focus:border-indigo-500 font-semibold"
+                          className={`h-8 px-2.5 w-40 text-xs border rounded-lg focus:outline-hidden focus:border-indigo-500 font-semibold ${isDark ? "border-slate-800 bg-slate-900 text-slate-200" : "border-slate-250 bg-white text-slate-850"}`}
                           value={activeElement.text}
                           onChange={(e) => handleUpdateActiveElement({ text: e.target.value })}
                           placeholder="Texto..."
                           title="Editar el contenido del texto"
                         />
                       </div>
+
                       {/* Font Family select */}
                       <select
-                        className="rounded-lg border border-slate-800 bg-slate-900 text-xs font-semibold text-slate-200 px-3 py-1.5 focus:outline-hidden focus:border-indigo-500 cursor-pointer"
+                        className={`rounded-lg border text-xs font-semibold px-3 py-1.5 focus:outline-hidden focus:border-indigo-500 cursor-pointer ${isDark ? "border-slate-800 bg-slate-900 text-slate-200" : "border-slate-200 bg-white text-slate-800"}`}
                         value={activeElement.fontFamily}
                         onChange={(e) => handleUpdateActiveElement({ fontFamily: e.target.value })}
                       >
@@ -1064,21 +1417,21 @@ export function CertificateDesignEditor({
                       </select>
 
                       {/* Font Size controls */}
-                      <div className="flex items-center border border-slate-800 rounded-lg overflow-hidden bg-slate-900 h-8">
+                      <div className={`flex items-center border rounded-lg overflow-hidden h-8 ${isDark ? "border-slate-800 bg-slate-900" : "border-slate-250 bg-white"}`}>
                         <button
-                          className="px-2.5 hover:bg-slate-800 text-slate-300 font-bold h-full border-r border-slate-800 cursor-pointer active:bg-slate-700 transition-colors"
+                          className={`px-2.5 font-bold h-full border-r cursor-pointer transition-colors ${isDark ? "hover:bg-slate-800 text-slate-300 border-slate-800 active:bg-slate-700" : "hover:bg-slate-100 text-slate-600 border-slate-200 active:bg-slate-200"}`}
                           onClick={() => handleUpdateActiveElement({ fontSize: Math.max(10, activeElement.fontSize - 2) })}
                         >
                           -
                         </button>
                         <input
                           type="number"
-                          className="w-10 text-center text-xs h-full border-0 focus:ring-0 bg-transparent text-slate-200 font-bold focus:outline-hidden"
+                          className={`w-10 text-center text-xs h-full border-0 focus:ring-0 bg-transparent font-bold focus:outline-hidden ${isDark ? "text-slate-200" : "text-slate-700"}`}
                           value={activeElement.fontSize}
                           onChange={(e) => handleUpdateActiveElement({ fontSize: parseInt(e.target.value) || 12 })}
                         />
                         <button
-                          className="px-2.5 hover:bg-slate-800 text-slate-300 font-bold h-full border-l border-slate-800 cursor-pointer active:bg-slate-700 transition-colors"
+                          className={`px-2.5 font-bold h-full border-l cursor-pointer transition-colors ${isDark ? "hover:bg-slate-800 text-slate-300 border-slate-800 active:bg-slate-700" : "hover:bg-slate-100 text-slate-600 border-slate-200 active:bg-slate-200"}`}
                           onClick={() => handleUpdateActiveElement({ fontSize: Math.min(150, activeElement.fontSize + 2) })}
                         >
                           +
@@ -1088,23 +1441,29 @@ export function CertificateDesignEditor({
                       {/* Bold button */}
                       <button
                         onClick={() => handleUpdateActiveElement({ fontWeight: activeElement.fontWeight === "bold" ? "normal" : "bold" })}
-                        className={`h-8 w-8 rounded-lg border flex items-center justify-center cursor-pointer transition-all ${activeElement.fontWeight === "bold"
-                          ? "bg-indigo-600 text-white border-indigo-600 font-bold shadow-md shadow-indigo-600/10"
-                          : "border-slate-800 bg-slate-900 hover:bg-slate-800 text-slate-300"
-                          }`}
+                        className={`h-8 w-8 rounded-lg border flex items-center justify-center cursor-pointer transition-all ${
+                          activeElement.fontWeight === "bold"
+                            ? "bg-indigo-600 text-white border-indigo-600 font-bold shadow-md shadow-indigo-600/10"
+                            : isDark
+                            ? "border-slate-800 bg-slate-900 hover:bg-slate-800 text-slate-300"
+                            : "border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+                        }`}
                         title="Negrita"
                       >
                         <Bold className="size-4" />
                       </button>
 
                       {/* Alignment toggles */}
-                      <div className="flex border border-slate-800 rounded-lg overflow-hidden bg-slate-900 h-8">
+                      <div className={`flex border rounded-lg overflow-hidden h-8 ${isDark ? "border-slate-800 bg-slate-900" : "border-slate-200 bg-white"}`}>
                         {(["left", "center", "right"] as const).map((align) => (
                           <button
                             key={align}
                             onClick={() => handleUpdateActiveElement({ align })}
-                            className={`px-2.5 h-full hover:bg-slate-800 flex items-center justify-center border-r last:border-r-0 border-slate-800 cursor-pointer transition-colors ${activeElement.align === align ? "bg-indigo-550/20 text-indigo-400 font-bold" : "text-slate-500"
-                              }`}
+                            className={`px-2.5 h-full flex items-center justify-center border-r last:border-r-0 cursor-pointer transition-colors ${
+                              isDark
+                                ? `hover:bg-slate-800 border-slate-800 ${activeElement.align === align ? "bg-indigo-500/20 text-indigo-400 font-bold" : "text-slate-500"}`
+                                : `hover:bg-slate-100 border-slate-200 ${activeElement.align === align ? "bg-indigo-50/80 text-indigo-600 font-bold" : "text-slate-400"}`
+                            }`}
                             title={`Alinear a la ${align === "left" ? "izquierda" : align === "center" ? "centro" : "derecha"}`}
                           >
                             {align === "left" ? <AlignLeft className="size-3.5" /> : align === "center" ? <AlignCenter className="size-3.5" /> : <AlignRight className="size-3.5" />}
@@ -1116,17 +1475,17 @@ export function CertificateDesignEditor({
                     <>
                       {/* QR Size control */}
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-bold text-slate-505 uppercase tracking-wide">Tamaño QR:</span>
-                        <div className="flex items-center border border-slate-800 rounded-lg overflow-hidden bg-slate-900 h-8">
+                        <span className={`text-[10px] font-bold uppercase tracking-wide ${isDark ? "text-slate-500" : "text-slate-400"}`}>Tamaño QR:</span>
+                        <div className={`flex items-center border rounded-lg overflow-hidden h-8 ${isDark ? "border-slate-800 bg-slate-900" : "border-slate-250 bg-white"}`}>
                           <button
-                            className="px-2.5 hover:bg-slate-800 text-slate-300 font-bold h-full border-r border-slate-800 cursor-pointer active:bg-slate-700 transition-colors"
+                            className={`px-2.5 font-bold h-full border-r cursor-pointer transition-colors ${isDark ? "hover:bg-slate-800 text-slate-300 border-slate-800 active:bg-slate-700" : "hover:bg-slate-100 text-slate-600 border-slate-200 active:bg-slate-200"}`}
                             onClick={() => handleUpdateActiveElement({ qrSize: Math.max(50, (activeElement.qrSize || 120) - 10) })}
                           >
                             -
                           </button>
-                          <span className="w-12 text-center text-xs font-bold text-slate-200">{activeElement.qrSize || 120}px</span>
+                          <span className={`w-12 text-center text-xs font-bold ${isDark ? "text-slate-200" : "text-slate-700"}`}>{activeElement.qrSize || 120}px</span>
                           <button
-                            className="px-2.5 hover:bg-slate-800 text-slate-300 font-bold h-full border-l border-slate-800 cursor-pointer active:bg-slate-700 transition-colors"
+                            className={`px-2.5 font-bold h-full border-l cursor-pointer transition-colors ${isDark ? "hover:bg-slate-800 text-slate-300 border-slate-800 active:bg-slate-700" : "hover:bg-slate-100 text-slate-600 border-slate-200 active:bg-slate-200"}`}
                             onClick={() => handleUpdateActiveElement({ qrSize: Math.min(300, (activeElement.qrSize || 120) + 10) })}
                           >
                             +
@@ -1137,7 +1496,7 @@ export function CertificateDesignEditor({
                   )}
 
                   {/* Color picker */}
-                  <div className="flex items-center gap-2 pl-3 border-l border-slate-800/80">
+                  <div className={`flex items-center gap-2 pl-3 border-l ${isDark ? "border-slate-800/80" : "border-slate-200"}`}>
                     <div className="relative flex items-center h-8">
                       <input
                         type="color"
@@ -1163,13 +1522,16 @@ export function CertificateDesignEditor({
                 {/* Right group: Width adjustment & coordinates fine-tuning */}
                 <div className="flex items-center gap-4">
                   {activeElement.id !== "qr" && (
-                    <div className="flex items-center gap-2 border-l border-slate-800/85 pl-4">
+                    <div className={`flex items-center gap-2 border-l pl-4 ${isDark ? "border-slate-800/85" : "border-slate-200"}`}>
                       <button
                         onClick={() => handleUpdateActiveElement({ autoWidth: !(activeElement.autoWidth ?? true) })}
-                        className={`text-[10px] font-bold uppercase h-8 px-2.5 rounded-lg border cursor-pointer transition-all ${!(activeElement.autoWidth ?? true)
-                          ? "bg-indigo-655 text-white border-indigo-650 shadow-md shadow-indigo-600/10"
-                          : "border-slate-800 bg-slate-900 hover:bg-slate-800 text-slate-300"
-                          }`}
+                        className={`text-[10px] font-bold uppercase h-8 px-2.5 rounded-lg border cursor-pointer transition-all ${
+                          !(activeElement.autoWidth ?? true)
+                            ? "bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-600/10"
+                            : isDark
+                            ? "border-slate-800 bg-slate-900 hover:bg-slate-800 text-slate-300"
+                            : "border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+                        }`}
                       >
                         {(activeElement.autoWidth ?? true) ? "Ancho Automático" : "Ancho Manual"}
                       </button>
@@ -1183,16 +1545,16 @@ export function CertificateDesignEditor({
                             onChange={(e) => handleUpdateActiveElement({ maxWidth: parseFloat(e.target.value) })}
                             className="w-18 accent-indigo-500 cursor-pointer"
                           />
-                          <span className="text-[10px] font-mono text-slate-400 w-7 text-right">{activeElement.maxWidth || 80}%</span>
+                          <span className={`text-[10px] font-mono w-7 text-right ${isDark ? "text-slate-400" : "text-slate-505"}`}>{activeElement.maxWidth || 80}%</span>
                         </div>
                       )}
                     </div>
                   )}
 
                   {/* X & Y position fine-tuning */}
-                  <div className="flex items-center gap-2.5 border-l border-slate-800/85 pl-4">
+                  <div className={`flex items-center gap-2.5 border-l pl-4 ${isDark ? "border-slate-800/85" : "border-slate-200"}`}>
                     <div className="flex items-center gap-1">
-                      <span className="text-[10px] font-mono text-slate-500 font-bold">X:</span>
+                      <span className={`text-[10px] font-mono font-bold ${isDark ? "text-slate-500" : "text-slate-400"}`}>X:</span>
                       <input
                         type="number"
                         min="0"
@@ -1200,11 +1562,11 @@ export function CertificateDesignEditor({
                         step="0.5"
                         value={activeElement.x}
                         onChange={(e) => handleUpdateActiveElement({ x: Math.max(0, Math.min(100, parseFloat(e.target.value) || 0)) })}
-                        className="w-11 h-8 text-center text-xs border border-slate-800 bg-slate-900 text-slate-200 rounded-lg focus:outline-hidden focus:border-indigo-500 font-semibold"
+                        className={`w-11 h-8 text-center text-xs border rounded-lg focus:outline-hidden focus:border-indigo-500 font-semibold ${isDark ? "border-slate-800 bg-slate-900 text-slate-200" : "border-slate-250 bg-white text-slate-800"}`}
                       />
                     </div>
                     <div className="flex items-center gap-1">
-                      <span className="text-[10px] font-mono text-slate-500 font-bold">Y:</span>
+                      <span className={`text-[10px] font-mono font-bold ${isDark ? "text-slate-500" : "text-slate-400"}`}>Y:</span>
                       <input
                         type="number"
                         min="0"
@@ -1212,7 +1574,7 @@ export function CertificateDesignEditor({
                         step="0.5"
                         value={activeElement.y}
                         onChange={(e) => handleUpdateActiveElement({ y: Math.max(0, Math.min(100, parseFloat(e.target.value) || 0)) })}
-                        className="w-11 h-8 text-center text-xs border border-slate-800 bg-slate-900 text-slate-200 rounded-lg focus:outline-hidden focus:border-indigo-500 font-semibold"
+                        className={`w-11 h-8 text-center text-xs border rounded-lg focus:outline-hidden focus:border-indigo-500 font-semibold ${isDark ? "border-slate-800 bg-slate-900 text-slate-200" : "border-slate-250 bg-white text-slate-800"}`}
                       />
                     </div>
                   </div>
@@ -1229,7 +1591,7 @@ export function CertificateDesignEditor({
                       setActiveElementId(filtered[0].id)
                       toast.success("Elemento eliminado de la plantilla.")
                     }}
-                    className="h-8 w-8 rounded-lg border border-slate-800 bg-slate-900 hover:bg-red-950/30 hover:border-red-900 text-red-400 hover:text-red-350 flex items-center justify-center cursor-pointer transition-colors"
+                    className={`h-8 w-8 rounded-lg border flex items-center justify-center cursor-pointer transition-colors ${isDark ? "border-slate-800 bg-slate-900 hover:bg-red-950/30 hover:border-red-900 text-red-400 hover:text-red-350" : "border-slate-200 bg-white hover:bg-red-50 hover:border-red-200 text-red-500 hover:text-red-600"}`}
                     title="Eliminar elemento"
                   >
                     <Trash2 className="size-4" />
@@ -1238,7 +1600,7 @@ export function CertificateDesignEditor({
 
               </div>
             ) : (
-              <div className="text-xs text-slate-400 italic flex items-center gap-2">
+              <div className={`text-xs italic flex items-center gap-2 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
                 <Sparkles className="size-3.5 text-indigo-400" />
                 Haz clic en cualquier texto del certificado para ajustar su tipografía, tamaño y color.
               </div>
@@ -1246,8 +1608,8 @@ export function CertificateDesignEditor({
           </div>
 
           {/* Central canvas presentation layer */}
-          <div className="flex-1 bg-[#1e293b]/20 p-8 flex flex-col items-center justify-center overflow-auto relative">
-            <div className="absolute top-4 left-4 bg-slate-900/60 backdrop-blur-xs border border-slate-800/80 rounded-lg px-3 py-1.5 text-[10px] text-slate-405 flex items-center gap-1.5 pointer-events-none shadow-md">
+          <div className={`flex-1 p-8 flex flex-col items-center justify-center overflow-auto relative ${isDark ? "bg-[#1e293b]/20" : "bg-slate-300/20"}`}>
+            <div className={`absolute top-4 left-4 backdrop-blur-xs border rounded-lg px-3 py-1.5 text-[10px] flex items-center gap-1.5 pointer-events-none shadow-md ${isDark ? "bg-slate-900/60 border-slate-800/80 text-slate-400" : "bg-white/80 border-slate-200/80 text-slate-600"}`}>
               <Sparkles className="size-3.5 text-indigo-400 animate-pulse" />
               Arrastra los textos sobre la hoja para recolocarlos visualmente
             </div>
@@ -1255,7 +1617,7 @@ export function CertificateDesignEditor({
             {/* Simulated A4/A5 Document Sheet */}
             <div
               ref={canvasRef}
-              className="w-full max-w-3xl aspect-[1.414] bg-white border border-slate-800/70 shadow-2xl relative overflow-hidden select-none flex items-center justify-center transition-all duration-300 rounded-lg"
+              className={`w-full max-w-3xl aspect-[1.414] bg-white border shadow-2xl relative overflow-hidden select-none flex items-center justify-center transition-all duration-300 rounded-lg ${isDark ? "border-slate-800/70" : "border-slate-300/70"}`}
               style={{
                 backgroundImage: bgUrl ? `url(${bgUrl})` : "none",
                 backgroundSize: "contain",
@@ -1264,10 +1626,10 @@ export function CertificateDesignEditor({
               }}
             >
               {!bgUrl && (
-                <div className="text-center p-8 space-y-3 bg-[#111827]/40 backdrop-blur-xs border border-slate-800/60 rounded-2xl max-w-sm">
+                <div className={`text-center p-8 space-y-3 backdrop-blur-xs border rounded-2xl max-w-sm ${isDark ? "bg-[#111827]/40 border-slate-800/60" : "bg-slate-50/80 border-slate-200"}`}>
                   <Award className="size-16 mx-auto text-indigo-400/30 animate-pulse" />
-                  <p className="text-slate-300 text-sm font-semibold">Diseño de Certificado</p>
-                  <p className="text-xs text-slate-500 leading-normal">Configura las dimensiones e importa una imagen de fondo en la pestaña **Lienzo** para comenzar.</p>
+                  <p className={`text-sm font-semibold ${isDark ? "text-slate-300" : "text-slate-700"}`}>Diseño de Certificado</p>
+                  <p className={`text-xs leading-normal ${isDark ? "text-slate-500" : "text-slate-600"}`}>Configura las dimensiones e importa una imagen de fondo en la pestaña **Lienzo** para comenzar.</p>
                 </div>
               )}
 
@@ -1279,11 +1641,16 @@ export function CertificateDesignEditor({
                   return (
                     <div
                       key={el.id}
+                      data-element-id={el.id}
                       onMouseDown={(e) => handleDragStart(e, el.id)}
-                      className={`absolute p-2 rounded cursor-grab active:cursor-grabbing group transition-all duration-150 ${isActive
-                        ? "border-2 border-indigo-500 bg-indigo-500/5 ring-4 ring-indigo-500/10 shadow-lg shadow-indigo-500/5"
+                      className={`absolute p-2 rounded group transition-all duration-150 ${
+                        el.locked ? "cursor-default" : "cursor-grab active:cursor-grabbing"
+                      } ${isActive
+                        ? el.locked
+                          ? "border-2 border-amber-500 bg-amber-500/5 ring-4 ring-amber-500/10 shadow-lg shadow-amber-500/5"
+                          : "border-2 border-indigo-500 bg-indigo-500/5 ring-4 ring-indigo-500/10 shadow-lg shadow-indigo-500/5"
                         : "hover:border hover:border-slate-400 hover:bg-white/10"
-                        }`}
+                      }`}
                       style={{
                         left: `${el.x}%`,
                         top: `${el.y}%`,
@@ -1294,7 +1661,104 @@ export function CertificateDesignEditor({
                         whiteSpace: (el.autoWidth ?? true) ? "nowrap" : "normal"
                       }}
                     >
-                      <div className="absolute -top-4.5 left-1/2 -translate-x-1/2 hidden group-hover:flex items-center gap-1 bg-indigo-600 text-[8px] text-white font-bold px-1.5 py-0.5 rounded shadow-md pointer-events-none tracking-wider uppercase">
+                      {/* Selection handles (corners and sides) */}
+                      {isActive && (
+                        <>
+                          {/* Corner handles */}
+                          <div
+                            onMouseDown={(e) => handleResizeFontSizeStart(e, el.id)}
+                            className={`absolute -top-1.5 -left-1.5 w-3 h-3 rounded-full border-2 border-indigo-500 bg-white dark:bg-slate-900 z-30 shadow-md animate-in fade-in duration-200 ${
+                              el.locked ? "cursor-default" : "cursor-nwse-resize"
+                            }`}
+                          />
+                          <div
+                            onMouseDown={(e) => handleResizeFontSizeStart(e, el.id)}
+                            className={`absolute -top-1.5 -right-1.5 w-3 h-3 rounded-full border-2 border-indigo-500 bg-white dark:bg-slate-900 z-30 shadow-md animate-in fade-in duration-200 ${
+                              el.locked ? "cursor-default" : "cursor-nesw-resize"
+                            }`}
+                          />
+                          <div
+                            onMouseDown={(e) => handleResizeFontSizeStart(e, el.id)}
+                            className={`absolute -bottom-1.5 -left-1.5 w-3 h-3 rounded-full border-2 border-indigo-500 bg-white dark:bg-slate-900 z-30 shadow-md animate-in fade-in duration-200 ${
+                              el.locked ? "cursor-default" : "cursor-nesw-resize"
+                            }`}
+                          />
+                          <div
+                            onMouseDown={(e) => handleResizeFontSizeStart(e, el.id)}
+                            className={`absolute -bottom-1.5 -right-1.5 w-3 h-3 rounded-full border-2 border-indigo-500 bg-indigo-650 z-30 shadow-md animate-in fade-in duration-200 ${
+                              el.locked ? "cursor-default" : "cursor-nwse-resize"
+                            }`}
+                          />
+
+                          {/* Side handles */}
+                          <div
+                            onMouseDown={(e) => handleResizeWidthStart(e, el.id)}
+                            className={`absolute top-1/2 -translate-y-1/2 -left-1 w-1.5 h-3 rounded-full border border-indigo-550 bg-white dark:bg-slate-900 z-30 shadow-md animate-in fade-in duration-200 ${
+                              el.locked ? "cursor-default" : "cursor-ew-resize"
+                            }`}
+                          />
+                          <div
+                            onMouseDown={(e) => handleResizeWidthStart(e, el.id)}
+                            className={`absolute top-1/2 -translate-y-1/2 -right-1 w-1.5 h-3 rounded-full border border-indigo-550 bg-white dark:bg-slate-900 z-30 shadow-md animate-in fade-in duration-200 ${
+                              el.locked ? "cursor-default" : "cursor-ew-resize"
+                            }`}
+                          />
+                        </>
+                      )}
+
+                      {/* Floating Action Toolbar */}
+                      {isActive && (
+                        <div
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onClick={(e) => e.stopPropagation()}
+                          className="absolute -top-12 left-1/2 -translate-x-1/2 flex items-center bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200/90 dark:border-slate-800/90 rounded-lg shadow-xl px-1.5 py-1 z-35 gap-1.5 animate-in fade-in zoom-in-95 duration-150 text-slate-700 dark:text-slate-250 shrink-0"
+                        >
+                          {el.id !== "qr" && (
+                            <button
+                              onClick={() => setEditingElementId(el.id)}
+                              className="p-1.5 rounded-md hover:bg-slate-105 dark:hover:bg-slate-800 text-slate-500 hover:text-indigo-500 transition-colors cursor-pointer"
+                              title="Editar texto"
+                            >
+                              <Edit className="size-3.5" />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleToggleLockElement(el.id)}
+                            className={`p-1.5 rounded-md hover:bg-slate-105 dark:hover:bg-slate-800 transition-colors cursor-pointer ${
+                              el.locked ? "text-amber-500 hover:text-amber-600" : "text-slate-500 hover:text-amber-505"
+                            }`}
+                            title={el.locked ? "Desbloquear posición" : "Bloquear posición"}
+                          >
+                            {el.locked ? <Lock className="size-3.5" /> : <Unlock className="size-3.5" />}
+                          </button>
+                          <button
+                            onClick={() => handleDuplicateElement(el.id)}
+                            className="p-1.5 rounded-md hover:bg-slate-105 dark:hover:bg-slate-800 text-slate-500 hover:text-emerald-500 transition-colors cursor-pointer"
+                            title="Duplicar elemento"
+                          >
+                            <Copy className="size-3.5" />
+                          </button>
+                          <div className="w-[1px] h-4 bg-slate-200 dark:bg-slate-850 self-center" />
+                          <button
+                            onClick={() => {
+                              if (schema.elements.length <= 1) {
+                                toast.error("Debe haber al menos un elemento en el certificado.")
+                                return
+                              }
+                              const filtered = schema.elements.filter((item) => item.id !== el.id)
+                              setSchema(prev => ({ ...prev, elements: filtered }))
+                              setActiveElementId(filtered[0]?.id || "")
+                              toast.success("Elemento eliminado")
+                            }}
+                            className="p-1.5 rounded-md hover:bg-red-500/10 text-slate-500 hover:text-red-500 transition-colors cursor-pointer"
+                            title="Eliminar elemento"
+                          >
+                            <Trash2 className="size-3.5" />
+                          </button>
+                        </div>
+                      )}
+
+                      <div className={`absolute -top-4.5 left-1/2 -translate-x-1/2 ${isActive ? "hidden" : "hidden group-hover:flex"} items-center gap-1 bg-indigo-600 text-[8px] text-white font-bold px-1.5 py-0.5 rounded shadow-md pointer-events-none tracking-wider uppercase`}>
                         <Move className="size-2.5" />
                         <span>{el.label}</span>
                       </div>
@@ -1302,7 +1766,7 @@ export function CertificateDesignEditor({
                       {el.id === "qr" ? (
                         <div
                           style={{
-                            width: `${(el.qrSize || 120) * 0.5}px`
+                            width: `${(el.qrSize || 120) * scale}px`
                           }}
                           className="bg-white p-1 rounded-sm shadow-xs"
                         >
@@ -1322,7 +1786,7 @@ export function CertificateDesignEditor({
                           autoFocus
                           style={{
                             fontFamily: el.fontFamily,
-                            fontSize: `${el.fontSize * 0.5}px`,
+                            fontSize: `${el.fontSize * scale}px`,
                             color: el.color,
                             fontWeight: el.fontWeight,
                             textAlign: el.align,
@@ -1341,7 +1805,7 @@ export function CertificateDesignEditor({
                           onDoubleClick={() => setEditingElementId(el.id)}
                           style={{
                             fontFamily: el.fontFamily,
-                            fontSize: `${el.fontSize * 0.5}px`, // Scaled for screen preview
+                            fontSize: `${el.fontSize * scale}px`, // Scaled for screen preview
                             color: el.color,
                             fontWeight: el.fontWeight,
                             textAlign: el.align,
@@ -1367,17 +1831,17 @@ export function CertificateDesignEditor({
 
       {/* Format Selection Dialog */}
       <Dialog open={isDownloadModalOpen} onOpenChange={setIsDownloadModalOpen}>
-        <DialogContent className="sm:max-w-md bg-slate-900 border-slate-800 text-slate-100">
+        <DialogContent className={`sm:max-w-md border ${isDark ? "bg-slate-900 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-900"}`}>
           <DialogHeader>
-            <DialogTitle className="text-slate-100">Descargar Certificado de Prueba</DialogTitle>
-            <DialogDescription className="text-slate-400">
+            <DialogTitle className={isDark ? "text-slate-100" : "text-slate-900"}>Descargar Certificado de Prueba</DialogTitle>
+            <DialogDescription className={isDark ? "text-slate-400" : "text-slate-500"}>
               Selecciona el formato en el que deseas descargar la muestra del certificado.
             </DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-4 py-4">
             <Button
               variant="outline"
-              className="flex flex-col items-center gap-3 py-6 h-auto cursor-pointer border-slate-800 hover:border-indigo-500 bg-slate-950 hover:bg-slate-900 text-slate-300 hover:text-white transition-all duration-300"
+              className={`flex flex-col items-center gap-3 py-6 h-auto cursor-pointer border hover:border-indigo-500 transition-all duration-300 ${isDark ? "border-slate-800 bg-slate-950 hover:bg-slate-900 text-slate-300 hover:text-white" : "border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-indigo-600"}`}
               onClick={() => {
                 setIsDownloadModalOpen(false)
                 handleTestDownload("png")
@@ -1386,12 +1850,12 @@ export function CertificateDesignEditor({
               <Award className="size-8 text-indigo-400" />
               <div className="text-center">
                 <div className="font-bold text-xs">Descargar Imagen</div>
-                <div className="text-[10px] text-slate-500 mt-0.5">Formato PNG en alta resolución</div>
+                <div className={`text-[10px] mt-0.5 ${isDark ? "text-slate-500" : "text-slate-600"}`}>Formato PNG en alta resolución</div>
               </div>
             </Button>
             <Button
               variant="outline"
-              className="flex flex-col items-center gap-3 py-6 h-auto cursor-pointer border-slate-800 hover:border-indigo-500 bg-slate-950 hover:bg-slate-900 text-slate-300 hover:text-white transition-all duration-300"
+              className={`flex flex-col items-center gap-3 py-6 h-auto cursor-pointer border hover:border-indigo-500 transition-all duration-300 ${isDark ? "border-slate-800 bg-slate-950 hover:bg-slate-900 text-slate-300 hover:text-white" : "border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-indigo-600"}`}
               onClick={() => {
                 setIsDownloadModalOpen(false)
                 handleTestDownload("pdf")
@@ -1400,13 +1864,44 @@ export function CertificateDesignEditor({
               <Download className="size-8 text-indigo-400" />
               <div className="text-center">
                 <div className="font-bold text-xs">Descargar PDF</div>
-                <div className="text-[10px] text-slate-500 mt-0.5">Documento vectorial listo para imprimir</div>
+                <div className={`text-[10px] mt-0.5 ${isDark ? "text-slate-500" : "text-slate-600"}`}>Documento vectorial listo para imprimir</div>
               </div>
             </Button>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setIsDownloadModalOpen(false)} className="text-xs cursor-pointer hover:bg-slate-800 text-slate-400 hover:text-slate-200">
+            <Button variant="ghost" onClick={() => setIsDownloadModalOpen(false)} className={`text-xs cursor-pointer ${isDark ? "hover:bg-slate-800 text-slate-400 hover:text-slate-200" : "hover:bg-slate-100 text-slate-500 hover:text-slate-700"}`}>
               Cancelar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Unsaved Changes Confirmation Dialog */}
+      <Dialog open={isCloseConfirmationOpen} onOpenChange={setIsCloseConfirmationOpen}>
+        <DialogContent className={`sm:max-w-md border ${isDark ? "bg-slate-900 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-900"}`}>
+          <DialogHeader>
+            <DialogTitle className={isDark ? "text-slate-100" : "text-slate-900"}>¿Salir sin guardar cambios?</DialogTitle>
+            <DialogDescription className={isDark ? "text-slate-400" : "text-slate-500"}>
+              Tienes cambios sin guardar en el diseño de tu certificado. Si sales ahora, perderás todos los cambios realizados desde tu último guardado.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="ghost"
+              onClick={() => setIsCloseConfirmationOpen(false)}
+              className={`text-xs cursor-pointer ${isDark ? "hover:bg-slate-800 text-slate-400 hover:text-slate-200" : "hover:bg-slate-100 text-slate-500 hover:text-slate-700"}`}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setIsCloseConfirmationOpen(false)
+                onClose()
+              }}
+              className="text-xs cursor-pointer bg-red-650 hover:bg-red-750 text-white font-bold"
+            >
+              Salir sin guardar
             </Button>
           </DialogFooter>
         </DialogContent>
