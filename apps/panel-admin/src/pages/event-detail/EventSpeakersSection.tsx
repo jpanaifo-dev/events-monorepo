@@ -3,6 +3,7 @@ import { useParams, useNavigate, useSearchParams } from "react-router-dom"
 import { useEventStore } from "@/store/event.store"
 import { Plus, Edit, Trash2, Globe, Layers, BookOpen, Search, Loader2, UserCheck, Check, Download, Upload, ExternalLink, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react"
 import { DataTable, type ColumnDef } from "@/components/ui/data-table"
+import { TablePagination } from "@/components/ui/table-pagination"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
@@ -626,48 +627,20 @@ export function EventSpeakersSection() {
         </div>
       ) : (
         <div className="space-y-4">
-          <DataTable columns={columns} data={eventSpeakers} />
+          <DataTable columns={columns} data={eventSpeakers} pagination={false} />
 
           {/* Pagination Controls */}
-          {speakersTotalCount > pageSize && (
-            <div className="flex items-center justify-between border-t border-border pt-4 text-xs text-muted-foreground">
-              <div>
-                Mostrando <strong className="text-foreground">{eventSpeakers.length}</strong> de{" "}
-                <strong className="text-foreground">{speakersTotalCount}</strong> ponentes
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={currentPage <= 1}
-                  onClick={() => {
-                    setCurrentPage(prev => prev - 1)
-                    setSelectedSpeakerIds([])
-                    setSelectAllDB(false)
-                  }}
-                  className="text-xs h-8 px-2.5"
-                >
-                  Anterior
-                </Button>
-                <span className="px-2 font-medium">
-                  Página {currentPage} de {Math.ceil(speakersTotalCount / pageSize)}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={currentPage >= Math.ceil(speakersTotalCount / pageSize)}
-                  onClick={() => {
-                    setCurrentPage(prev => prev + 1)
-                    setSelectedSpeakerIds([])
-                    setSelectAllDB(false)
-                  }}
-                  className="text-xs h-8 px-2.5"
-                >
-                  Siguiente
-                </Button>
-              </div>
-            </div>
-          )}
+          {speakersTotalCount > pageSize && <TablePagination
+            page={currentPage}
+            pageSize={pageSize}
+            totalItems={speakersTotalCount}
+            loading={isFetching}
+            onPageChange={(nextPage) => {
+              setCurrentPage(nextPage)
+              setSelectedSpeakerIds([])
+              setSelectAllDB(false)
+            }}
+          />}
         </div>
       )}
     </div>
