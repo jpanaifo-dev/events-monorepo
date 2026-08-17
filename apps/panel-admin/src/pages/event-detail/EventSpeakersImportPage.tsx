@@ -492,7 +492,7 @@ export function EventSpeakersImportPage() {
           <div className="border border-border rounded-xl overflow-hidden bg-card/5">
             <div className="overflow-x-auto max-h-[400px]">
               <table className="w-full text-xs text-left border-collapse">
-                <thead className="bg-muted/50 sticky top-0 uppercase font-bold text-muted-foreground border-b border-border text-[10px] tracking-wider">
+                <thead className="bg-muted/50 sticky top-0 font-semibold text-muted-foreground border-b border-border text-[10px] tracking-wider">
                   <tr>
                     <th className="p-3">Estado</th>
                     <th className="p-3">Nombre</th>
