@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
 import { IsUUID } from 'class-validator';
 import { ParticipantsService } from './participants.service.js';
 class AddParticipantDto { @IsUUID() profileId!: string; }
@@ -8,5 +8,6 @@ export class ParticipantsController {
   @Get('editions/:editionId/participants') list(@Param('editionId') editionId: string) { return this.participants.list(editionId); }
   @Post('editions/:editionId/participants') add(@Param('editionId') editionId: string, @Body() dto: AddParticipantDto) { return this.participants.add(editionId, dto.profileId); }
   @Get('participants/:id') get(@Param('id') id: string) { return this.participants.get(id); }
+  @Patch('participants/:id') update(@Param('id') id: string, @Body() body: { checkedIn?: boolean }) { return this.participants.update(id, body); }
   @Delete('participants/:id') remove(@Param('id') id: string) { return this.participants.remove(id); }
 }

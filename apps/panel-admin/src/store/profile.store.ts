@@ -1,5 +1,6 @@
 import { create } from "zustand"
 import { supabase } from "@/utils/supabase"
+import { api } from "@/api/client"
 
 export interface Education {
   id: string
@@ -133,29 +134,11 @@ export const useProfileStore = create<ProfileState>((set) => ({
   loadProfileData: async (userId) => {
     set({ isLoading: true })
     try {
-      // 1. Fetch education
-      const { data: eduData, error: eduError } = await supabase
-        .from("education")
-        .select("*")
-        .eq("user_id", userId)
-        .order("start_date", { ascending: false })
-      if (eduError) throw eduError
-
-      // 2. Fetch employment history
-      const { data: empData, error: empError } = await supabase
-        .from("employment_history")
-        .select("*")
-        .eq("user_id", userId)
-        .order("start_date", { ascending: false })
-      if (empError) throw empError
-
-      // 3. Fetch certifications
-      const { data: certData, error: certError } = await supabase
-        .from("certifications")
-        .select("*")
-        .eq("user_id", userId)
-        .order("issue_date", { ascending: false })
-      if (certError) throw certError
+      const [eduData, empData, certData] = await Promise.all([
+        api.profiles.education(userId),
+        api.profiles.employment(userId),
+        api.profiles.certifications(userId),
+      ])
 
       set({
         education: (eduData || []).map(mapEducation),

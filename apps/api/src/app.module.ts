@@ -8,6 +8,7 @@ import { EventsModule } from './modules/events/events.module.js';
 import { EditionsModule } from './modules/editions/editions.module.js';
 import { ParticipantsModule } from './modules/participants/participants.module.js';
 import { CertificatesModule } from './modules/certificates/certificates.module.js';
+import { EventContentModule } from './modules/event-content/event-content.module.js';
 
-@Module({ imports: [AuthModule, ProfilesModule, OrganizationsModule, EventsModule, EditionsModule, ParticipantsModule, CertificatesModule], controllers: [HealthController], providers: [PrismaService], exports: [PrismaService] })
+@Module({ imports: [AuthModule, ProfilesModule, OrganizationsModule, EventsModule, EditionsModule, ParticipantsModule, CertificatesModule, EventContentModule], controllers: [HealthController], providers: [PrismaService], exports: [PrismaService] })
 export class AppModule {}

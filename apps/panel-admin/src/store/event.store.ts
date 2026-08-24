@@ -2,6 +2,7 @@ import { create } from "zustand"
 import { supabase } from "@/utils/supabase"
 import { useAuthStore } from "./auth.store"
 import { uploadToR2 } from "@/utils/r2-storage"
+import { api } from "@/api/client"
 
 export interface Event {
   id: string
@@ -249,14 +250,14 @@ function slugify(text: string): string {
 function mapMainEvent(row: any): Event {
   return {
     id: row.id,
-    organizationId: row.organization_id,
-    ownerId: row.owner_id,
+    organizationId: row.organization_id || row.organizationId,
+    ownerId: row.owner_id || row.ownerId || "",
     slug: row.slug,
-    name: row.name,
-    shortDescription: row.short_description || "",
+    name: row.name || row.eventName,
+    shortDescription: row.short_description || row.description || "",
     about: row.about || null,
-    logoUrl: row.logo_url || "",
-    coverUrl: row.cover_url || "",
+    logoUrl: row.logo_url || row.logoUrl || "",
+    coverUrl: row.cover_url || row.coverUrl || "",
     brandColors: row.brand_colors || { primary: "#000000", secondary: "#ffffff" },
     status: row.status || "draft",
     isActive: row.is_active !== false,
@@ -264,22 +265,22 @@ function mapMainEvent(row: any): Event {
     contactEmail: row.contact_email || "",
     socialLinks: row.social_links || { twitter: "", facebook: "", linkedin: "", instagram: "" },
     settings: row.settings || {},
-    createdAt: row.created_at || "",
-    updatedAt: row.updated_at || "",
+    createdAt: row.created_at || row.createdAt || "",
+    updatedAt: row.updated_at || row.updatedAt || "",
   }
 }
 
 function mapEdition(row: any): Edition {
   return {
     id: row.id,
-    mainEventId: row.main_event_id,
+    mainEventId: row.main_event_id || row.mainEventId,
     slug: row.slug,
     year: row.year || new Date().getFullYear(),
     name: typeof row.name === "string" ? row.name : (row.name?.es || row.name?.en || "Edición"),
     description: typeof row.description === "string" ? row.description : (row.description?.es || row.description?.en || ""),
     coverUrl: row.cover_url || "",
-    startDate: row.start_date || "",
-    endDate: row.end_date || "",
+    startDate: row.start_date || row.startDate || "",
+    endDate: row.end_date || row.endDate || "",
     isCurrent: !!row.is_current,
     location: row.location || "",
     modality: row.modality || "",
@@ -349,37 +350,20 @@ export const useEventStore = create<EventState>((set, get) => ({
   loadData: async (organizationId, filters) => {
     set({ isLoading: true })
     try {
-      let query = supabase
-        .from("main_events")
-        .select("*")
-        .eq("organization_id", organizationId)
-        .order("created_at", { ascending: false })
-
-      if (filters?.search) {
-        query = query.or(`name.ilike.%${filters.search}%,short_description.ilike.%${filters.search}%`)
-      }
-      if (filters?.status && filters.status !== "all") {
-        query = query.eq("status", filters.status)
-      }
-
-      const { data: eventsData, error: eventsError } = await query
-      if (eventsError) throw eventsError
-
+      const eventsData = await api.events.list(organizationId)
       let formattedEvents: Event[] = (eventsData || []).map(mapMainEvent)
+      if (filters?.search) {
+        const search = filters.search.toLowerCase()
+        formattedEvents = formattedEvents.filter((event) => event.name.toLowerCase().includes(search) || event.shortDescription.toLowerCase().includes(search))
+      }
+      if (filters?.status && filters.status !== "all") formattedEvents = formattedEvents.filter((event) => event.status === filters.status)
       const mainEventIds = formattedEvents.map((e) => e.id)
 
       // Fetch editions
       let formattedEditions: Edition[] = []
       if (mainEventIds.length > 0) {
-        const { data: editionsData } = await supabase
-          .from("editions")
-          .select("*")
-          .in("main_event_id", mainEventIds)
-          .order("year", { ascending: false })
-
-        if (editionsData) {
-          formattedEditions = editionsData.map(mapEdition)
-        }
+        const editionsData = (await Promise.all(mainEventIds.map((eventId) => api.editions.list(eventId)))).flat()
+        formattedEditions = editionsData.map(mapEdition)
       }
 
       // Filter by hasEditions (post-fetch)
@@ -592,26 +576,7 @@ export const useEventStore = create<EventState>((set, get) => ({
         }
       }
 
-      const { error } = await supabase.from("main_events").insert([{
-        id,
-        organization_id: org.id,
-        owner_id: user.id,
-        slug,
-        name: restData.name,
-        short_description: restData.shortDescription || null,
-        about: restData.about || null,
-        logo_url: logoUrl || null,
-        cover_url: coverUrl || null,
-        brand_colors: restData.brandColors || { primary: "#000000", secondary: "#ffffff" },
-        status: restData.status || "draft",
-        is_active: restData.isActive !== false,
-        website_url: restData.websiteUrl || null,
-        contact_email: restData.contactEmail || null,
-        social_links: restData.socialLinks || { twitter: "", facebook: "", linkedin: "", instagram: "" },
-        settings: restData.settings || {},
-      }])
-
-      if (error) throw error
+      await api.events.create({ eventName: restData.name, startDate: new Date().toISOString(), organizationId: org.id, description: restData.shortDescription || undefined })
 
       const newEvent: Event = {
         ...restData,
@@ -673,8 +638,7 @@ export const useEventStore = create<EventState>((set, get) => ({
       mappedUpdates.updated_at = new Date().toISOString()
 
       if (Object.keys(mappedUpdates).length > 1) {
-        const { error } = await supabase.from("main_events").update(mappedUpdates).eq("id", id)
-        if (error) throw error
+        await api.events.update(id, { eventName: mappedUpdates.name, description: mappedUpdates.description, status: mappedUpdates.status, coverUrl, logoUrl })
       }
 
       set((state) => ({
@@ -702,8 +666,7 @@ export const useEventStore = create<EventState>((set, get) => ({
         await supabase.from("event_activities").delete().in("event_id", editionIds)
       }
       await supabase.from("thematic_lines").delete().eq("main_event_id", id)
-      await supabase.from("editions").delete().eq("main_event_id", id)
-      await supabase.from("main_events").delete().eq("id", id)
+      await api.events.remove(id)
 
       set((state) => ({
         events: state.events.filter((e) => e.id !== id),
@@ -729,22 +692,7 @@ export const useEventStore = create<EventState>((set, get) => ({
         ? parseInt(editionData.startDate.substring(0, 4))
         : new Date().getFullYear()
 
-      const { error } = await supabase.from("editions").insert([{
-        id,
-        main_event_id: editionData.mainEventId,
-        slug,
-        year: yearVal,
-        name: typeof editionData.name === "string" ? { es: editionData.name } : editionData.name,
-        description: editionData.description ? { es: editionData.description } : null,
-        cover_url: editionData.coverUrl || null,
-        start_date: editionData.startDate || null,
-        end_date: editionData.endDate || null,
-        is_current: editionData.isCurrent,
-        location: editionData.location || null,
-        modality: editionData.modality || null,
-      }])
-
-      if (error) throw error
+      await api.editions.create(editionData.mainEventId, { name: String(editionData.name), startDate: editionData.startDate, endDate: editionData.endDate })
 
       const newEdition: Edition = {
         id,
@@ -783,8 +731,9 @@ export const useEventStore = create<EventState>((set, get) => ({
       if (updates.modality !== undefined) mappedUpdates.modality = updates.modality || null
       mappedUpdates.updated_at = new Date().toISOString()
 
-      const { error } = await supabase.from("editions").update(mappedUpdates).eq("id", id)
-      if (error) throw error
+      const currentEdition = get().editions.find((edition) => edition.id === id)
+      if (!currentEdition) throw new Error("Edición no encontrada")
+      await api.editions.update(currentEdition.mainEventId, id, { name: updates.name, startDate: updates.startDate, endDate: updates.endDate })
 
       set((state) => ({
         editions: state.editions.map((ed) => ed.id === id ? { ...ed, ...updates } : ed)
@@ -799,7 +748,9 @@ export const useEventStore = create<EventState>((set, get) => ({
     try {
       await supabase.from("event_participants").delete().eq("edition_id", id)
       await supabase.from("thematic_lines").delete().eq("edition_id", id)
-      await supabase.from("editions").delete().eq("id", id)
+      const currentEdition = get().editions.find((edition) => edition.id === id)
+      if (!currentEdition) throw new Error("Edición no encontrada")
+      await api.editions.remove(currentEdition.mainEventId, id)
 
       set((state) => ({
         editions: state.editions.filter((ed) => ed.id !== id),
@@ -813,6 +764,13 @@ export const useEventStore = create<EventState>((set, get) => ({
 
   addSpeaker: async (speakerData) => {
     try {
+      if (speakerData.editionId) {
+        const created = await api.content.createSpeaker(speakerData.eventId, { editionId: speakerData.editionId, firstName: speakerData.firstName, lastName: speakerData.lastName, bio: speakerData.bio })
+        const profile = created.profile || {}
+        const participantId = created.id
+        set((state) => ({ speakers: [...state.speakers, { ...speakerData, id: participantId, profileId: profile.id || "", name: `${speakerData.firstName} ${speakerData.lastName}`.trim(), checkedIn: false }] as Speaker[] }))
+        return participantId
+      }
       let profileId = speakerData.profileId || crypto.randomUUID()
       let avatarUrl = speakerData.avatar
 
@@ -899,6 +857,7 @@ export const useEventStore = create<EventState>((set, get) => ({
 
   updateSpeaker: async (id, updates) => {
     try {
+      await api.content.updateSpeaker(id, { firstName: updates.firstName, lastName: updates.lastName, bio: updates.bio })
       const current = get().speakers.find((s) => s.id === id)
       if (!current) throw new Error("Speaker not found")
 
@@ -913,9 +872,7 @@ export const useEventStore = create<EventState>((set, get) => ({
       if (updates.identityDocumentNumber !== undefined) profileUpdates.identity_document_number = updates.identityDocumentNumber || null
       if (updates.institution !== undefined) profileUpdates.institution = updates.institution || null
 
-      if (Object.keys(profileUpdates).length > 0) {
-        await supabase.from("profiles").update(profileUpdates).eq("id", current.profileId)
-      }
+      if (Object.keys(profileUpdates).length > 0) await api.profiles.update(current.profileId, { firstName: updates.firstName, lastName: updates.lastName, bio: updates.bio })
 
       // 2. Update Participant in DB
       const participantUpdates: any = {}
@@ -960,16 +917,7 @@ export const useEventStore = create<EventState>((set, get) => ({
 
   deleteSpeaker: async (id) => {
     try {
-      const { data: partData } = await supabase
-        .from("event_participants")
-        .select("profile_id")
-        .eq("id", id)
-        .maybeSingle()
-
-      await supabase.from("event_participants").delete().eq("id", id)
-      if (partData?.profile_id) {
-        await supabase.from("profiles").delete().eq("id", partData.profile_id)
-      }
+      await api.content.removeSpeaker(id)
 
       set((state) => ({
         speakers: state.speakers.filter((s) => s.id !== id),
@@ -981,32 +929,12 @@ export const useEventStore = create<EventState>((set, get) => ({
   },
 
   addAgendaItem: async (itemData) => {
-    const id = crypto.randomUUID()
-    try {
-      const { error } = await supabase.from("event_activities").insert([{
-        id,
-        event_id: itemData.eventId,
-        edition_id: itemData.editionId || null,
-        parent_activity_id: itemData.parentActivityId || null,
-        activity_name: itemData.title,
-        description: itemData.description || null,
-        custom_location: itemData.stage,
-        speaker_id: itemData.speakerId || null,
-        start_time: itemData.startTime || null,
-        end_time: itemData.endTime || null,
-        duration: itemData.duration || null,
-        meeting_url: itemData.meetingUrl || null,
-        activity_mode: itemData.activityMode || "PRESENCIAL",
-        status: itemData.status || "PUBLIC",
-        order_index: itemData.orderIndex ?? 0,
-        start_date: itemData.startDate || null,
-        end_date: itemData.endDate || null,
-      }])
-
-      if (error) throw error
+      try {
+      if (!itemData.editionId) throw new Error("La agenda requiere una edición")
+      const created = await api.content.createActivity(itemData.editionId, { title: itemData.title, description: itemData.description, startsAt: itemData.startTime, endsAt: itemData.endTime })
 
       set((state) => ({
-        agendaItems: [...state.agendaItems, { id, ...itemData }]
+        agendaItems: [...state.agendaItems, { id: created.id, ...itemData }]
       }))
     } catch (e) {
       console.error("Error adding agenda activity:", e)
@@ -1033,8 +961,7 @@ export const useEventStore = create<EventState>((set, get) => ({
       if (updates.editionId !== undefined) mappedUpdates.edition_id = updates.editionId || null
       if (updates.parentActivityId !== undefined) mappedUpdates.parent_activity_id = updates.parentActivityId || null
 
-      const { error } = await supabase.from("event_activities").update(mappedUpdates).eq("id", id)
-      if (error) throw error
+      await api.content.updateActivity(id, { title: updates.title, description: updates.description, startsAt: updates.startTime, endsAt: updates.endTime })
 
       set((state) => ({
         agendaItems: state.agendaItems.map((a) => a.id === id ? { ...a, ...updates } : a)
@@ -1047,7 +974,7 @@ export const useEventStore = create<EventState>((set, get) => ({
 
   deleteAgendaItem: async (id) => {
     try {
-      await supabase.from("event_activities").delete().eq("id", id)
+      await api.content.removeActivity(id)
       set((state) => ({
         agendaItems: state.agendaItems.filter((a) => a.id !== id)
       }))
@@ -1174,9 +1101,7 @@ export const useEventStore = create<EventState>((set, get) => ({
       const attendee = get().attendees.find((a) => a.id === id)
       if (!attendee) return
 
-      await supabase.from("event_participants").update({
-        check_in_status: !attendee.checkedIn
-      }).eq("id", id)
+      await api.participants.update(id, { checkedIn: !attendee.checkedIn })
 
       set((state) => ({
         attendees: state.attendees.map((at) => at.id === id ? { ...at, checkedIn: !at.checkedIn } : at)
@@ -1187,16 +1112,7 @@ export const useEventStore = create<EventState>((set, get) => ({
   },
   deleteAttendee: async (id) => {
     try {
-      const { data: partData } = await supabase
-        .from("event_participants")
-        .select("profile_id")
-        .eq("id", id)
-        .maybeSingle()
-
-      await supabase.from("event_participants").delete().eq("id", id)
-      if (partData?.profile_id) {
-        await supabase.from("profiles").delete().eq("id", partData.profile_id)
-      }
+      await api.participants.remove(id)
 
       set((state) => ({
         attendees: state.attendees.filter((at) => at.id !== id)
@@ -1208,15 +1124,8 @@ export const useEventStore = create<EventState>((set, get) => ({
 
   loadRoles: async (mainEventId) => {
     try {
-      const { data, error } = await supabase
-        .from("participant_roles")
-        .select("*")
-        .eq("main_event_id", mainEventId)
-        .order("created_at", { ascending: false })
-
-      if (error) throw error
-
-      set({ roles: (data || []).map(mapParticipantRole) })
+      const data = await api.content.roles(mainEventId)
+      set({ roles: (data || []).map((row: any) => ({ id: row.id, mainEventId, editionId: null, slug: row.name.toLowerCase().replace(/\s+/g, "-"), name: { es: row.name }, badgeColor: null, isActive: true, createdAt: row.createdAt || new Date().toISOString() })) })
     } catch (e) {
       console.error("Error loading participant roles:", e)
     }
@@ -1225,6 +1134,12 @@ export const useEventStore = create<EventState>((set, get) => ({
   loadFilteredSpeakers: async (eventId, filters) => {
     set({ isLoading: true })
     try {
+      const rows = await api.content.speakers(eventId, filters?.editionId && filters.editionId !== "all" ? filters.editionId : undefined)
+      let formatted = rows.map((row: any) => { const p = row.profile || {}; const name = `${p.firstName || ""} ${p.lastName || ""}`.trim() || "Participante"; return { id: row.id, eventId, editionId: row.editionId, profileId: p.id || "", roleId: "", roleSlug: "speaker", firstName: p.firstName || "", lastName: p.lastName || "", name, email: p.email || "", avatar: p.avatarUrl || "", talkTitle: "", talkDescription: p.bio || "", bio: p.bio || "", checkedIn: !!row.checkedIn, identityDocumentType: null, identityDocumentNumber: null, institution: "" } as Speaker })
+      if (filters?.search) { const query = filters.search.toLowerCase(); formatted = formatted.filter((speaker) => speaker.name.toLowerCase().includes(query) || (speaker.email || "").toLowerCase().includes(query)) }
+      set({ speakers: formatted, speakersTotalCount: formatted.length, isLoading: false })
+      return
+      /* legacy speaker query removed; API response above is authoritative.
       const { data: rolesData, error: rolesError } = await supabase
         .from("participant_roles")
         .select("*")
@@ -1380,6 +1295,7 @@ export const useEventStore = create<EventState>((set, get) => ({
           roles: formattedRoles
         }
       })
+      */
     } catch (e) {
       console.error("Error loading filtered speakers:", e)
     } finally {
@@ -1389,6 +1305,9 @@ export const useEventStore = create<EventState>((set, get) => ({
 
   fetchAllSpeakersForExport: async (eventId, filters) => {
     try {
+      const rows = await api.content.speakers(eventId, filters?.editionId && filters.editionId !== "all" ? filters.editionId : undefined)
+      return rows.map((row: any) => { const p = row.profile || {}; const name = `${p.firstName || ""} ${p.lastName || ""}`.trim(); return { id: row.id, eventId, editionId: row.editionId, profileId: p.id || "", roleId: "", roleSlug: "speaker", firstName: p.firstName || "", lastName: p.lastName || "", name, email: p.email || null, avatar: p.avatarUrl || "", talkTitle: "", talkDescription: p.bio || "", bio: p.bio || "", checkedIn: !!row.checkedIn, identityDocumentType: null, identityDocumentNumber: null, institution: null } as Speaker })
+      /* legacy export query removed; API response above is authoritative.
       const { data: rolesData, error: rolesError } = await supabase
         .from("participant_roles")
         .select("*")
@@ -1476,6 +1395,7 @@ export const useEventStore = create<EventState>((set, get) => ({
       }
 
       return formattedSpeakers
+      */
     } catch (e) {
       console.error("Error fetching all speakers for export:", e)
       return []
@@ -1484,22 +1404,8 @@ export const useEventStore = create<EventState>((set, get) => ({
 
   addRole: async (roleData) => {
     try {
-      const id = crypto.randomUUID()
-      const newRole = {
-        id,
-        main_event_id: roleData.mainEventId,
-        edition_id: roleData.editionId,
-        slug: roleData.slug,
-        name: roleData.name,
-        badge_color: roleData.badgeColor,
-        is_active: roleData.isActive,
-      }
-
-      const { error } = await supabase
-        .from("participant_roles")
-        .insert([newRole])
-
-      if (error) throw error
+      const created = await api.content.createRole({ name: roleData.name.es || roleData.name.en || roleData.slug, mainEventId: roleData.mainEventId, editionId: roleData.editionId || undefined })
+      const id = created.id
 
       const mapped: ParticipantRole = {
         id,
@@ -1523,20 +1429,7 @@ export const useEventStore = create<EventState>((set, get) => ({
 
   updateRole: async (id, updates) => {
     try {
-      const dbUpdates: any = {}
-      if (updates.mainEventId !== undefined) dbUpdates.main_event_id = updates.mainEventId
-      if (updates.editionId !== undefined) dbUpdates.edition_id = updates.editionId
-      if (updates.slug !== undefined) dbUpdates.slug = updates.slug
-      if (updates.name !== undefined) dbUpdates.name = updates.name
-      if (updates.badgeColor !== undefined) dbUpdates.badge_color = updates.badgeColor
-      if (updates.isActive !== undefined) dbUpdates.is_active = updates.isActive
-
-      const { error } = await supabase
-        .from("participant_roles")
-        .update(dbUpdates)
-        .eq("id", id)
-
-      if (error) throw error
+      await api.content.updateRole(id, { name: updates.name?.es || updates.name?.en })
 
       set((state) => ({
         roles: state.roles.map((r) => r.id === id ? { ...r, ...updates } : r)
@@ -1549,12 +1442,7 @@ export const useEventStore = create<EventState>((set, get) => ({
 
   deleteRole: async (id) => {
     try {
-      const { error } = await supabase
-        .from("participant_roles")
-        .delete()
-        .eq("id", id)
-
-      if (error) throw error
+      await api.content.removeRole(id)
 
       set((state) => ({
         roles: state.roles.filter((r) => r.id !== id)
@@ -1567,14 +1455,7 @@ export const useEventStore = create<EventState>((set, get) => ({
 
   loadThematicLines: async (mainEventId) => {
     try {
-      const { data, error } = await supabase
-        .from("thematic_lines")
-        .select("*")
-        .eq("main_event_id", mainEventId)
-        .order("created_at", { ascending: false })
-
-      if (error) throw error
-
+      const data = await api.content.thematicLines(mainEventId)
       const mapped = (data || []).map(mapThematicLine)
       set((state) => {
         const others = state.thematicLines.filter((tl) => tl.mainEventId !== mainEventId)
@@ -1587,23 +1468,8 @@ export const useEventStore = create<EventState>((set, get) => ({
 
   addThematicLine: async (thematicLineData) => {
     try {
-      const id = crypto.randomUUID()
-      const newTl = {
-        id,
-        main_event_id: thematicLineData.mainEventId,
-        edition_id: thematicLineData.editionId,
-        name: thematicLineData.name,
-        description: thematicLineData.description,
-        icon_url: thematicLineData.iconUrl,
-        color_hex: thematicLineData.colorHex,
-        is_active: thematicLineData.isActive,
-      }
-
-      const { error } = await supabase
-        .from("thematic_lines")
-        .insert([newTl])
-
-      if (error) throw error
+      const created = await api.content.createThematicLine(thematicLineData.mainEventId, { name: thematicLineData.name, description: thematicLineData.description })
+      const id = created.id
 
       const mapped: ThematicLine = {
         id,
@@ -1629,22 +1495,7 @@ export const useEventStore = create<EventState>((set, get) => ({
 
   updateThematicLine: async (id, updates) => {
     try {
-      const dbUpdates: any = {}
-      if (updates.mainEventId !== undefined) dbUpdates.main_event_id = updates.mainEventId
-      if (updates.editionId !== undefined) dbUpdates.edition_id = updates.editionId
-      if (updates.name !== undefined) dbUpdates.name = updates.name
-      if (updates.description !== undefined) dbUpdates.description = updates.description
-      if (updates.iconUrl !== undefined) dbUpdates.icon_url = updates.iconUrl
-      if (updates.colorHex !== undefined) dbUpdates.color_hex = updates.colorHex
-      if (updates.isActive !== undefined) dbUpdates.is_active = updates.isActive
-      dbUpdates.updated_at = new Date().toISOString()
-
-      const { error } = await supabase
-        .from("thematic_lines")
-        .update(dbUpdates)
-        .eq("id", id)
-
-      if (error) throw error
+      await api.content.updateThematicLine(id, { name: updates.name, description: updates.description })
 
       set((state) => ({
         thematicLines: state.thematicLines.map((tl) =>
@@ -1659,12 +1510,7 @@ export const useEventStore = create<EventState>((set, get) => ({
 
   deleteThematicLine: async (id) => {
     try {
-      const { error } = await supabase
-        .from("thematic_lines")
-        .delete()
-        .eq("id", id)
-
-      if (error) throw error
+      await api.content.removeThematicLine(id)
 
       set((state) => ({
         thematicLines: state.thematicLines.filter((tl) => tl.id !== id)
@@ -1677,14 +1523,8 @@ export const useEventStore = create<EventState>((set, get) => ({
 
   loadTickets: async (mainEventId) => {
     try {
-      const { data, error } = await supabase
-        .from("event_tickets")
-        .select("*")
-        .eq("main_event_id", mainEventId)
-        .order("created_at", { ascending: false })
-
-      if (error) throw error
-
+      const editionIds = get().editions.filter((edition) => edition.mainEventId === mainEventId).map((edition) => edition.id)
+      const data = (await Promise.all(editionIds.map((editionId) => api.content.tickets(editionId)))).flat()
       const mapped = (data || []).map(mapEventTicket)
       set((state) => {
         const others = state.tickets.filter((t) => t.mainEventId !== mainEventId)
@@ -1697,31 +1537,11 @@ export const useEventStore = create<EventState>((set, get) => ({
 
   addTicket: async (ticketData) => {
     try {
-      const id = crypto.randomUUID()
-      const newTicket = {
-        id,
-        main_event_id: ticketData.mainEventId,
-        edition_id: ticketData.editionId,
-        name: ticketData.name,
-        description: ticketData.description,
-        price: ticketData.price,
-        currency: ticketData.currency,
-        quantity_total: ticketData.quantityTotal,
-        quantity_sold: 0,
-        max_per_user: ticketData.maxPerUser,
-        sales_start_at: ticketData.salesStartAt,
-        sales_end_at: ticketData.salesEndAt,
-        is_active: ticketData.isActive,
-      }
-
-      const { error } = await supabase
-        .from("event_tickets")
-        .insert([newTicket])
-
-      if (error) throw error
+      if (!ticketData.editionId) throw new Error("La entrada requiere una edición")
+      const created = await api.content.createTicket(ticketData.editionId, { name: ticketData.name, price: ticketData.price, capacity: ticketData.quantityTotal })
 
       const mapped: EventTicket = {
-        id,
+        id: created.id,
         mainEventId: ticketData.mainEventId,
         editionId: ticketData.editionId,
         name: ticketData.name,
@@ -1763,12 +1583,7 @@ export const useEventStore = create<EventState>((set, get) => ({
       if (updates.isActive !== undefined) dbUpdates.is_active = updates.isActive
       dbUpdates.updated_at = new Date().toISOString()
 
-      const { error } = await supabase
-        .from("event_tickets")
-        .update(dbUpdates)
-        .eq("id", id)
-
-      if (error) throw error
+      await api.content.updateTicket(id, { name: updates.name, price: updates.price, capacity: updates.quantityTotal })
 
       set((state) => ({
         tickets: state.tickets.map((t) =>
@@ -1783,12 +1598,7 @@ export const useEventStore = create<EventState>((set, get) => ({
 
   deleteTicket: async (id) => {
     try {
-      const { error } = await supabase
-        .from("event_tickets")
-        .delete()
-        .eq("id", id)
-
-      if (error) throw error
+      await api.content.removeTicket(id)
 
       set((state) => ({
         tickets: state.tickets.filter((t) => t.id !== id)
@@ -1822,6 +1632,11 @@ export const useEventStore = create<EventState>((set, get) => ({
   },
 
   bulkUpsertSpeakers: async (eventId, rows) => {
+    const errors: string[] = []
+    let createdCount = 0
+    for (let i = 0; i < rows.length; i++) { const row = rows[i]; try { const edition = get().editions.find((item) => !row.editionName || item.name.toLowerCase() === row.editionName.toLowerCase()); if (!edition) throw new Error("Edición no encontrada"); await api.content.createSpeaker(eventId, { editionId: edition.id, firstName: row.firstName, lastName: row.lastName, bio: row.bio }); createdCount++ } catch (error) { errors.push(`Fila ${i + 2}: ${error instanceof Error ? error.message : "Error al importar"}`) } }
+    return { createdCount, updatedCount: 0, errors }
+    /* legacy Supabase import retained below for reference during rollout
     let currentRoles = get().roles
     if (currentRoles.length === 0) {
       const { data } = await supabase.from("participant_roles").select("*").eq("main_event_id", eventId)
@@ -1926,6 +1741,6 @@ export const useEventStore = create<EventState>((set, get) => ({
     // Refresh speakers in local state
     await get().loadFilteredSpeakers(eventId)
 
-    return { createdCount, updatedCount, errors }
+    return { createdCount, updatedCount, errors } */
   }
 }))
