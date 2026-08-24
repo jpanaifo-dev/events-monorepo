@@ -91,7 +91,7 @@ export function AppRouter() {
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/validar/:code" element={<VerifyCertificatePage />} />
 
-        <Route path="/admin" element={<AuthGuard allowedRoles={["SUPER_ADMIN", "ADMIN", "SAAS_ADMIN"]} requireSelectedOrganization={false}><AdminLayout /></AuthGuard>}>
+        <Route path="/admin" element={<AuthGuard allowedRoles={["SUPER_ADMIN", "SAAS_ADMIN"]} requireSelectedOrganization={false}><AdminLayout /></AuthGuard>}>
           <Route index element={<AdminPage />} />
           <Route path="organizations" element={<AdminPage />} />
           <Route path="users" element={<AdminPage />} />

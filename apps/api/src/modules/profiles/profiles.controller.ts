@@ -1,10 +1,10 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ProfilesService } from './profiles.service.js';
 
 @Controller('profiles')
 export class ProfilesController {
   constructor(private readonly profiles: ProfilesService) {}
-  @Get() list() { return this.profiles.list(); }
+  @Get() list(@Query('organizationId') organizationId?: string) { return this.profiles.list(organizationId); }
   @Post() create(@Body() body: any) { return this.profiles.create(body); }
   @Get(':id') get(@Param('id') id: string) { return this.profiles.get(id); }
   @Patch(':id') update(@Param('id') id: string, @Body() body: Record<string, unknown>) { return this.profiles.update(id, body); }

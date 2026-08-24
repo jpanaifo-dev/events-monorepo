@@ -68,6 +68,17 @@ export function AuthGuard({
     return <Navigate to="/login" state={{ from: location }} replace />
   }
 
+  const isGlobalAdmin = ["SUPER_ADMIN", "SAAS_ADMIN"].includes(user.role)
+  const isAdminArea = location.pathname === "/admin" || location.pathname.startsWith("/admin/")
+
+  if (isGlobalAdmin && !isAdminArea && location.pathname.startsWith("/dashboard")) {
+    return <Navigate to="/admin" replace />
+  }
+
+  if (!isGlobalAdmin && isAdminArea) {
+    return <Navigate to="/dashboard/organizations" replace />
+  }
+
   // 2. Redirect to organization selection if none chosen (and they are not already navigating to it)
   if (
     requireSelectedOrganization &&

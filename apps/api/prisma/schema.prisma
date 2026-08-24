@@ -73,6 +73,7 @@ model Organization {
   coverUrl    String?   @map("cover_url")
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
+  isActive    Boolean   @default(true) @map("is_active")
   members     OrganizationMember[]
   branches    OrganizationBranch[]
   events      MainEvent[]

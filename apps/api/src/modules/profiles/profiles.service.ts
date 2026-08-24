@@ -4,7 +4,7 @@ import { PrismaService } from '../../database/prisma.service.js';
 @Injectable()
 export class ProfilesService {
   constructor(private readonly prisma: PrismaService) {}
-  list() { return this.prisma.profile.findMany({ orderBy: { createdAt: 'desc' } }); }
+  list(organizationId?: string) { return this.prisma.profile.findMany({ where: organizationId ? { OR: [{ memberships: { some: { organizationId } } }, { participants: { some: { edition: { mainEvent: { organizationId } } } } }, { sessionSpeakers: { some: { session: { activity: { edition: { mainEvent: { organizationId } } } } } } }] } : undefined, orderBy: { createdAt: 'desc' } }); }
   create(data: { id: string; firstName: string; lastName: string; email?: string; phone?: string; bio?: string }) { return this.prisma.profile.create({ data: { id: data.id, firstName: data.firstName, lastName: data.lastName, phone: data.phone, bio: data.bio } }); }
   async get(id: string) { const profile = await this.prisma.profile.findUnique({ where: { id }, include: { education: true, employment: true, certifications: true } }); if (!profile) throw new NotFoundException('Perfil no encontrado'); return profile; }
   update(id: string, data: Record<string, unknown>) { return this.prisma.profile.update({ where: { id }, data }); }

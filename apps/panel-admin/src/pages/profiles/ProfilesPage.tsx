@@ -15,10 +15,12 @@ import {
 } from "@/components/ui/select"
 import { useSEO } from "@/hooks/use-seo"
 import { DataTable, type ColumnDef } from "@/components/ui/data-table"
+import { useAuthStore } from "@/store/auth.store"
 
 export function ProfilesPage() {
   const navigate = useNavigate()
   const { profiles, isLoading, loadAllProfiles } = useAdminProfilesStore()
+  const selectedOrganization = useAuthStore((state) => state.selectedOrganization)
 
   useSEO({
     title: "Directorio de Perfiles Registrados",
@@ -26,8 +28,8 @@ export function ProfilesPage() {
   })
 
   useEffect(() => {
-    loadAllProfiles()
-  }, [loadAllProfiles])
+    loadAllProfiles(selectedOrganization?.id)
+  }, [loadAllProfiles, selectedOrganization?.id])
 
   // Filter states
   const [searchQuery, setSearchQuery] = useState("")

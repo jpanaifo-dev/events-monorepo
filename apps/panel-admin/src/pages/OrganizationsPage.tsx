@@ -57,7 +57,7 @@ export function OrganizationsPage() {
         name: org.name,
         slug: org.slug || org.name.toLowerCase().replace(/\s+/g, "-"),
         description: org.description || "",
-        isActive: org.status !== "INACTIVE",
+        isActive: org.isActive !== false,
         type: org.organizationType || "Organización",
         logoUrl: org.logoUrl || "",
         plan: org.organizationType || "Free Plan",
