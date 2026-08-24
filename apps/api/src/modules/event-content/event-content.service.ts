@@ -10,6 +10,10 @@ export class EventContentService {
   deleteActivity(id: string) { return this.prisma.eventActivity.delete({ where: { id } }); }
   sessions(activityId: string) { return this.prisma.eventSession.findMany({ where: { activityId }, include: { speakers: { include: { profile: true } } } }); }
   createSession(activityId: string, title: string, description?: string) { return this.prisma.eventSession.create({ data: { activityId, title, description } }); }
+  async createSessionForEdition(editionId: string, title: string, description?: string) { let activity = await this.prisma.eventActivity.findFirst({ where: { editionId }, orderBy: { startsAt: 'asc' } }); if (!activity) activity = await this.prisma.eventActivity.create({ data: { editionId, title: 'Agenda principal' } }); return this.prisma.eventSession.create({ data: { activityId: activity.id, title, description } }); }
+  async sessionsForParticipant(participantId: string) { const participant = await this.prisma.eventParticipant.findUnique({ where: { id: participantId }, select: { profileId: true } }); if (!participant) throw new NotFoundException('Ponente no encontrado'); return this.prisma.eventSession.findMany({ where: { speakers: { some: { profileId: participant.profileId } } }, include: { speakers: { include: { profile: true } } } }); }
+  updateSession(id: string, data: Record<string, unknown>) { return this.prisma.eventSession.update({ where: { id }, data }); }
+  deleteSession(id: string) { return this.prisma.eventSession.delete({ where: { id } }); }
   addSpeaker(sessionId: string, profileId: string) { return this.prisma.sessionSpeaker.create({ data: { sessionId, profileId }, include: { profile: true } }); }
   removeSpeaker(id: string) { return this.prisma.sessionSpeaker.delete({ where: { id } }); }
   tickets(editionId: string) { return this.prisma.eventTicket.findMany({ where: { editionId }, orderBy: { name: 'asc' } }); }
@@ -34,4 +38,11 @@ export class EventContentService {
   }
   async updateSpeaker(id: string, data: Record<string, unknown>) { const participant = await this.prisma.eventParticipant.findUnique({ where: { id } }); if (!participant) throw new NotFoundException('Ponente no encontrado'); const profileData = Object.fromEntries(Object.entries({ firstName: data.firstName, lastName: data.lastName, bio: data.bio }).filter(([, v]) => v !== undefined)); if (Object.keys(profileData).length) await this.prisma.profile.update({ where: { id: participant.profileId }, data: profileData }); return this.prisma.eventParticipant.findUnique({ where: { id }, include: { profile: true, edition: true } }); }
   async deleteSpeaker(id: string) { const participant = await this.prisma.eventParticipant.delete({ where: { id } }); await this.prisma.profile.delete({ where: { id: participant.profileId } }); return participant; }
+  resources(sessionId: string) { return this.prisma.sessionResource.findMany({ where: { sessionId }, orderBy: { createdAt: 'asc' } }); }
+  addResource(sessionId: string, data: { name: string; url: string; type?: string }) { return this.prisma.sessionResource.create({ data: { sessionId, ...data } }); }
+  updateResource(id: string, data: Record<string, unknown>) { return this.prisma.sessionResource.update({ where: { id }, data }); }
+  removeResource(id: string) { return this.prisma.sessionResource.delete({ where: { id } }); }
+  sessionLines(sessionId: string) { return this.prisma.sessionThematicLine.findMany({ where: { sessionId }, include: { thematicLine: true } }); }
+  addSessionLine(sessionId: string, thematicLineId: string) { return this.prisma.sessionThematicLine.create({ data: { sessionId, thematicLineId } }); }
+  removeSessionLine(sessionId: string, thematicLineId: string) { return this.prisma.sessionThematicLine.delete({ where: { sessionId_thematicLineId: { sessionId, thematicLineId } } }); }
 }

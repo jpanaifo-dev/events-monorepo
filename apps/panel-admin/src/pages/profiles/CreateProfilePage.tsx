@@ -9,10 +9,9 @@ import { PageHeader } from "@/components/page-header"
 import { ImageUploadWithPreview } from "@/components/ImageUploadWithPreview"
 import { useSEO } from "@/hooks/use-seo"
 import { Switch } from "@/components/ui/switch"
-import { createSessionlessClient } from "@/utils/supabase-sessionless"
+import { api } from "@/api/client"
 import { CheckCircle2, AlertTriangle, Copy, Check } from "lucide-react"
 import { uploadToR2 } from "@/utils/r2-storage"
-import { supabase } from "@/utils/supabase"
 import { sendEmailWithResend } from "@/utils/resend"
 
 // Helper to generate a strong random password
@@ -109,25 +108,8 @@ export function CreateProfilePage() {
 
       if (createAccount) {
         generatedPassword = generateRandomPassword()
-        const tempClient = createSessionlessClient()
-        const { data: authData, error: authError } = await tempClient.auth.signUp({
-          email: email.trim(),
-          password: generatedPassword,
-          options: {
-            data: {
-              first_name: firstName.trim(),
-              last_name: lastName.trim(),
-            }
-          }
-        })
-
-        if (authError) throw authError
-        if (authData?.user) {
-          linkedAuthId = authData.user.id
-          
-          // Delete the profile automatically created by the Supabase Auth database trigger
-          await supabase.from("profiles").delete().eq("id", linkedAuthId)
-        }
+        const authData = await api.auth.adminCreate({ email: email.trim(), password: generatedPassword, firstName: firstName.trim(), lastName: lastName.trim() })
+        linkedAuthId = authData.id
       }
 
       const newProfileId = await createProfile({

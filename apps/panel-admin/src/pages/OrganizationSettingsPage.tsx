@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { z } from "zod"
 import { useAuthStore } from "@/store/auth.store"
-import { supabase } from "@/utils/supabase"
+import { api } from "@/api/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
@@ -124,22 +124,16 @@ export function OrganizationSettingsPage() {
       }
       setIsLoading(true)
       try {
-        const { data, error } = await supabase
-          .from("organizations")
-          .select("*")
-          .eq("id", selectedOrganization.id)
-          .single()
-
-        if (error) throw error
+        const data = await api.organizations.get(selectedOrganization.id)
 
         if (data) {
-          setName(data.organization_name || "")
-          setType(data.organization_type || "")
+          setName(data.name || "")
+          setType(data.organizationType || "")
           let loadedEmails: string[] = []
-          if (Array.isArray(data.organization_email)) {
-            loadedEmails = data.organization_email.filter(Boolean)
-          } else if (typeof data.organization_email === "string") {
-            loadedEmails = data.organization_email.split(",").map((e: string) => e.trim()).filter(Boolean)
+          if (Array.isArray(data.emails)) {
+            loadedEmails = data.emails.filter(Boolean)
+          } else if (typeof data.email === "string") {
+            loadedEmails = data.email.split(",").map((e: string) => e.trim()).filter(Boolean)
           }
           setEmails(loadedEmails)
           setSlug(data.slug || "")
@@ -153,51 +147,19 @@ export function OrganizationSettingsPage() {
           setContactPhones(loadedPhones)
           setDocumentNumber(data.document_number || "")
           setBrand(data.brand || "")
-          setLogoUrl(data.logo_url || "")
-          setCoverUrl(data.cover_image_url || "")
-          setFaviconUrl(data.favicon_url || "")
-          setPrimaryColor(data.primary_color || "")
+          setLogoUrl(data.logoUrl || "")
+          setCoverUrl(data.coverUrl || "")
+          setFaviconUrl(data.faviconUrl || "")
+          setPrimaryColor(data.primaryColor || "")
           setStatus(data.status || "active")
         }
 
         // Fetch branches for this organization
-        const { data: branchesData, error: branchesError } = await supabase
-          .from("organization_branches")
-          .select("*")
-          .eq("organization_id", selectedOrganization.id)
-          .order("is_main", { ascending: false })
-          .order("created_at", { ascending: true })
-
-        if (!branchesError) {
-          setBranches(branchesData || [])
-        }
+        setBranches(await api.organizations.branches(selectedOrganization.id))
 
         // Fetch members for this organization
         try {
-          const { data: membersData, error: membersError } = await supabase
-            .from("organization_members")
-            .select(`
-              id,
-              role,
-              is_active,
-              profile_id,
-              profile:profiles (
-                id,
-                first_name,
-                last_name,
-                email,
-                avatar_url
-              )
-            `)
-            .eq("organization_id", selectedOrganization.id)
-
-          if (membersError) {
-            if (membersError.code === "P0001" || membersError.message.includes("does not exist")) {
-              setIsMembersDbError(true)
-            }
-            throw membersError
-          }
-
+          const membersData = await api.organizations.members(selectedOrganization.id)
           let list: any[] = membersData || []
           if (user && !list.some((m: any) => m.profile_id === user.id)) {
             list = [
@@ -289,14 +251,7 @@ export function OrganizationSettingsPage() {
     setSlugStatus("checking")
     const timer = setTimeout(async () => {
       try {
-        const { data, error } = await supabase
-          .from("organizations")
-          .select("id")
-          .eq("slug", slug)
-          .neq("id", selectedOrganization.id)
-          .maybeSingle()
-
-        if (error) throw error
+        const data = (await api.organizations.list()).find((org: any) => org.slug === slug && org.id !== selectedOrganization.id)
 
         if (data) {
           setSlugStatus("taken")
@@ -384,26 +339,7 @@ export function OrganizationSettingsPage() {
     }
 
     try {
-      const { error } = await supabase
-        .from("organizations")
-        .update({
-          organization_name: name,
-          organization_type: type,
-          organization_email: currentEmails,
-          slug,
-          description: description || null,
-          contact_phone: currentPhones,
-          document_number: documentNumber || null,
-          brand: brand || null,
-          logo_url: logoUrl || null,
-          cover_image_url: coverUrl || null,
-          favicon_url: faviconUrl || null,
-          primary_color: primaryColor || null,
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", selectedOrganization.id)
-
-      if (error) throw error
+      await api.organizations.update(selectedOrganization.id, { name, organizationType: type, emails: currentEmails, slug, description: description || null, contactPhones: currentPhones, documentNumber: documentNumber || null, brand: brand || null, logoUrl: logoUrl || null, coverUrl: coverUrl || null, faviconUrl: faviconUrl || null, primaryColor: primaryColor || null })
 
       // Update auth store
       const updatedOrg = {
@@ -436,15 +372,7 @@ export function OrganizationSettingsPage() {
     if (!selectedOrganization?.id) return
     setIsUpdatingVisibility(true)
     try {
-      const { error } = await supabase
-        .from("organizations")
-        .update({
-          status: newStatus,
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", selectedOrganization.id)
-
-      if (error) throw error
+      await api.organizations.update(selectedOrganization.id, { status: newStatus })
 
       setStatus(newStatus)
 
@@ -498,40 +426,7 @@ export function OrganizationSettingsPage() {
         }
       }
 
-      // 2. Delete organization branches
-      const { error: branchesError } = await supabase
-        .from("organization_branches")
-        .delete()
-        .eq("organization_id", orgId)
-      if (branchesError) throw branchesError
-
-      // 3. Delete events
-      const { data: eventsData } = await supabase
-        .from("events")
-        .select("id")
-        .eq("organization_id", orgId)
-
-      const eventIds = (eventsData || []).map(e => e.id)
-      if (eventIds.length > 0) {
-        // Delete event details
-        await supabase
-          .from("event_details")
-          .delete()
-          .in("event_id", eventIds)
-      }
-
-      const { error: eventsError } = await supabase
-        .from("events")
-        .delete()
-        .eq("organization_id", orgId)
-      if (eventsError) throw eventsError
-
-      // 4. Delete the organization itself
-      const { error: orgError } = await supabase
-        .from("organizations")
-        .delete()
-        .eq("id", orgId)
-      if (orgError) throw orgError
+      await api.organizations.remove(orgId)
 
       // 5. Update auth store
       const updatedList = organizations.filter((org) => org.id !== orgId)
@@ -1041,7 +936,7 @@ export function OrganizationSettingsPage() {
               Tabla de miembros no configurada (Modo Demo Activo)
             </div>
             <p>
-              Para persistir miembros reales, debes crear la tabla correspondiente en tu base de datos Supabase. Hemos activado un modo demostración local para que puedas visualizar la interfaz.
+              Los miembros se gestionan mediante el backend de la plataforma.
             </p>
           </div>
         )}

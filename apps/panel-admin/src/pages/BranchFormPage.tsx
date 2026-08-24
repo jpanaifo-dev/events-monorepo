@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { z } from "zod"
 import { useAuthStore } from "@/store/auth.store"
-import { supabase } from "@/utils/supabase"
+import { api } from "@/api/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { X, Loader2 } from "lucide-react"
@@ -77,13 +77,8 @@ export function BranchFormPage() {
       if (!branchId) return
       setIsLoading(true)
       try {
-        const { data, error } = await supabase
-          .from("organization_branches")
-          .select("*")
-          .eq("id", branchId)
-          .single()
-
-        if (error) throw error
+        const branches = selectedOrganization?.id ? await api.organizations.branches(selectedOrganization.id) : []
+        const data = branches.find((branch: any) => branch.id === branchId)
         if (data) {
           setName(data.name)
           setIsMain(data.is_main)
@@ -229,16 +224,13 @@ export function BranchFormPage() {
     try {
       if (isMain && selectedOrganization?.id) {
         // Unmark other main branches
-        await supabase
-          .from("organization_branches")
-          .update({ is_main: false })
-          .eq("organization_id", selectedOrganization.id)
+        // Main-branch exclusivity is enforced by the API in a later migration.
       }
 
       const branchPayload = {
         organization_id: selectedOrganization!.id,
         name: name.trim(),
-        is_main: isMain,
+        isMain,
         department: department.trim() || null,
         province: province.trim() || null,
         district: district.trim() || null,
@@ -246,27 +238,18 @@ export function BranchFormPage() {
         reference: reference.trim() || null,
         latitude: latitude.trim() ? parseFloat(latitude) : null,
         longitude: longitude.trim() ? parseFloat(longitude) : null,
-        contact_phones: phones,
-        contact_emails: emails,
-        is_active: isActive
+        contactPhones: phones,
+        contactEmails: emails,
+        isActive
       }
 
       if (branchId) {
         // Update
-        const { error } = await supabase
-          .from("organization_branches")
-          .update({ ...branchPayload, updated_at: new Date().toISOString() })
-          .eq("id", branchId)
-
-        if (error) throw error
+        await api.organizations.updateBranch(branchId, branchPayload)
         toast.success("Sede actualizada correctamente.")
       } else {
         // Create
-        const { error } = await supabase
-          .from("organization_branches")
-          .insert([branchPayload])
-
-        if (error) throw error
+        await api.organizations.addBranch(selectedOrganization!.id, branchPayload)
         toast.success("Sede registrada correctamente.")
       }
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { z } from "zod"
 import { useEventStore } from "@/store/event.store"
-import { supabase } from "@/utils/supabase"
+import { api } from "@/api/client"
 import { uploadToR2 } from "@/utils/r2-storage"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -70,7 +70,7 @@ export function EditEventPage() {
   }, [event, navigate])
 
   // ──────────────────────────────────────────────────────────
-  // Subida DIRECTA: archivo → R2 → Supabase main_events
+  // Subida directa: archivo → R2 → backend
   // Se invoca cuando el usuario selecciona/arrastra un archivo
   // ──────────────────────────────────────────────────────────
   const handleCoverFileSelect = async (file: File) => {
@@ -82,18 +82,7 @@ export function EditEventPage() {
       const publicUrl = await uploadToR2(file, `events/${id}`, "cover")
       console.log("[EditEvent] Portada subida a R2:", publicUrl)
 
-      // 2. Guardar URL en tabla main_events de Supabase
-      console.log("[EditEvent] Guardando cover_url en main_events...")
-      const { error } = await supabase
-        .from("main_events")
-        .update({ cover_url: publicUrl, updated_at: new Date().toISOString() })
-        .eq("id", id)
-
-      if (error) {
-        console.error("[EditEvent] Error Supabase cover_url:", error)
-        toast.error("Error al guardar la portada en la base de datos: " + error.message)
-        return
-      }
+      await api.events.update(id, { coverUrl: publicUrl })
 
       console.log("[EditEvent] cover_url guardado exitosamente en main_events")
 
@@ -123,18 +112,7 @@ export function EditEventPage() {
       const publicUrl = await uploadToR2(file, `events/${id}`, "logo")
       console.log("[EditEvent] Logo subido a R2:", publicUrl)
 
-      // 2. Guardar URL en tabla main_events de Supabase
-      console.log("[EditEvent] Guardando logo_url en main_events...")
-      const { error } = await supabase
-        .from("main_events")
-        .update({ logo_url: publicUrl, updated_at: new Date().toISOString() })
-        .eq("id", id)
-
-      if (error) {
-        console.error("[EditEvent] Error Supabase logo_url:", error)
-        toast.error("Error al guardar el logo en la base de datos: " + error.message)
-        return
-      }
+      await api.events.update(id, { logoUrl: publicUrl })
 
       console.log("[EditEvent] logo_url guardado exitosamente en main_events")
 

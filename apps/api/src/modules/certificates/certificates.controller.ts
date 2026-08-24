@@ -14,4 +14,5 @@ export class CertificatesController {
   @Delete('templates/:id') removeTemplate(@Param('id') id: string) { return this.certificates.removeTemplate(id); }
   @Get(':id/logs') logs(@Param('id') id: string) { return this.certificates.logs(id); }
   @Post(':id/logs') addLog(@Param('id') id: string, @Body() body: { action: string; ipAddress?: string }) { return this.certificates.addLog(id, body.action, body.ipAddress); }
+  @Patch(':id') update(@Param('id') id: string, @Body() body: { status?: 'ISSUED' | 'REVOKED' }) { return this.certificates.update(id, body); }
 }

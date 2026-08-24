@@ -1,4 +1,4 @@
-// Database TypeScript Type Definitions matching Supabase schema
+// Database TypeScript type definitions used by the API-backed application
 
 export type EventStatus = "DRAFT" | "PUBLISHED" | "FINISHED" | string
 export type EventMode = "PHYSICAL" | "ONLINE" | "HYBRID" | string

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { z } from "zod"
 import { useEventStore } from "@/store/event.store"
-import { supabase } from "@/utils/supabase"
+import { api } from "@/api/client"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -102,20 +102,14 @@ export function CreateSpeakerPage() {
     setFormError("")
 
     try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("email", trimmedEmail)
-        .maybeSingle()
-
-      if (error) throw error
+      const data = (await api.profiles.list()).find((profile: any) => profile.email?.toLowerCase() === trimmedEmail)
 
       if (data) {
         setProfileId(data.id)
-        setFirstName(data.first_name || "")
-        setLastName(data.last_name || "")
+        setFirstName(data.firstName || "")
+        setLastName(data.lastName || "")
         setBio(data.bio || "")
-        setAvatar(data.avatar_url || "")
+        setAvatar(data.avatarUrl || "")
         setInstitution(data.institution || "")
         setIsProfileFound(true)
       } else {
@@ -184,63 +178,20 @@ export function CreateSpeakerPage() {
 
       // If hasSession is toggled ON, insert to session tables
       if (hasSession && sessionTitle.trim()) {
-        const sessionId = crypto.randomUUID()
-
-        // 1. Insert into event_sessions
-        const { error: sessionErr } = await supabase
-          .from("event_sessions")
-          .insert([{
-            id: sessionId,
-            title: sessionTitle.trim(),
-            edition_id: selectedEditionId,
-          }])
-
-        if (sessionErr) throw sessionErr
+        const session = await api.content.createSessionForEdition(selectedEditionId, { title: sessionTitle.trim() })
+        const sessionId = session.id
 
         // 2. Insert into session_speakers (pivot)
-        const { error: speakerErr } = await supabase
-          .from("session_speakers")
-          .insert([{
-            session_id: sessionId,
-            participant_id: participantId,
-            is_main_speaker: true,
-          }])
-
-        if (speakerErr) throw speakerErr
+        await api.content.addSpeaker(sessionId, payload.profileId || participantId)
 
         // 3. Insert into session_thematic_lines
         if (selectedThematicLines.length > 0) {
-          const thematicPivots = selectedThematicLines.map((lineId) => ({
-            session_id: sessionId,
-            thematic_line_id: lineId,
-          }))
-
-          const { error: thematicErr } = await supabase
-            .from("session_thematic_lines")
-            .insert(thematicPivots)
-
-          if (thematicErr) throw thematicErr
+          await Promise.all(selectedThematicLines.map((lineId) => api.content.addSessionLine(sessionId, lineId)))
         }
 
         // 4. Insert into session_resources
         if (sessionResources.length > 0) {
-          const resourceInserts = sessionResources
-            .filter((r) => r.name.trim() && r.file_url.trim())
-            .map((r) => ({
-              id: crypto.randomUUID(),
-              session_id: sessionId,
-              name: r.name.trim(),
-              file_url: r.file_url.trim(),
-              mime_type: r.file_url.split('.').pop() || 'application/octet-stream',
-            }))
-
-          if (resourceInserts.length > 0) {
-            const { error: resourceErr } = await supabase
-              .from("session_resources")
-              .insert(resourceInserts)
-
-            if (resourceErr) throw resourceErr
-          }
+          await Promise.all(sessionResources.filter((r) => r.name.trim() && r.file_url.trim()).map((r) => api.content.addResource(sessionId, { name: r.name.trim(), url: r.file_url.trim(), type: r.file_url.split('.').pop() || 'application/octet-stream' })))
         }
       }
 

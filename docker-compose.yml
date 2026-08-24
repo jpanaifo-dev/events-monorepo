@@ -26,7 +26,7 @@ services:
       JWT_ACCESS_SECRET: local-access-secret-change-me
       JWT_REFRESH_SECRET: local-refresh-secret-change-me
     ports:
-      - "3000:3000"
+      - "3010:3000"
     depends_on:
       postgres:
         condition: service_healthy

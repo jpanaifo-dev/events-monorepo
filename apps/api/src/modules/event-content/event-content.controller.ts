@@ -15,6 +15,10 @@ export class EventContentController {
   @Delete('activities/:id') deleteActivity(@Param('id') id: string) { return this.content.deleteActivity(id); }
   @Get('activities/:activityId/sessions') sessions(@Param('activityId') id: string) { return this.content.sessions(id); }
   @Post('activities/:activityId/sessions') createSession(@Param('activityId') id: string, @Body() dto: SessionDto) { return this.content.createSession(id, dto.title, dto.description); }
+  @Post('editions/:editionId/sessions') createSessionForEdition(@Param('editionId') id: string, @Body() dto: SessionDto) { return this.content.createSessionForEdition(id, dto.title, dto.description); }
+  @Get('participants/:participantId/sessions') participantSessions(@Param('participantId') id: string) { return this.content.sessionsForParticipant(id); }
+  @Patch('sessions/:id') updateSession(@Param('id') id: string, @Body() body: Record<string, unknown>) { return this.content.updateSession(id, body); }
+  @Delete('sessions/:id') deleteSession(@Param('id') id: string) { return this.content.deleteSession(id); }
   @Post('sessions/:sessionId/speakers') addSpeaker(@Param('sessionId') id: string, @Body() dto: SpeakerDto) { return this.content.addSpeaker(id, dto.profileId); }
   @Delete('session-speakers/:id') removeSpeaker(@Param('id') id: string) { return this.content.removeSpeaker(id); }
   @Get('editions/:editionId/tickets') tickets(@Param('editionId') id: string) { return this.content.tickets(id); }
@@ -33,4 +37,11 @@ export class EventContentController {
   @Post('events/:eventId/speakers') createSpeaker(@Param('eventId') eventId: string, @Body() dto: { editionId: string; firstName: string; lastName: string; bio?: string }) { return this.content.createSpeaker({ eventId, ...dto }); }
   @Patch('speakers/:id') updateSpeaker(@Param('id') id: string, @Body() body: Record<string, unknown>) { return this.content.updateSpeaker(id, body); }
   @Delete('speakers/:id') deleteSpeaker(@Param('id') id: string) { return this.content.deleteSpeaker(id); }
+  @Get('sessions/:sessionId/resources') resources(@Param('sessionId') id: string) { return this.content.resources(id); }
+  @Post('sessions/:sessionId/resources') addResource(@Param('sessionId') id: string, @Body() body: { name: string; url: string; type?: string }) { return this.content.addResource(id, body); }
+  @Patch('resources/:id') updateResource(@Param('id') id: string, @Body() body: Record<string, unknown>) { return this.content.updateResource(id, body); }
+  @Delete('resources/:id') removeResource(@Param('id') id: string) { return this.content.removeResource(id); }
+  @Get('sessions/:sessionId/thematic-lines') sessionLines(@Param('sessionId') id: string) { return this.content.sessionLines(id); }
+  @Post('sessions/:sessionId/thematic-lines') addSessionLine(@Param('sessionId') id: string, @Body() body: { thematicLineId: string }) { return this.content.addSessionLine(id, body.thematicLineId); }
+  @Delete('sessions/:sessionId/thematic-lines/:thematicLineId') removeSessionLine(@Param('sessionId') sessionId: string, @Param('thematicLineId') thematicLineId: string) { return this.content.removeSessionLine(sessionId, thematicLineId); }
 }

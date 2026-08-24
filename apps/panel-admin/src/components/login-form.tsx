@@ -12,7 +12,6 @@ import {
   FieldDescription,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { supabase } from "@/utils/supabase"
 import { api } from "@/api/client"
 import { Eye, EyeOff } from "lucide-react"
 
@@ -54,15 +53,8 @@ export function LoginForm({
     }
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      })
-
-      if (error) {
-        setFormError(error.message || "Error al enviar el correo de recuperación.")
-      } else {
-        setSuccessMessage("Te hemos enviado un correo con instrucciones para restablecer tu contraseña.")
-      }
+      await api.auth.forgotPassword(email)
+      setSuccessMessage("Si el correo existe, recibirás instrucciones para restablecer tu contraseña.")
     } catch (err: any) {
       console.error(err)
       setFormError("Ocurrió un error inesperado. Inténtalo de nuevo.")

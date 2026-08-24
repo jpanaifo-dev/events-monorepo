@@ -11,6 +11,7 @@ export class OrganizationsController {
   @Get(':id') get(@Param('id') id: string) { return this.organizations.get(id); }
   @Post() create(@Body() dto: CreateOrganizationDto) { return this.organizations.create(dto); }
   @Patch(':id') update(@Param('id') id: string, @Body() body: Record<string, unknown>) { return this.organizations.update(id, body); }
+  @Delete(':id') remove(@Param('id') id: string) { return this.organizations.remove(id); }
   @Get(':id/branches') branches(@Param('id') id: string) { return this.organizations.branches(id); }
   @Post(':id/branches') addBranch(@Param('id') id: string, @Body() body: any) { return this.organizations.addBranch(id, body); }
   @Patch('branches/:branchId') updateBranch(@Param('branchId') id: string, @Body() body: Record<string, unknown>) { return this.organizations.updateBranch(id, body); }
