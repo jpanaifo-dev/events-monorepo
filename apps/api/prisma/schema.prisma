@@ -7,10 +7,26 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum EventStatus { DRAFT PUBLISHED FINISHED }
-enum EventMode { PHYSICAL ONLINE HYBRID }
-enum MemberRole { OWNER ADMIN EDITOR MEMBER }
-enum CertificateStatus { ISSUED REVOKED }
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  FINISHED
+}
+enum EventMode {
+  PHYSICAL
+  ONLINE
+  HYBRID
+}
+enum MemberRole {
+  OWNER
+  ADMIN
+  EDITOR
+  MEMBER
+}
+enum CertificateStatus {
+  ISSUED
+  REVOKED
+}
 
 model AuthUser {
   id              String    @id @default(uuid()) @db.Uuid
@@ -20,7 +36,6 @@ model AuthUser {
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
   profile         Profile?
-  memberships     OrganizationMember[]
   @@map("auth_users")
 }
 
@@ -165,6 +180,7 @@ model EventParticipant {
   editionId String @map("edition_id") @db.Uuid
   profileId String @map("profile_id") @db.Uuid
   registeredAt DateTime @default(now()) @map("registered_at")
+  checkedIn Boolean @default(false) @map("checked_in")
   edition   Edition @relation(fields: [editionId], references: [id], onDelete: Cascade)
   profile   Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
   certificates ParticipantCertificate[]
@@ -174,8 +190,11 @@ model EventParticipant {
 
 model ParticipantRole {
   id        String @id @default(uuid()) @db.Uuid
+  mainEventId String? @map("main_event_id") @db.Uuid
+  editionId String? @map("edition_id") @db.Uuid
   name      String @unique
   createdAt DateTime @default(now()) @map("created_at")
+  @@index([mainEventId, editionId])
   @@map("participant_roles")
 }
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { useParams } from "react-router-dom"
-import { supabase } from "@/utils/supabase"
+import { api } from "@/api/client"
 import { Award, CheckCircle2, AlertTriangle, ShieldAlert, Calendar, User, FileText, Globe } from "lucide-react"
 
 export function VerifyCertificatePage() {
@@ -21,90 +21,31 @@ export function VerifyCertificatePage() {
         setLoading(true)
         setErrorMsg("")
 
-        // 1. Fetch certificate
-        const { data: certData, error: certError } = await supabase
-          .from("participant_certificates")
-          .select("*")
-          .eq("validation_code", code)
-          .maybeSingle()
-
-        if (certError) throw certError
-        if (!certData) {
-          setErrorMsg("Código de verificación no válido o certificado no encontrado.")
-          setLoading(false)
-          return
-        }
+        const certData = await api.certificates.verify(code)
 
         setCert(certData)
 
-        // 2. Fetch template
-        const { data: templateData, error: templateError } = await supabase
-          .from("certificate_templates")
-          .select("*")
-          .eq("id", certData.template_id)
-          .maybeSingle()
-
-        if (templateError) throw templateError
+        const templateData = certData.template
         setTemplate(templateData)
 
         // 3. Fetch edition and event
         if (templateData) {
-          const { data: editionData } = await supabase
-            .from("editions")
-            .select("*")
-            .eq("id", templateData.edition_id)
-            .maybeSingle()
+          const editionData = certData.participant?.edition
           setEdition(editionData)
-
-          if (editionData) {
-            const { data: eventData } = await supabase
-              .from("main_events")
-              .select("*")
-              .eq("id", editionData.main_event_id)
-              .maybeSingle()
-            setEvent(eventData)
-          }
+          setEvent(editionData?.mainEvent)
         }
 
         // 4. Fetch participant full name from event_participants joining profile
-        const { data: partData } = await supabase
-          .from("event_participants")
-          .select(`
-            id,
-            profile:profile_id (
-              first_name,
-              last_name,
-              email
-            )
-          `)
-          .eq("id", certData.participant_id)
-          .maybeSingle()
-
-        if (partData?.profile) {
-          const profile: any = partData.profile
-          const fullName = `${profile.first_name || ""} ${profile.last_name || ""}`.trim()
+        if (certData.participant?.profile) {
+          const profile: any = certData.participant.profile
+          const fullName = `${profile.firstName || ""} ${profile.lastName || ""}`.trim()
           setParticipantName(fullName || "Participante")
         } else {
           setParticipantName("Participante")
         }
 
         // 5. If not revoked, increment validation count & create log
-        if (!certData.is_revoked) {
-          const newCount = (certData.validations_count || 0) + 1
-          await supabase
-            .from("participant_certificates")
-            .update({ validations_count: newCount })
-            .eq("id", certData.id)
-
-          await supabase
-            .from("certificate_tracking_logs")
-            .insert([{
-              certificate_id: certData.id,
-              action_type: "validation",
-              ip_address: "127.0.0.1",
-              user_agent: navigator.userAgent || "browser"
-            }])
-        }
+        if (certData.status !== "REVOKED") await api.certificates.addLog(certData.id, { action: "validation", ipAddress: "127.0.0.1" })
 
       } catch (err: any) {
         console.error("Error verifying certificate:", err)

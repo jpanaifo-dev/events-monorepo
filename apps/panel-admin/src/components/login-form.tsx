@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { supabase } from "@/utils/supabase"
+import { api } from "@/api/client"
 import { Eye, EyeOff } from "lucide-react"
 
 const loginSchema = z.object({
@@ -94,146 +95,41 @@ export function LoginForm({
     }
 
     try {
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
-
-      if (authError) {
-        setFormError("Credenciales incorrectas o problema de inicio de sesión.")
-        setIsLoading(false)
-        setLoading(false)
-        return
-      }
-
+      const authData = await api.auth.login(email, password)
+      localStorage.setItem("events-api-access-token", authData.accessToken)
       const sessionUser = authData.user
-      if (!sessionUser) {
-        setFormError("No se pudo obtener la información de usuario.")
-        setIsLoading(false)
-        setLoading(false)
-        return
-      }
+      const profile = authData.user
 
-      // Fetch profile
-      let { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", sessionUser.id)
-        .maybeSingle()
-
-      if (profileError && profileError.code !== "PGRST116") {
-        console.error("Error fetching profile:", profileError)
-      }
-
-      if (!profile) {
-        const newProfile = {
-          id: sessionUser.id,
-          first_name: "",
-          last_name: "",
-          phone: null,
-          bio: null,
-          dedication: null,
-          avatar_url: null,
-          institution: null
-        }
-
-        const { data: insertedProfile, error: insertError } = await supabase
-          .from("profiles")
-          .insert([newProfile])
-          .select()
-          .single()
-
-        if (insertError) {
-          console.error("Error creating profile:", insertError)
-          profile = newProfile
-        } else {
-          profile = insertedProfile
-        }
-      }
-
-      // Fetch user role
-      const { data: roleData } = await supabase
-        .from("user_global_roles")
-        .select("role")
-        .eq("user_id", sessionUser.id)
-        .maybeSingle()
-
-      const userRole = (roleData?.role as any) || "SERVICE_OWNER"
-
-      // Fetch organizations associated with user membership
-      let orgsData: any[] = []
-      const { data: memberData, error: memberError } = await supabase
-        .from("organization_members")
-        .select(`
-          organization:organizations (
-            id,
-            organization_name,
-            organization_type,
-            organization_email,
-            description,
-            status,
-            slug,
-            logo_url,
-            cover_image_url,
-            favicon_url
-          )
-        `)
-        .eq("profile_id", sessionUser.id)
-
-      if (memberError) {
-        if (memberError.code === "P0001" || memberError.message.includes("does not exist")) {
-          console.warn("organization_members table does not exist, loading all organizations instead.")
-          const { data: allOrgs, error: allOrgsErr } = await supabase
-            .from("organizations")
-            .select(`
-              id,
-              organization_name,
-              organization_type,
-              organization_email,
-              description,
-              status,
-              slug,
-              logo_url,
-              cover_image_url,
-              favicon_url
-            `)
-          if (!allOrgsErr) {
-            orgsData = allOrgs || []
-          }
-        } else {
-          console.error("Error fetching organizations during login:", memberError)
-        }
-      } else {
-        orgsData = (memberData || []).map((item: any) => item.organization).filter(Boolean)
-      }
+      const userRole = "SERVICE_OWNER" as any
+      const orgsData = await api.organizations.list()
 
       // Map to Organization model
       const formattedOrgs = (orgsData || []).map((org: any) => ({
         id: org.id,
-        name: org.organization_name,
-        slug: org.slug || org.organization_name.toLowerCase().replace(/\s+/g, "-"),
+        name: org.name,
+        slug: org.slug || org.name.toLowerCase().replace(/\s+/g, "-"),
         description: org.description || "",
-        isActive: org.status === "active",
-        type: org.organization_type,
-        logoUrl: org.logo_url || "",
-        coverUrl: org.cover_image_url || "",
-        faviconUrl: org.favicon_url || "",
+        isActive: true,
+        type: "organization",
+        logoUrl: org.logoUrl || "",
+        coverUrl: org.coverUrl || "",
+        faviconUrl: "",
         plan: "Free Plan",
         projectsCount: 0
       }))
 
-      const computedFullName = profile.first_name || profile.last_name
-        ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim()
-        : (profile.full_name || null)
+      const computedFullName = profile.firstName || profile.lastName
+        ? `${profile.firstName || ""} ${profile.lastName || ""}`.trim()
+        : (profile.fullName || null)
 
       login(
         {
           id: sessionUser.id,
           email: sessionUser.email || email,
           full_name: computedFullName,
-          phone: profile.phone,
+          phone: profile.phone || null,
           bio: profile.bio || null,
-          specialty: profile.dedication || profile.specialty || null,
+          specialty: profile.specialty || null,
           role: userRole,
         },
         formattedOrgs

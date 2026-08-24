@@ -1,0 +1,37 @@
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../../database/prisma.service.js';
+import crypto from 'node:crypto';
+@Injectable()
+export class EventContentService {
+  constructor(private readonly prisma: PrismaService) {}
+  activities(editionId: string) { return this.prisma.eventActivity.findMany({ where: { editionId }, include: { sessions: { include: { speakers: { include: { profile: true } } } } }, orderBy: { startsAt: 'asc' } }); }
+  createActivity(editionId: string, data: { title: string; description?: string; startsAt?: string; endsAt?: string }) { return this.prisma.eventActivity.create({ data: { editionId, title: data.title, description: data.description, startsAt: data.startsAt ? new Date(data.startsAt) : undefined, endsAt: data.endsAt ? new Date(data.endsAt) : undefined } }); }
+  updateActivity(id: string, data: Record<string, unknown>) { return this.prisma.eventActivity.update({ where: { id }, data }); }
+  deleteActivity(id: string) { return this.prisma.eventActivity.delete({ where: { id } }); }
+  sessions(activityId: string) { return this.prisma.eventSession.findMany({ where: { activityId }, include: { speakers: { include: { profile: true } } } }); }
+  createSession(activityId: string, title: string, description?: string) { return this.prisma.eventSession.create({ data: { activityId, title, description } }); }
+  addSpeaker(sessionId: string, profileId: string) { return this.prisma.sessionSpeaker.create({ data: { sessionId, profileId }, include: { profile: true } }); }
+  removeSpeaker(id: string) { return this.prisma.sessionSpeaker.delete({ where: { id } }); }
+  tickets(editionId: string) { return this.prisma.eventTicket.findMany({ where: { editionId }, orderBy: { name: 'asc' } }); }
+  createTicket(editionId: string, data: { name: string; price: number; capacity?: number }) { return this.prisma.eventTicket.create({ data: { editionId, name: data.name, price: data.price, capacity: data.capacity } }); }
+  updateTicket(id: string, data: Record<string, unknown>) { return this.prisma.eventTicket.update({ where: { id }, data }); }
+  deleteTicket(id: string) { return this.prisma.eventTicket.delete({ where: { id } }); }
+  thematicLines(eventId: string) { return this.prisma.thematicLine.findMany({ where: { mainEventId: eventId }, orderBy: { name: 'asc' } }); }
+  createThematicLine(eventId: string, name: string, description?: string) { return this.prisma.thematicLine.create({ data: { mainEventId: eventId, name, description } }); }
+  updateThematicLine(id: string, data: Record<string, unknown>) { return this.prisma.thematicLine.update({ where: { id }, data }); }
+  deleteThematicLine(id: string) { return this.prisma.thematicLine.delete({ where: { id } }); }
+  roles(mainEventId?: string, editionId?: string) { return this.prisma.participantRole.findMany({ where: { mainEventId: mainEventId || undefined, editionId: editionId || undefined }, orderBy: { createdAt: 'desc' } }); }
+  createRole(data: { name: string; mainEventId?: string; editionId?: string }) { return this.prisma.participantRole.create({ data }); }
+  updateRole(id: string, data: { name?: string; mainEventId?: string; editionId?: string }) { return this.prisma.participantRole.update({ where: { id }, data }); }
+  deleteRole(id: string) { return this.prisma.participantRole.delete({ where: { id } }); }
+  async speakers(eventId: string, editionId?: string) {
+    const editions = editionId ? [editionId] : (await this.prisma.edition.findMany({ where: { mainEventId: eventId }, select: { id: true } })).map((e: { id: string }) => e.id);
+    return this.prisma.eventParticipant.findMany({ where: { editionId: { in: editions } }, include: { profile: true, edition: true }, orderBy: { registeredAt: 'desc' } });
+  }
+  async createSpeaker(data: { eventId: string; editionId: string; firstName: string; lastName: string; bio?: string }) {
+    const profile = await this.prisma.profile.create({ data: { id: crypto.randomUUID(), firstName: data.firstName, lastName: data.lastName, bio: data.bio } });
+    return this.prisma.eventParticipant.create({ data: { editionId: data.editionId, profileId: profile.id }, include: { profile: true, edition: true } });
+  }
+  async updateSpeaker(id: string, data: Record<string, unknown>) { const participant = await this.prisma.eventParticipant.findUnique({ where: { id } }); if (!participant) throw new NotFoundException('Ponente no encontrado'); const profileData = Object.fromEntries(Object.entries({ firstName: data.firstName, lastName: data.lastName, bio: data.bio }).filter(([, v]) => v !== undefined)); if (Object.keys(profileData).length) await this.prisma.profile.update({ where: { id: participant.profileId }, data: profileData }); return this.prisma.eventParticipant.findUnique({ where: { id }, include: { profile: true, edition: true } }); }
+  async deleteSpeaker(id: string) { const participant = await this.prisma.eventParticipant.delete({ where: { id } }); await this.prisma.profile.delete({ where: { id: participant.profileId } }); return participant; }
+}
