@@ -1,4 +1,4 @@
-export type UserRole = "SAAS_ADMIN" | "SERVICE_OWNER"
+export type UserRole = "SAAS_ADMIN" | "SERVICE_OWNER" | "SUPER_ADMIN" | "ADMIN" | "USER"
 
 export type OrganizationMemberRole = "Owner" | "Administrator" | "Developer"
 

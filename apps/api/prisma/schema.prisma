@@ -23,6 +23,11 @@ enum MemberRole {
   EDITOR
   MEMBER
 }
+enum GlobalRole {
+  SUPER_ADMIN
+  ADMIN
+  USER
+}
 enum CertificateStatus {
   ISSUED
   REVOKED
@@ -32,6 +37,7 @@ model AuthUser {
   id              String    @id @default(uuid()) @db.Uuid
   email           String    @unique
   passwordHash    String    @map("password_hash")
+  role            GlobalRole @default(USER)
   emailVerifiedAt DateTime? @map("email_verified_at")
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
