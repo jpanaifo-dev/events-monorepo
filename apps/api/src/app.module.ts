@@ -1,6 +1,13 @@
 import { Module } from '@nestjs/common';
 import { PrismaService } from './database/prisma.service.js';
 import { HealthController } from './health.controller.js';
+import { AuthModule } from './modules/auth/auth.module.js';
+import { ProfilesModule } from './modules/profiles/profiles.module.js';
+import { OrganizationsModule } from './modules/organizations/organizations.module.js';
+import { EventsModule } from './modules/events/events.module.js';
+import { EditionsModule } from './modules/editions/editions.module.js';
+import { ParticipantsModule } from './modules/participants/participants.module.js';
+import { CertificatesModule } from './modules/certificates/certificates.module.js';
 
-@Module({ controllers: [HealthController], providers: [PrismaService], exports: [PrismaService] })
+@Module({ imports: [AuthModule, ProfilesModule, OrganizationsModule, EventsModule, EditionsModule, ParticipantsModule, CertificatesModule], controllers: [HealthController], providers: [PrismaService], exports: [PrismaService] })
 export class AppModule {}
