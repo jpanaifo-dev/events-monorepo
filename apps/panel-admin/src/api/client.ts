@@ -28,7 +28,7 @@ export const api = {
     adminCreate: (data: any) => apiFetch<any>("/auth/admin-create", { method: "POST", body: JSON.stringify(data) }),
   },
   profiles: {
-    list: () => apiFetch<any[]>("/profiles"),
+    list: (organizationId?: string) => apiFetch<any[]>(`/profiles${organizationId ? `?organizationId=${encodeURIComponent(organizationId)}` : ""}`),
     create: (data: any) => apiFetch<any>("/profiles", { method: "POST", body: JSON.stringify(data) }),
     get: (id: string) => apiFetch<any>(`/profiles/${id}`),
     update: (id: string, data: Record<string, unknown>) => apiFetch<any>(`/profiles/${id}`, { method: "PATCH", body: JSON.stringify(data) }),

@@ -151,7 +151,7 @@ export function OrganizationSettingsPage() {
           setCoverUrl(data.coverUrl || "")
           setFaviconUrl(data.faviconUrl || "")
           setPrimaryColor(data.primaryColor || "")
-          setStatus(data.status || "active")
+          setStatus(data.isActive === false ? "inactive" : "active")
         }
 
         // Fetch branches for this organization
@@ -372,7 +372,7 @@ export function OrganizationSettingsPage() {
     if (!selectedOrganization?.id) return
     setIsUpdatingVisibility(true)
     try {
-      await api.organizations.update(selectedOrganization.id, { status: newStatus })
+      await api.organizations.update(selectedOrganization.id, { isActive: newStatus === "active" })
 
       setStatus(newStatus)
 

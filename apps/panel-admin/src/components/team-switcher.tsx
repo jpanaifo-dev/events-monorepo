@@ -21,6 +21,7 @@ export function TeamSwitcher() {
   const { organizations, selectedOrganization, selectOrganization } = useAuthStore()
   const { isMobile } = useSidebar()
   const navigate = useNavigate()
+  const organizationName = selectedOrganization?.name || "Organización sin nombre"
 
   if (!selectedOrganization) {
     return (
@@ -61,12 +62,12 @@ export function TeamSwitcher() {
                   <img src={selectedOrganization.logoUrl} alt={selectedOrganization.name} className="size-full object-cover" />
                 ) : (
                   <div className="flex size-full items-center justify-center bg-primary text-white text-sm">
-                    {selectedOrganization.name.charAt(0).toUpperCase()}
+                    {organizationName.charAt(0).toUpperCase()}
                   </div>
                 )}
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">{selectedOrganization.name}</span>
+                <span className="truncate font-semibold">{organizationName}</span>
                 <div className="flex items-center mt-0.5">
                   {selectedOrganization.isActive ? (
                     <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full">
@@ -101,10 +102,10 @@ export function TeamSwitcher() {
                   {org.logoUrl ? (
                     <img src={org.logoUrl} alt={org.name} className="size-full object-cover" />
                   ) : (
-                    org.name.charAt(0).toUpperCase()
+                    (org.name || "Organización sin nombre").charAt(0).toUpperCase()
                   )}
                 </div>
-                <span className="flex-1 truncate text-sm font-medium">{org.name}</span>
+                <span className="flex-1 truncate text-sm font-medium">{org.name || "Organización sin nombre"}</span>
                 <DropdownMenuShortcut className="text-[10px] font-mono">⌘{index + 1}</DropdownMenuShortcut>
               </DropdownMenuItem>
             ))}

@@ -38,7 +38,7 @@ interface AdminProfilesState {
   selectedProfileCertifications: Certification[]
   isLoading: boolean
 
-  loadAllProfiles: () => Promise<void>
+  loadAllProfiles: (organizationId?: string) => Promise<void>
   loadProfileDetails: (profileId: string) => Promise<void>
   updateProfile: (profileId: string, updates: Partial<Profile>) => Promise<void>
   deleteProfile: (profileId: string) => Promise<void>
@@ -152,10 +152,10 @@ export const useAdminProfilesStore = create<AdminProfilesState>((set) => ({
   selectedProfileCertifications: [],
   isLoading: false,
 
-  loadAllProfiles: async () => {
+  loadAllProfiles: async (organizationId) => {
     set({ isLoading: true })
     try {
-      const data = await api.profiles.list()
+      const data = await api.profiles.list(organizationId)
       set({ profiles: (data || []).map(mapProfile) })
     } catch (e) {
       console.error("Error loading all profiles:", e)

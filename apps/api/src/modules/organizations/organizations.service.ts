@@ -7,7 +7,7 @@ export class OrganizationsService {
   list() { return this.prisma.organization.findMany({ include: { branches: true, _count: { select: { members: true, events: true } } }, orderBy: { createdAt: 'desc' } }); }
   async get(id: string) { const item = await this.prisma.organization.findUnique({ where: { id }, include: { branches: true, members: { include: { profile: true } }, events: true } }); if (!item) throw new NotFoundException('Organización no encontrada'); return item; }
   create(data: { name: string; slug: string; description?: string }) { return this.prisma.organization.create({ data }); }
-  update(id: string, data: Record<string, unknown>) { return this.prisma.organization.update({ where: { id }, data }); }
+  update(id: string, data: Record<string, unknown>) { const allowed = ['name', 'slug', 'description', 'logoUrl', 'coverUrl', 'isActive']; const clean = Object.fromEntries(Object.entries(data).filter(([key]) => allowed.includes(key))); return this.prisma.organization.update({ where: { id }, data: clean }); }
   remove(id: string) { return this.prisma.organization.delete({ where: { id } }); }
   branches(organizationId: string) { return this.prisma.organizationBranch.findMany({ where: { organizationId }, orderBy: { name: 'asc' } }); }
   async addBranch(organizationId: string, data: any) { if (data.isMain) await this.prisma.organizationBranch.updateMany({ where: { organizationId }, data: { isMain: false } }); return this.prisma.organizationBranch.create({ data: { ...data, organizationId } }); }
