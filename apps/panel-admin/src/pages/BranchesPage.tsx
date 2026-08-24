@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuthStore } from "@/store/auth.store"
-import { supabase } from "@/utils/supabase"
+import { api } from "@/api/client"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -49,14 +49,7 @@ export function BranchesPage() {
     if (!selectedOrganization?.id) return
     setIsLoading(true)
     try {
-      const { data, error } = await supabase
-        .from("organization_branches")
-        .select("*")
-        .eq("organization_id", selectedOrganization.id)
-        .order("is_main", { ascending: false })
-        .order("created_at", { ascending: true })
-
-      if (error) throw error
+      const data = await api.organizations.branches(selectedOrganization.id)
       setBranches(data || [])
     } catch (err: any) {
       console.error("Error fetching branches:", err)
@@ -80,12 +73,7 @@ export function BranchesPage() {
     if (!confirmed) return
 
     try {
-      const { error } = await supabase
-        .from("organization_branches")
-        .delete()
-        .eq("id", id)
-
-      if (error) throw error
+      await api.organizations.removeBranch(id)
       toast.success("Sede eliminada con éxito.")
       fetchBranches()
     } catch (err: any) {

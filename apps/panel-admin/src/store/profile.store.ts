@@ -1,5 +1,4 @@
 import { create } from "zustand"
-import { supabase } from "@/utils/supabase"
 import { api } from "@/api/client"
 
 export interface Education {
@@ -171,12 +170,12 @@ export const useProfileStore = create<ProfileState>((set) => ({
         visibility: data.visibility || "public",
         is_favorite: data.isFavorite,
       }
+      void newRow
 
-      const { error } = await supabase.from("education").insert([newRow])
-      if (error) throw error
+      const created = await api.profiles.addEducation(userId, { institution: data.institution, degree: data.degree, startDate: data.startDate, endDate: data.endDate })
 
       const mapped = mapEducation({
-        ...newRow,
+        ...created,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
@@ -207,8 +206,7 @@ export const useProfileStore = create<ProfileState>((set) => ({
       if (updates.isFavorite !== undefined) dbUpdates.is_favorite = updates.isFavorite
       dbUpdates.updated_at = new Date().toISOString()
 
-      const { error } = await supabase.from("education").update(dbUpdates).eq("id", id)
-      if (error) throw error
+      await api.profiles.updateEducation(id, dbUpdates)
 
       set((state) => ({
         education: state.education.map((e) =>
@@ -223,8 +221,7 @@ export const useProfileStore = create<ProfileState>((set) => ({
 
   deleteEducation: async (id) => {
     try {
-      const { error } = await supabase.from("education").delete().eq("id", id)
-      if (error) throw error
+      await api.profiles.removeEducation(id)
 
       set((state) => ({
         education: state.education.filter((e) => e.id !== id)
@@ -251,12 +248,12 @@ export const useProfileStore = create<ProfileState>((set) => ({
         visibility: data.visibility || "public",
         is_favorite: data.isFavorite,
       }
+      void newRow
 
-      const { error } = await supabase.from("employment_history").insert([newRow])
-      if (error) throw error
+      const created = await api.profiles.addEmployment(userId, { company: data.organization, position: data.role, startDate: data.startDate, endDate: data.endDate || undefined })
 
       const mapped = mapEmployment({
-        ...newRow,
+        ...created,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
@@ -284,8 +281,7 @@ export const useProfileStore = create<ProfileState>((set) => ({
       if (updates.isFavorite !== undefined) dbUpdates.is_favorite = updates.isFavorite
       dbUpdates.updated_at = new Date().toISOString()
 
-      const { error } = await supabase.from("employment_history").update(dbUpdates).eq("id", id)
-      if (error) throw error
+      await api.profiles.updateEmployment(id, dbUpdates)
 
       set((state) => ({
         employmentHistory: state.employmentHistory.map((e) =>
@@ -300,8 +296,7 @@ export const useProfileStore = create<ProfileState>((set) => ({
 
   deleteEmploymentHistory: async (id) => {
     try {
-      const { error } = await supabase.from("employment_history").delete().eq("id", id)
-      if (error) throw error
+      await api.profiles.removeEmployment(id)
 
       set((state) => ({
         employmentHistory: state.employmentHistory.filter((e) => e.id !== id)
@@ -326,12 +321,12 @@ export const useProfileStore = create<ProfileState>((set) => ({
         credential_url: data.credentialUrl || null,
         is_favorite: data.isFavorite,
       }
+      void newRow
 
-      const { error } = await supabase.from("certifications").insert([newRow])
-      if (error) throw error
+      const created = await api.profiles.addCertification(userId, { name: data.name, issuer: data.issuingOrganization, issuedAt: data.issueDate })
 
       const mapped = mapCertification({
-        ...newRow,
+        ...created,
         created_at: new Date().toISOString()
       })
 
@@ -355,8 +350,7 @@ export const useProfileStore = create<ProfileState>((set) => ({
       if (updates.credentialUrl !== undefined) dbUpdates.credential_url = updates.credentialUrl
       if (updates.isFavorite !== undefined) dbUpdates.is_favorite = updates.isFavorite
 
-      const { error } = await supabase.from("certifications").update(dbUpdates).eq("id", id)
-      if (error) throw error
+      await api.profiles.updateCertification(id, dbUpdates)
 
       set((state) => ({
         certifications: state.certifications.map((c) =>
@@ -371,8 +365,7 @@ export const useProfileStore = create<ProfileState>((set) => ({
 
   deleteCertification: async (id) => {
     try {
-      const { error } = await supabase.from("certifications").delete().eq("id", id)
-      if (error) throw error
+      await api.profiles.removeCertification(id)
 
       set((state) => ({
         certifications: state.certifications.filter((c) => c.id !== id)

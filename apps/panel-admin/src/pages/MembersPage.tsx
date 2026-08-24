@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { z } from "zod"
 import { useAuthStore } from "@/store/auth.store"
-import { supabase } from "@/utils/supabase"
+import { api } from "@/api/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
@@ -26,7 +26,7 @@ export function MembersPage() {
   const [members, setMembers] = useState<any[]>([])
   const [isLoadingList, setIsLoadingList] = useState(true)
   const [filterText, setFilterText] = useState("")
-  const [isDemoMode, setIsDemoMode] = useState(false)
+  const [isDemoMode] = useState(false)
 
   // Invite modal states
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false)
@@ -86,26 +86,8 @@ export function MembersPage() {
         return
       }
 
-      // Supabase Query
-      let queryBuilder = supabase
-        .from("organization_members")
-        .select(`
-          id,
-          role,
-          is_active,
-          profile_id,
-          profile:profiles (
-            id,
-            first_name,
-            last_name,
-            email,
-            avatar_url
-          )
-        `)
-        .eq("organization_id", selectedOrganization.id)
-
-      const { data, error } = await queryBuilder
-
+      const data = await api.organizations.members(selectedOrganization.id)
+      /* Legacy demo fallback kept for local-only data:
       if (error) {
         if (error.code === "P0001" || error.message.includes("does not exist")) {
           setIsDemoMode(true)
@@ -139,7 +121,7 @@ export function MembersPage() {
           return
         }
         throw error
-      }
+      } */
 
       // Filter locally or from profiles
       let list: any[] = data || []
@@ -201,13 +183,7 @@ export function MembersPage() {
     }
     setIsSearchingProfiles(true)
     try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, first_name, last_name, email, avatar_url")
-        .or(`first_name.ilike.%${val}%,last_name.ilike.%${val}%,email.ilike.%${val}%`)
-        .limit(8)
-
-      if (error) throw error
+      const data = (await api.profiles.list()).filter((profile: any) => `${profile.firstName || ""} ${profile.lastName || ""} ${profile.email || ""}`.toLowerCase().includes(val.toLowerCase())).slice(0, 8)
       setSearchResults(data || [])
     } catch (e) {
       console.error("Error searching profiles:", e)
@@ -244,13 +220,7 @@ export function MembersPage() {
     setIsInviting(true)
     try {
       // 1. Search profile by email
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("id, first_name, last_name, email, avatar_url")
-        .eq("email", inviteEmail.trim())
-        .maybeSingle()
-
-      if (profileError) throw profileError
+      const profileData = (await api.profiles.list()).find((profile: any) => profile.email === inviteEmail.trim())
 
       if (!profileData) {
         toast.error("No se encontró ningún usuario registrado con ese correo.")
@@ -306,14 +276,7 @@ export function MembersPage() {
       }
 
       // 2. Insert into organization_members
-      const { error: insertError } = await supabase
-        .from("organization_members")
-        .insert({
-          organization_id: selectedOrganization.id,
-          profile_id: profileData.id,
-          role: inviteRole,
-          is_active: true
-        })
+      const insertError = await api.organizations.addMember(selectedOrganization.id, { profileId: profileData.id, role: inviteRole }).then(() => null).catch((error) => error)
 
       if (insertError) {
         if (insertError.message?.includes("unique_organization_profile") || insertError.code === "23505") {
@@ -362,10 +325,7 @@ export function MembersPage() {
         return
       }
 
-      const { error } = await supabase
-        .from("organization_members")
-        .delete()
-        .eq("id", memberId)
+      const error = await api.organizations.removeMember(memberId).then(() => null).catch((err) => err)
 
       if (error) throw error
 

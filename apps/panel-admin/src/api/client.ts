@@ -1,4 +1,8 @@
-const API_URL = (import.meta.env.VITE_API_URL as string | undefined) || "http://localhost:3000/api"
+const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/+$/, "")
+
+if (!API_URL) {
+  throw new Error("VITE_API_URL no está configurada. Define la URL del backend en el archivo .env del frontend.")
+}
 
 export class ApiError extends Error {
   readonly status: number
@@ -19,11 +23,16 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
 export const api = {
   auth: {
     login: (email: string, password: string) => apiFetch<{ accessToken: string; user: any }>("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
+    forgotPassword: (email: string) => apiFetch<any>("/auth/forgot-password", { method: "POST", body: JSON.stringify({ email }) }),
+    resetPassword: (token: string, password: string) => apiFetch<any>("/auth/reset-password", { method: "POST", body: JSON.stringify({ token, password }) }),
+    adminCreate: (data: any) => apiFetch<any>("/auth/admin-create", { method: "POST", body: JSON.stringify(data) }),
   },
   profiles: {
     list: () => apiFetch<any[]>("/profiles"),
+    create: (data: any) => apiFetch<any>("/profiles", { method: "POST", body: JSON.stringify(data) }),
     get: (id: string) => apiFetch<any>(`/profiles/${id}`),
     update: (id: string, data: Record<string, unknown>) => apiFetch<any>(`/profiles/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    remove: (id: string) => apiFetch<any>(`/profiles/${id}`, { method: "DELETE" }),
     education: (id: string) => apiFetch<any[]>(`/profiles/${id}/education`),
     addEducation: (id: string, data: any) => apiFetch<any>(`/profiles/${id}/education`, { method: "POST", body: JSON.stringify(data) }),
     updateEducation: (id: string, data: any) => apiFetch<any>(`/profiles/education/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
@@ -42,6 +51,7 @@ export const api = {
     get: (id: string) => apiFetch<any>(`/organizations/${id}`),
     create: (data: any) => apiFetch<any>("/organizations", { method: "POST", body: JSON.stringify(data) }),
     update: (id: string, data: any) => apiFetch<any>(`/organizations/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    remove: (id: string) => apiFetch<any>(`/organizations/${id}`, { method: "DELETE" }),
     branches: (id: string) => apiFetch<any[]>(`/organizations/${id}/branches`),
     addBranch: (id: string, data: any) => apiFetch<any>(`/organizations/${id}/branches`, { method: "POST", body: JSON.stringify(data) }),
     updateBranch: (id: string, data: any) => apiFetch<any>(`/organizations/branches/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
@@ -81,6 +91,7 @@ export const api = {
     removeTemplate: (id: string) => apiFetch<any>(`/certificates/templates/${id}`, { method: "DELETE" }),
     logs: (id: string) => apiFetch<any[]>(`/certificates/${id}/logs`),
     addLog: (id: string, data: any) => apiFetch<any>(`/certificates/${id}/logs`, { method: "POST", body: JSON.stringify(data) }),
+    update: (id: string, data: any) => apiFetch<any>(`/certificates/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
   },
   content: {
     activities: (editionId: string) => apiFetch<any[]>(`/editions/${editionId}/activities`),
@@ -89,6 +100,10 @@ export const api = {
     removeActivity: (id: string) => apiFetch<any>(`/activities/${id}`, { method: "DELETE" }),
     sessions: (activityId: string) => apiFetch<any[]>(`/activities/${activityId}/sessions`),
     createSession: (activityId: string, data: any) => apiFetch<any>(`/activities/${activityId}/sessions`, { method: "POST", body: JSON.stringify(data) }),
+    createSessionForEdition: (editionId: string, data: any) => apiFetch<any>(`/editions/${editionId}/sessions`, { method: "POST", body: JSON.stringify(data) }),
+    participantSessions: (participantId: string) => apiFetch<any[]>(`/participants/${participantId}/sessions`),
+    updateSession: (id: string, data: any) => apiFetch<any>(`/sessions/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    removeSession: (id: string) => apiFetch<any>(`/sessions/${id}`, { method: "DELETE" }),
     addSpeaker: (sessionId: string, profileId: string) => apiFetch<any>(`/sessions/${sessionId}/speakers`, { method: "POST", body: JSON.stringify({ profileId }) }),
     removeSessionSpeaker: (id: string) => apiFetch<any>(`/session-speakers/${id}`, { method: "DELETE" }),
     tickets: (editionId: string) => apiFetch<any[]>(`/editions/${editionId}/tickets`),
@@ -107,5 +122,12 @@ export const api = {
     createSpeaker: (eventId: string, data: any) => apiFetch<any>(`/events/${eventId}/speakers`, { method: "POST", body: JSON.stringify(data) }),
     updateSpeaker: (id: string, data: any) => apiFetch<any>(`/speakers/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     removeSpeaker: (id: string) => apiFetch<any>(`/speakers/${id}`, { method: "DELETE" }),
+    resources: (sessionId: string) => apiFetch<any[]>(`/sessions/${sessionId}/resources`),
+    addResource: (sessionId: string, data: any) => apiFetch<any>(`/sessions/${sessionId}/resources`, { method: "POST", body: JSON.stringify(data) }),
+    updateResource: (id: string, data: any) => apiFetch<any>(`/resources/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    removeResource: (id: string) => apiFetch<any>(`/resources/${id}`, { method: "DELETE" }),
+    sessionLines: (sessionId: string) => apiFetch<any[]>(`/sessions/${sessionId}/thematic-lines`),
+    addSessionLine: (sessionId: string, thematicLineId: string) => apiFetch<any>(`/sessions/${sessionId}/thematic-lines`, { method: "POST", body: JSON.stringify({ thematicLineId }) }),
+    removeSessionLine: (sessionId: string, thematicLineId: string) => apiFetch<any>(`/sessions/${sessionId}/thematic-lines/${thematicLineId}`, { method: "DELETE" }),
   },
 }

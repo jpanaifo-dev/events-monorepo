@@ -13,4 +13,5 @@ export class CertificatesService {
   removeTemplate(id: string) { return this.prisma.certificateTemplate.delete({ where: { id } }); }
   logs(certificateId: string) { return this.prisma.certificateTrackingLog.findMany({ where: { certificateId }, orderBy: { createdAt: 'desc' } }); }
   addLog(certificateId: string, action: string, ipAddress?: string) { return this.prisma.certificateTrackingLog.create({ data: { certificateId, action, ipAddress } }); }
+  update(id: string, data: { status?: 'ISSUED' | 'REVOKED' }) { return this.prisma.participantCertificate.update({ where: { id }, data }); }
 }

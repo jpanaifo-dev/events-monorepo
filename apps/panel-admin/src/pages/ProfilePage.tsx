@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { z } from "zod"
 import { useAuthStore } from "@/store/auth.store"
-import { supabase } from "@/utils/supabase"
+import { api } from "@/api/client"
 import { ThemeSwitch } from "@/components/ui/theme-switch"
 import { ZynqroLogo } from "@/components/zynqro-logo"
 import { Button } from "@/components/ui/button"
@@ -45,22 +45,16 @@ export function ProfilePage() {
       if (!user?.id) return
       setIsLoadingProfile(true)
       try {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", user.id)
-          .maybeSingle()
-
-        if (error) throw error
+        const data = await api.profiles.get(user.id)
 
         if (data) {
-          setFirstName(data.first_name || "")
-          setLastName(data.last_name || "")
+          setFirstName(data.firstName || "")
+          setLastName(data.lastName || "")
           setPhone(data.phone || "")
           setBio(data.bio || "")
           setInstitution(data.institution || "")
           setDedication(data.dedication || "")
-          setAvatarUrl(data.avatar_url || "")
+          setAvatarUrl(data.avatarUrl || "")
         }
       } catch (err) {
         console.error("Error loading user profile:", err)
@@ -74,7 +68,7 @@ export function ProfilePage() {
   }, [user?.id])
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
+    localStorage.removeItem("events-api-access-token")
     logout()
     navigate("/login", { replace: true })
   }
@@ -111,21 +105,7 @@ export function ProfilePage() {
     setIsSubmitting(true)
 
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .upsert({
-          id: user.id,
-          first_name: firstName,
-          last_name: lastName,
-          phone,
-          bio,
-          institution,
-          dedication,
-          avatar_url: avatarUrl,
-          updated_at: new Date().toISOString()
-        })
-
-      if (error) throw error
+      await api.profiles.update(user.id, { firstName, lastName, phone, bio, institution, avatarUrl })
 
       // Update auth store user details
       setUser({

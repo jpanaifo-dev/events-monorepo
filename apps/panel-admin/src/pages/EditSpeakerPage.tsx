@@ -18,7 +18,7 @@ import { ImageUploadWithPreview } from "@/components/ImageUploadWithPreview"
 import { useSEO } from "@/hooks/use-seo"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { supabase } from "@/utils/supabase"
+import { api } from "@/api/client"
 import {
   Dialog,
   DialogContent,
@@ -95,39 +95,11 @@ export function EditSpeakerPage() {
     async function loadAllSpeakers() {
       if (!eventId) return
       try {
-        const { data: rolesData } = await supabase
-          .from("participant_roles")
-          .select("id, slug")
-          .eq("main_event_id", eventId)
-
-        const speakerRoleIds = (rolesData || [])
-          .filter((r) => r.slug === "speaker" || r.slug === "keynote-speaker")
-          .map((r) => r.id)
-
-        if (speakerRoleIds.length === 0) return
-
-        const { data } = await supabase
-          .from("event_participants")
-          .select(`
-            id,
-            profile:profile_id (
-              first_name, last_name
-            )
-          `)
-          .eq("main_event_id", eventId)
-          .in("role_id", speakerRoleIds)
-          .order("created_at", { ascending: false })
-
-        if (data) {
-          const mapped = data.map((part: any) => {
-            const profile = part.profile || {}
-            return {
-              id: part.id,
-              name: `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || "Ponente"
-            }
-          })
-          setAllEventSpeakers(mapped)
-        }
+        const data = await api.content.speakers(eventId)
+        setAllEventSpeakers((data || []).map((part: any) => ({
+          id: part.id,
+          name: `${part.profile?.firstName || ""} ${part.profile?.lastName || ""}`.trim() || "Ponente",
+        })))
       } catch (err) {
         console.error("Error loading all speakers for navigation:", err)
       }
@@ -187,49 +159,20 @@ export function EditSpeakerPage() {
       if (!speakerId) return
       setIsLoadingSession(true)
       try {
-        // 1. Find all session_speakers pivots
-        const { data: speakerPivots, error: pivotErr } = await supabase
-          .from("session_speakers")
-          .select("session_id")
-          .eq("participant_id", speakerId)
-
-        if (pivotErr) throw pivotErr
-
-        if (speakerPivots && speakerPivots.length > 0) {
-          const sessionIds = speakerPivots.map((p) => p.session_id)
-
-          // 2. Fetch session details
-          const { data: sessionsData, error: sessionsErr } = await supabase
-            .from("event_sessions")
-            .select("*")
-            .in("id", sessionIds)
-
-          if (sessionsErr) throw sessionsErr
-
-          // Fetch thematic lines and resources for each session
-          const loadedSessions = []
-          for (const sess of sessionsData || []) {
-            const { data: thematicData } = await supabase
-              .from("session_thematic_lines")
-              .select("thematic_line_id")
-              .eq("session_id", sess.id)
-
-            const { data: resourceData } = await supabase
-              .from("session_resources")
-              .select("id, name, file_url, mime_type")
-              .eq("session_id", sess.id)
-
-            loadedSessions.push({
-              id: sess.id,
-              title: sess.title || "",
-              thematicLines: (thematicData || []).map((d) => d.thematic_line_id),
-              resources: resourceData || []
-            })
+        const sessionsData = await api.content.participantSessions(speakerId)
+        const loadedSessions = await Promise.all((sessionsData || []).map(async (sess: any) => {
+          const [thematicData, resourceData] = await Promise.all([
+            api.content.sessionLines(sess.id),
+            api.content.resources(sess.id),
+          ])
+          return {
+            id: sess.id,
+            title: sess.title || "",
+            thematicLines: (thematicData || []).map((d: any) => d.thematicLineId || d.thematic_line_id),
+            resources: resourceData || [],
           }
-          setSessionsList(loadedSessions)
-        } else {
-          setSessionsList([])
-        }
+        }))
+        setSessionsList(loadedSessions)
       } catch (err) {
         console.error("Error loading speaker sessions info:", err)
       } finally {
@@ -272,67 +215,26 @@ export function EditSpeakerPage() {
         const sId = editingSession.id
 
         // 1. Update session title
-        const { error: sessionErr } = await supabase
-          .from("event_sessions")
-          .update({ title: tempSessionTitle.trim() })
-          .eq("id", sId)
-
-        if (sessionErr) throw sessionErr
+        await api.content.updateSession(sId, { title: tempSessionTitle.trim() })
 
         // 2. Sync thematic lines
-        const { error: deleteLinesErr } = await supabase
-          .from("session_thematic_lines")
-          .delete()
-          .eq("session_id", sId)
-
-        if (deleteLinesErr) throw deleteLinesErr
+        const existingLines = await api.content.sessionLines(sId)
+        await Promise.all((existingLines || []).map((line: any) => api.content.removeSessionLine(sId, line.thematicLineId || line.thematic_line_id)))
 
         if (tempSelectedThematicLines.length > 0) {
-          const thematicPivots = tempSelectedThematicLines.map((lineId) => ({
-            session_id: sId,
-            thematic_line_id: lineId,
-          }))
-
-          const { error: insertLinesErr } = await supabase
-            .from("session_thematic_lines")
-            .insert(thematicPivots)
-
-          if (insertLinesErr) throw insertLinesErr
+          await Promise.all(tempSelectedThematicLines.map((lineId) => api.content.addSessionLine(sId, lineId)))
         }
 
         // 3. Sync resources
-        const { error: deleteResErr } = await supabase
-          .from("session_resources")
-          .delete()
-          .eq("session_id", sId)
-
-        if (deleteResErr) throw deleteResErr
+        const existingResources = await api.content.resources(sId)
+        await Promise.all((existingResources || []).map((resource: any) => api.content.removeResource(resource.id)))
 
         if (tempSessionResources.length > 0) {
-          const resourceInserts = tempSessionResources
-            .filter((r) => r.name.trim() && r.file_url.trim())
-            .map((r) => ({
-              id: crypto.randomUUID(),
-              session_id: sId,
-              name: r.name.trim(),
-              file_url: r.file_url.trim(),
-              mime_type: r.file_url.split('.').pop() || 'application/octet-stream',
-            }))
-
-          if (resourceInserts.length > 0) {
-            const { error: insertResErr } = await supabase
-              .from("session_resources")
-              .insert(resourceInserts)
-
-            if (insertResErr) throw insertResErr
-          }
+          await Promise.all(tempSessionResources.filter((r) => r.name.trim() && r.file_url.trim()).map((r) => api.content.addResource(sId, { name: r.name.trim(), url: r.file_url.trim(), type: r.file_url.split('.').pop() || 'application/octet-stream' })))
         }
 
         // Fetch fresh resources with IDs from DB to avoid state sync issues
-        const { data: freshResources } = await supabase
-          .from("session_resources")
-          .select("id, name, file_url, mime_type")
-          .eq("session_id", sId)
+        const freshResources = await api.content.resources(sId)
 
         // Update local state list
         setSessionsList(sessionsList.map((s) => s.id === sId ? {
@@ -346,71 +248,29 @@ export function EditSpeakerPage() {
         const newSessionId = crypto.randomUUID()
 
         // 1. Insert event_sessions
-        const { error: sessionErr } = await supabase
-          .from("event_sessions")
-          .insert([{
-            id: newSessionId,
-            title: tempSessionTitle.trim(),
-            edition_id: selectedEditionId || currentEdition?.id || eventId,
-          }])
-
-        if (sessionErr) throw sessionErr
+        const createdSession = await api.content.createSessionForEdition(selectedEditionId || currentEdition?.id || eventId!, { title: tempSessionTitle.trim() })
+        const createdSessionId = createdSession.id || newSessionId
 
         // 2. Insert session_speakers
-        const { error: speakerErr } = await supabase
-          .from("session_speakers")
-          .insert([{
-            session_id: newSessionId,
-            participant_id: speakerId!,
-            is_main_speaker: true,
-          }])
-
-        if (speakerErr) throw speakerErr
+        const participant = await api.participants.get(speakerId!)
+        await api.content.addSpeaker(createdSessionId, participant.profileId)
 
         // 3. Insert session_thematic_lines
         if (tempSelectedThematicLines.length > 0) {
-          const thematicPivots = tempSelectedThematicLines.map((lineId) => ({
-            session_id: newSessionId,
-            thematic_line_id: lineId,
-          }))
-
-          const { error: insertLinesErr } = await supabase
-            .from("session_thematic_lines")
-            .insert(thematicPivots)
-
-          if (insertLinesErr) throw insertLinesErr
+          await Promise.all(tempSelectedThematicLines.map((lineId) => api.content.addSessionLine(createdSessionId, lineId)))
         }
 
         // 4. Insert session_resources
         if (tempSessionResources.length > 0) {
-          const resourceInserts = tempSessionResources
-            .filter((r) => r.name.trim() && r.file_url.trim())
-            .map((r) => ({
-              id: crypto.randomUUID(),
-              session_id: newSessionId,
-              name: r.name.trim(),
-              file_url: r.file_url.trim(),
-              mime_type: r.file_url.split('.').pop() || 'application/octet-stream',
-            }))
-
-          if (resourceInserts.length > 0) {
-            const { error: insertResErr } = await supabase
-              .from("session_resources")
-              .insert(resourceInserts)
-
-            if (insertResErr) throw insertResErr
-          }
+          await Promise.all(tempSessionResources.filter((r) => r.name.trim() && r.file_url.trim()).map((r) => api.content.addResource(createdSessionId, { name: r.name.trim(), url: r.file_url.trim(), type: r.file_url.split('.').pop() || 'application/octet-stream' })))
         }
 
         // Fetch fresh resources with IDs
-        const { data: freshResources } = await supabase
-          .from("session_resources")
-          .select("id, name, file_url, mime_type")
-          .eq("session_id", newSessionId)
+        const freshResources = await api.content.resources(createdSessionId)
 
         // Update local state list
         const newSession = {
-          id: newSessionId,
+          id: createdSessionId,
           title: tempSessionTitle.trim(),
           thematicLines: tempSelectedThematicLines,
           resources: freshResources || []
@@ -432,12 +292,7 @@ export function EditSpeakerPage() {
     if (!sessionToDelete) return
     setIsDeletingSession(true)
     try {
-      const { error } = await supabase
-        .from("event_sessions")
-        .delete()
-        .eq("id", sessionToDelete.id)
-
-      if (error) throw error
+      await api.content.removeSession(sessionToDelete.id)
 
       // Remove from local state list
       setSessionsList(sessionsList.filter((s) => s.id !== sessionToDelete.id))

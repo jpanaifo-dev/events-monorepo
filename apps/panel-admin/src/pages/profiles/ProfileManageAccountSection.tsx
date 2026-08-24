@@ -13,9 +13,8 @@ import {
 } from "@/components/ui/select"
 import { useSEO } from "@/hooks/use-seo"
 import { Shield, Key, AlertTriangle, CheckCircle2, Copy, Check } from "lucide-react"
-import { createSessionlessClient } from "@/utils/supabase-sessionless"
+import { api } from "@/api/client"
 import { sendEmailWithResend } from "@/utils/resend"
-import { supabase } from "@/utils/supabase"
 
 // Helper to generate a strong random password
 function generateRandomPassword(length = 12) {
@@ -79,37 +78,8 @@ export function ProfileManageAccountSection() {
     const originalEmail = targetProfile.email
 
     try {
-      // 1. Temporarily clear the email in the public profiles table to bypass trigger unique constraint
-      await updateProfile(profileId, { email: null })
-
-      // 2. Create Supabase Auth user session-lessly to avoid logging out the administrator
-      const tempClient = createSessionlessClient()
-      const { data, error } = await tempClient.auth.signUp({
-        email: originalEmail,
-        password: generatedPassword,
-        options: {
-          data: {
-            first_name: targetProfile.firstName,
-            last_name: targetProfile.lastName,
-          }
-        }
-      })
-
-      if (error) {
-        // Restore email if auth signup fails
-        await updateProfile(profileId, { email: originalEmail })
-        throw error
-      }
-
-      if (!data.user) {
-        await updateProfile(profileId, { email: originalEmail })
-        throw new Error("No se pudo obtener el usuario registrado en el sistema de autenticación.")
-      }
-
-      const newAuthId = data.user.id
-
-      // 3. Delete the profile automatically created by the Supabase Auth database trigger
-      await supabase.from("profiles").delete().eq("id", newAuthId)
+      const data = await api.auth.adminCreate({ email: originalEmail, password: generatedPassword, firstName: targetProfile.firstName, lastName: targetProfile.lastName })
+      const newAuthId = data.id
 
       // 4. Link the authId and restore the email in the original profile record
       await updateProfile(profileId, {
@@ -148,7 +118,7 @@ export function ProfileManageAccountSection() {
       }
     } catch (err: any) {
       console.error("Error creating auth account:", err)
-      toast.error(err.message || "Ocurrió un error al registrar la cuenta en Supabase Auth.")
+      toast.error(err.message || "Ocurrió un error al registrar la cuenta de acceso.")
     } finally {
       setIsCreatingAccount(false)
     }
@@ -208,7 +178,7 @@ export function ProfileManageAccountSection() {
               <div className="space-y-1">
                 <p className="text-sm font-medium text-foreground">Cuenta Vinculada Activa</p>
                 <p className="text-xs text-muted-foreground">
-                  Este perfil ya tiene un usuario de acceso vinculado en Supabase Auth (UID: <code className="bg-muted px-1 py-0.5 rounded text-[10px]">{targetProfile.authId}</code>).
+                  Este perfil ya tiene un usuario de acceso vinculado (UID: <code className="bg-muted px-1 py-0.5 rounded text-[10px]">{targetProfile.authId}</code>).
                 </p>
               </div>
             </div>
@@ -219,7 +189,7 @@ export function ProfileManageAccountSection() {
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-foreground">Sin Cuenta de Acceso</p>
                   <p className="text-xs text-muted-foreground">
-                    Este perfil no posee actualmente un usuario asignado en Supabase Auth. El usuario no podrá iniciar sesión en la plataforma.
+                    Este perfil no posee actualmente un usuario asignado. El usuario no podrá iniciar sesión en la plataforma.
                   </p>
                 </div>
               </div>
