@@ -5,7 +5,7 @@ import { AuthService } from './auth.service.js';
 class LoginDto { @IsEmail() email!: string; @IsString() @MinLength(8) password!: string; }
 class ForgotDto { @IsEmail() email!: string; }
 class ResetDto { @IsString() token!: string; @IsString() @MinLength(8) password!: string; }
-class AdminCreateDto { @IsEmail() email!: string; @IsString() @MinLength(8) password!: string; @IsOptional() @IsString() firstName?: string; @IsOptional() @IsString() lastName?: string; }
+class AdminCreateDto { @IsEmail() email!: string; @IsString() @MinLength(8) password!: string; @IsOptional() @IsString() firstName?: string; @IsOptional() @IsString() lastName?: string; @IsOptional() @IsString() role?: 'SUPER_ADMIN' | 'ADMIN' | 'USER'; }
 
 @Controller('auth')
 export class AuthController {

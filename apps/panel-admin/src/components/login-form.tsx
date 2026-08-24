@@ -92,7 +92,7 @@ export function LoginForm({
       const sessionUser = authData.user
       const profile = authData.user
 
-      const userRole = "SERVICE_OWNER" as any
+      const userRole = sessionUser.role || "USER"
       const orgsData = await api.organizations.list()
 
       // Map to Organization model
@@ -128,7 +128,7 @@ export function LoginForm({
       )
 
       // Navigating to the Organization Selection dashboard
-      navigate("/dashboard/organizations", { replace: true })
+      navigate(["SUPER_ADMIN", "ADMIN", "SAAS_ADMIN"].includes(sessionUser.role) ? "/admin" : "/dashboard/organizations", { replace: true })
     } catch (err: any) {
       console.error(err)
       setFormError("Ocurrió un error inesperado. Inténtalo de nuevo.")

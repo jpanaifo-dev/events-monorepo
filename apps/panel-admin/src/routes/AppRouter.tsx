@@ -53,6 +53,8 @@ import {
   ProfileManageAccountSection,
 } from "@/pages/profiles"
 import { VerifyCertificatePage } from "@/pages/VerifyCertificatePage"
+import { AdminLayout } from "@/layouts/AdminLayout"
+import { AdminPage } from "@/pages/AdminPage"
 
 function HashHandler() {
   const navigate = useNavigate()
@@ -88,6 +90,15 @@ export function AppRouter() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/validar/:code" element={<VerifyCertificatePage />} />
+
+        <Route path="/admin" element={<AuthGuard allowedRoles={["SUPER_ADMIN", "ADMIN", "SAAS_ADMIN"]} requireSelectedOrganization={false}><AdminLayout /></AuthGuard>}>
+          <Route index element={<AdminPage />} />
+          <Route path="organizations" element={<AdminPage />} />
+          <Route path="users" element={<AdminPage />} />
+          <Route path="plans" element={<AdminPage />} />
+          <Route path="payments" element={<AdminPage />} />
+          <Route path="settings" element={<AdminPage />} />
+        </Route>
 
         {/* Dashboard Routes requiring Authentication but NO Selected Organization yet */}
         <Route
