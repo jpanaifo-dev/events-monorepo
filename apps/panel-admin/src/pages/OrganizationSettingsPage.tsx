@@ -36,6 +36,11 @@ type OrganizationInput = z.infer<typeof organizationSchema>
 
 import { useSEO } from "@/hooks/use-seo"
 
+function isCurrentMember(member: any, accountId?: string) {
+  if (!accountId) return false
+  return member.profile?.authUserId === accountId || member.profile?.auth_user_id === accountId || member.profileId === accountId || member.profile_id === accountId
+}
+
 export function OrganizationSettingsPage() {
   const navigate = useNavigate()
   const { user, selectedOrganization, selectOrganization, setOrganizations, organizations } = useAuthStore()
@@ -160,8 +165,13 @@ export function OrganizationSettingsPage() {
         // Fetch members for this organization
         try {
           const membersData = await api.organizations.members(selectedOrganization.id)
-          let list: any[] = membersData || []
-          if (user && !list.some((m: any) => m.profile_id === user.id)) {
+          const uniqueMembers = new Map<string, any>()
+          for (const member of membersData || []) {
+            const key = member.profile?.authUserId ?? member.profile?.auth_user_id ?? member.profileId ?? member.profile_id ?? member.id
+            if (!uniqueMembers.has(key)) uniqueMembers.set(key, member)
+          }
+          let list = [...uniqueMembers.values()]
+          if (user && !list.some((m: any) => isCurrentMember(m, user.id))) {
             list = [
               {
                 id: `owner-fallback-${user.id}`,
@@ -189,7 +199,7 @@ export function OrganizationSettingsPage() {
             const stored = localStorage.getItem(storedKey)
             if (stored) {
               let list = JSON.parse(stored)
-              if (!list.some((m: any) => m.profile_id === user.id)) {
+              if (!list.some((m: any) => isCurrentMember(m, user.id))) {
                 list = [
                   {
                     id: "fallback-member-id",
@@ -994,7 +1004,7 @@ export function OrganizationSettingsPage() {
                         </span>
                         <div className="flex items-center gap-1.5 min-w-0">
                           <span className="text-xs text-muted-foreground truncate">{member.profile?.email}</span>
-                          {member.profile_id === user?.id && (
+                          {isCurrentMember(member, user?.id) && (
                             <span className="text-[8px] font-bold tracking-wider uppercase px-1 rounded bg-muted text-muted-foreground select-none shrink-0 font-sans">
                               TÚ
                             </span>

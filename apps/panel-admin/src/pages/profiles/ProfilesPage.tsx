@@ -34,7 +34,6 @@ export function ProfilesPage() {
   // Filter states
   const [searchQuery, setSearchQuery] = useState("")
   const [roleFilter, setRoleFilter] = useState("all")
-  const [accountTypeFilter, setAccountTypeFilter] = useState("all")
 
   // Filter logic
   const filteredProfiles = profiles.filter((p) => {
@@ -45,9 +44,7 @@ export function ProfilesPage() {
       email.includes(searchQuery.toLowerCase())
 
     const matchesRole = roleFilter === "all" || p.globalRole === roleFilter
-    const matchesAccount = accountTypeFilter === "all" || p.accountType === accountTypeFilter
-
-    return matchesSearch && matchesRole && matchesAccount
+    return matchesSearch && matchesRole
   })
 
   const formatDate = (dateStr: string) => {
@@ -67,17 +64,6 @@ export function ProfilesPage() {
         return <Badge className="bg-violet-500/10 text-violet-500 border-violet-500/20 font-bold">Developer</Badge>
       default:
         return <Badge className="bg-slate-500/10 text-slate-500 border-slate-500/20">Usuario</Badge>
-    }
-  }
-
-  const getAccountBadge = (type: string) => {
-    switch (type) {
-      case "enterprise":
-        return <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20 font-bold">Enterprise</Badge>
-      case "premium":
-        return <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20 font-bold">Premium</Badge>
-      default:
-        return <Badge className="bg-slate-500/10 text-slate-500 border-slate-500/20">Gratuito</Badge>
     }
   }
 
@@ -125,10 +111,6 @@ export function ProfilesPage() {
     {
       header: "Rol Global",
       cell: (p) => getRoleBadge(p.globalRole)
-    },
-    {
-      header: "Plan / Cuenta",
-      cell: (p) => getAccountBadge(p.accountType)
     },
     {
       header: "Estado",
@@ -215,20 +197,6 @@ export function ProfilesPage() {
             </Select>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground font-medium whitespace-nowrap">Cuenta:</span>
-            <Select value={accountTypeFilter} onValueChange={setAccountTypeFilter}>
-              <SelectTrigger className="w-[140px] h-9 text-xs">
-                <SelectValue placeholder="Todas las cuentas" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas las cuentas</SelectItem>
-                <SelectItem value="basic">Gratuito</SelectItem>
-                <SelectItem value="premium">Premium</SelectItem>
-                <SelectItem value="enterprise">Enterprise</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
         </div>
       </div>
 

@@ -254,7 +254,7 @@ export function AppRouter() {
         >
           <Route index element={<Navigate to="info" replace />} />
           <Route path="info" element={<ProfileManageInfoSection />} />
-          <Route path="account" element={<ProfileManageAccountSection />} />
+          <Route path="account" element={<AuthGuard allowedRoles={["SUPER_ADMIN", "SAAS_ADMIN"]} requireSelectedOrganization={false}><ProfileManageAccountSection /></AuthGuard>} />
           <Route path="experience" element={<ProfileManageExperienceSection />} />
           <Route path="education" element={<ProfileManageEducationSection />} />
           <Route path="certifications" element={<ProfileManageCertificationsSection />} />

@@ -14,7 +14,6 @@ import {
 import { useSEO } from "@/hooks/use-seo"
 import { Shield, Key, AlertTriangle, CheckCircle2, Copy, Check } from "lucide-react"
 import { api } from "@/api/client"
-import { sendEmailWithResend } from "@/utils/resend"
 
 // Helper to generate a strong random password
 function generateRandomPassword(length = 12) {
@@ -37,7 +36,6 @@ export function ProfileManageAccountSection() {
   })
 
   const [globalRole, setGlobalRole] = useState("user")
-  const [accountType, setAccountType] = useState("basic")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isCreatingAccount, setIsCreatingAccount] = useState(false)
   
@@ -48,7 +46,6 @@ export function ProfileManageAccountSection() {
   useEffect(() => {
     if (targetProfile) {
       setGlobalRole(targetProfile.globalRole || "user")
-      setAccountType(targetProfile.accountType || "basic")
     }
   }, [targetProfile])
 
@@ -60,7 +57,6 @@ export function ProfileManageAccountSection() {
     try {
       await updateProfile(profileId, {
         globalRole,
-        accountType,
       })
       toast.success("Configuración de cuenta actualizada correctamente")
     } catch (err: any) {
@@ -87,35 +83,13 @@ export function ProfileManageAccountSection() {
         email: originalEmail
       })
 
-      // 5. Send credentials email with Resend
-      const emailSubject = "Tus credenciales de acceso a la plataforma Zynqro"
-      const emailHtml = `
-        <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-          <h2 style="color: #e11d48;">¡Tu cuenta de Zynqro ha sido creada!</h2>
-          <p>Hola <strong>${targetProfile.firstName} ${targetProfile.lastName}</strong>,</p>
-          <p>Se ha configurado una cuenta de acceso para tu perfil en la plataforma.</p>
-          <div style="background-color: #f9f9f9; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #ddd;">
-            <p style="margin: 5px 0;"><strong>Usuario (Correo):</strong> ${originalEmail}</p>
-            <p style="margin: 5px 0;"><strong>Contraseña temporal:</strong> <code style="font-size: 1.1em; color: #1e293b; font-weight: bold; background: #e2e8f0; padding: 2px 6px; border-radius: 4px;">${generatedPassword}</code></p>
-          </div>
-          <p style="color: #64748b; font-size: 0.9em;">* Por razones de seguridad, te sugerimos ingresar a la plataforma y cambiar esta contraseña temporal a la mayor brevedad posible.</p>
-          <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
-          <p style="font-size: 0.8em; color: #94a3b8; text-align: center;">Zynqro Events Platform</p>
-        </div>
-      `
-      const emailResult = await sendEmailWithResend(originalEmail, emailSubject, emailHtml)
-
       // 6. Open UI Modal overlay so the administrator can copy details
       setCredentialsModal({
         email: originalEmail,
         password: generatedPassword,
       })
 
-      if (!emailResult.success) {
-        toast.warning(`Cuenta de autenticación creada, pero el correo no se pudo enviar: ${emailResult.error || "API Key no configurada"}`)
-      } else {
-        toast.success("Cuenta de autenticación creada con éxito y correo enviado.")
-      }
+      toast.success(data.emailSent ? "Cuenta creada y credenciales enviadas por correo." : "Cuenta creada; el correo no está configurado en el servidor.")
     } catch (err: any) {
       console.error("Error creating auth account:", err)
       toast.error(err.message || "Ocurrió un error al registrar la cuenta de acceso.")
@@ -160,7 +134,7 @@ export function ProfileManageAccountSection() {
       <div className="border-b border-border pb-3">
         <h3 className="text-lg font-bold">Gestión de Acceso y Cuenta</h3>
         <p className="text-xs text-muted-foreground">
-          Controla las credenciales de acceso, privilegios de rol global y suscripciones de plan.
+          Controla las credenciales de acceso y el rol global. Los planes se administran por institución.
         </p>
       </div>
 
@@ -246,25 +220,6 @@ export function ProfileManageAccountSection() {
             </div>
           </div>
 
-          {/* Account Type Select */}
-          <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border bg-blue-500/[0.01]">
-            <div className="md:w-1/3 space-y-1">
-              <label htmlFor="accountType" className="text-sm font-medium text-blue-500">Tipo de Plan / Cuenta</label>
-              <p className="text-xs text-muted-foreground">Configura los límites de organización y planes.</p>
-            </div>
-            <div className="md:w-2/3 max-w-md w-full">
-              <Select value={accountType} onValueChange={setAccountType}>
-                <SelectTrigger id="accountType" disabled={isSubmitting}>
-                  <SelectValue placeholder="Selecciona un tipo de cuenta" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="basic">Gratuito</SelectItem>
-                  <SelectItem value="premium">Premium</SelectItem>
-                  <SelectItem value="enterprise">Enterprise</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
 
           {/* Form Actions Footer */}
           <div className="bg-muted/10 px-6 py-4 flex justify-end gap-3">

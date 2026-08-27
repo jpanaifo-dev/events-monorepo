@@ -1,11 +1,12 @@
 export type UserRole = "SAAS_ADMIN" | "SERVICE_OWNER" | "SUPER_ADMIN" | "ADMIN" | "USER"
 
-export type OrganizationMemberRole = "Owner" | "Administrator" | "Developer"
+export type OrganizationMemberRole = "OWNER" | "ADMIN" | "EDITOR" | "MEMBER"
 
 export const OrganizationMemberRole = {
-  OWNER: "Owner" as const,
-  ADMINISTRATOR: "Administrator" as const,
-  DEVELOPER: "Developer" as const
+  OWNER: "OWNER" as const,
+  ADMIN: "ADMIN" as const,
+  EDITOR: "EDITOR" as const,
+  MEMBER: "MEMBER" as const
 } as const
 
 

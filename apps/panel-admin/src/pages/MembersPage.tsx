@@ -12,6 +12,11 @@ import { OrganizationMemberRole } from "@/types/auth.types"
 
 import { useSEO } from "@/hooks/use-seo"
 
+function isCurrentMember(member: any, accountId?: string) {
+  if (!accountId) return false
+  return member.profile?.authUserId === accountId || member.profile?.auth_user_id === accountId || member.profileId === accountId || member.profile_id === accountId
+}
+
 export function MembersPage() {
   const navigate = useNavigate()
   const { user, selectedOrganization } = useAuthStore()
@@ -31,7 +36,7 @@ export function MembersPage() {
   // Invite modal states
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false)
   const [inviteEmail, setInviteEmail] = useState("")
-  const [inviteRole, setInviteRole] = useState<OrganizationMemberRole>(OrganizationMemberRole.DEVELOPER)
+  const [inviteRole, setInviteRole] = useState<OrganizationMemberRole>(OrganizationMemberRole.EDITOR)
   const [isInviting, setIsInviting] = useState(false)
 
   // Search profiles modal states (inside invite modal)
@@ -51,7 +56,7 @@ export function MembersPage() {
         if (stored) {
           list = JSON.parse(stored)
         }
-        if (user && !list.some((m: any) => m.profile_id === user.id)) {
+        if (user && !list.some((m: any) => isCurrentMember(m, user.id))) {
           list = [
             {
               id: "fallback-member-id",
@@ -127,7 +132,7 @@ export function MembersPage() {
       let list: any[] = data || []
 
       // Ensure the current user is added as Owner if not present in the list
-      if (user && !list.some((m: any) => m.profile_id === user.id)) {
+      if (user && !list.some((m: any) => isCurrentMember(m, user.id))) {
         list = [
           {
             id: `owner-fallback-${user.id}`,
@@ -219,14 +224,8 @@ export function MembersPage() {
 
     setIsInviting(true)
     try {
-      // 1. Search profile by email
+      // La API resuelve cuentas existentes o crea una cuenta temporal y envía la invitación.
       const profileData = (await api.profiles.list()).find((profile: any) => profile.email === inviteEmail.trim())
-
-      if (!profileData) {
-        toast.error("No se encontró ningún usuario registrado con ese correo.")
-        setIsInviting(false)
-        return
-      }
 
       // If demo mode is active, simulate insert using localStorage
       if (isDemoMode) {
@@ -275,15 +274,7 @@ export function MembersPage() {
         return
       }
 
-      // 2. Insert into organization_members
-      const insertError = await api.organizations.addMember(selectedOrganization.id, { profileId: profileData.id, role: inviteRole }).then(() => null).catch((error) => error)
-
-      if (insertError) {
-        if (insertError.message?.includes("unique_organization_profile") || insertError.code === "23505") {
-          throw new Error("El usuario ya es miembro de esta organización.")
-        }
-        throw insertError
-      }
+      await api.organizations.inviteMember(selectedOrganization.id, { email: inviteEmail.trim(), role: inviteRole })
 
       toast.success(`Invitación enviada con éxito a ${inviteEmail}`)
       setIsInviteModalOpen(false)
@@ -302,7 +293,7 @@ export function MembersPage() {
 
     // Check if they are trying to remove themselves
     const member = members.find(m => m.id === memberId)
-    if (member && member.profile_id === user?.id) {
+    if (member && isCurrentMember(member, user?.id)) {
       toast.error("No puedes eliminarte a ti mismo de la organización.")
       return
     }
@@ -411,11 +402,11 @@ export function MembersPage() {
                     </div>
                     <div className="grid leading-tight min-w-0">
                       <span className="font-semibold text-foreground truncate">
-                        {[member.profile?.first_name, member.profile?.last_name].filter(Boolean).join(" ") || member.profile?.email.split("@")[0]}
+                        {[member.profile?.first_name ?? member.profile?.firstName, member.profile?.last_name ?? member.profile?.lastName].filter(Boolean).join(" ") || member.profile?.email?.split("@")[0] || "Sin nombre"}
                       </span>
                       <div className="flex items-center gap-1.5 min-w-0">
                         <span className="text-xs text-muted-foreground truncate">{member.profile?.email}</span>
-                        {member.profile_id === user?.id && (
+                        {isCurrentMember(member, user?.id) && (
                           <span className="text-[8px] font-bold tracking-wider uppercase px-1 rounded bg-muted text-muted-foreground select-none shrink-0 font-sans">
                             TÚ
                           </span>
@@ -435,7 +426,7 @@ export function MembersPage() {
                     <span className="text-xs font-semibold px-2 py-0.5 rounded bg-muted border border-border text-foreground capitalize select-none">
                       {member.role || "Developer"}
                     </span>
-                    {member.profile_id === user?.id ? (
+                    {isCurrentMember(member, user?.id) ? (
                       <button
                         type="button"
                         disabled
@@ -504,18 +495,23 @@ export function MembersPage() {
                   {[
                     {
                       value: OrganizationMemberRole.OWNER,
-                      label: "Owner (Dueño)",
-                      desc: "Acceso total, incluyendo la eliminación de la organización e invitación de otros administradores."
+                      label: "Propietario",
+                      desc: "Control total de la institución y de sus miembros."
                     },
                     {
-                      value: OrganizationMemberRole.ADMINISTRATOR,
-                      label: "Administrator (Administrador)",
-                      desc: "Administra miembros, sedes y configuración del proyecto. No puede eliminar dueños o la organización."
+                      value: OrganizationMemberRole.ADMIN,
+                      label: "Administrador institucional",
+                      desc: "Gestiona miembros, sedes y configuración institucional."
                     },
                     {
-                      value: OrganizationMemberRole.DEVELOPER,
-                      label: "Developer (Desarrollador)",
-                      desc: "Administra el contenido del proyecto (eventos, actividades). No puede cambiar la configuración comercial."
+                      value: OrganizationMemberRole.EDITOR,
+                      label: "Editor de contenidos",
+                      desc: "Gestiona eventos, actividades y contenido; no modifica miembros ni facturación."
+                    },
+                    {
+                      value: OrganizationMemberRole.MEMBER,
+                      label: "Miembro",
+                      desc: "Acceso de consulta a los recursos autorizados de la institución."
                     }
                   ].map((roleOpt) => (
                     <label

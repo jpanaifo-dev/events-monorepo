@@ -13,7 +13,7 @@ async function upsertUser(email: string, password: string, role: 'SUPER_ADMIN' |
     update: { passwordHash, role },
     create: { id, email, passwordHash, role },
   })
-  await prisma.profile.upsert({ where: { id: user.id }, update: { firstName }, create: { id: user.id, firstName } })
+  await prisma.profile.upsert({ where: { authUserId: user.id }, update: { firstName }, create: { authUserId: user.id, firstName } })
   return user.email
 }
 
