@@ -11,6 +11,7 @@ import { Search, X, UserPlus } from "lucide-react"
 import { OrganizationMemberRole } from "@/types/auth.types"
 
 import { useSEO } from "@/hooks/use-seo"
+import { getRoleLabel } from "@/lib/role-labels"
 
 function isCurrentMember(member: any, accountId?: string) {
   if (!accountId) return false
@@ -424,7 +425,7 @@ export function MembersPage() {
                   {/* Right Details */}
                   <div className="flex items-center justify-end gap-4">
                     <span className="text-xs font-semibold px-2 py-0.5 rounded bg-muted border border-border text-foreground capitalize select-none">
-                      {member.role || "Developer"}
+                      {getRoleLabel(member.role)}
                     </span>
                     {isCurrentMember(member, user?.id) ? (
                       <button

@@ -150,11 +150,11 @@ export const emailTemplates = {
         ¡Has sido invitado!
       </h1>
       <p style="margin: 0 0 16px 0; color: #334155; font-size: 15px; line-height: 1.6;">
-        Hola <strong>${escapeHtml(name)}</strong>, has recibido una invitación para integrarte al equipo de <strong>${escapeHtml(data.organizationName)}</strong>.
+        Hola <strong>${escapeHtml(name)}</strong>, Zyncro te invita a integrarte a la organización <strong>${escapeHtml(data.organizationName)}</strong>.
       </p>
 
-      ${renderInfoCard('Detalles de la Invitación', [
-        { label: 'Organización', value: data.organizationName },
+      ${renderInfoCard('Detalles de la invitación', [
+        { label: 'Institución', value: data.organizationName },
         { label: 'Rol asignado', value: roleInfo.label },
         ...(data.inviterName ? [{ label: 'Invitado por', value: data.inviterName }] : []),
       ])}

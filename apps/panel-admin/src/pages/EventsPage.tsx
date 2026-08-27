@@ -4,9 +4,10 @@ import { useAuthStore } from "@/store/auth.store"
 import { useEventStore, type EventFilters } from "@/store/event.store"
 import { DynamicFilters, type FilterConfig, type FilterValues } from "@/components/ui/dynamic-filters"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Calendar, Globe, Plus } from "lucide-react"
+import { Calendar, Globe, Plus, Grid2X2, List } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/page-header"
+import { DataTable, type ColumnDef } from "@/components/ui/data-table"
 
 const FILTER_CONFIGS: FilterConfig[] = [
   {
@@ -81,6 +82,12 @@ export function EventsPage() {
   })
 
   const [searchParams, setSearchParams] = useSearchParams()
+  const view = searchParams.get("view") === "table" ? "table" : "grid"
+  const setView = (nextView: "grid" | "table") => {
+    const params = new URLSearchParams(searchParams)
+    params.set("view", nextView)
+    setSearchParams(params)
+  }
 
   const filterValues = useMemo<FilterValues>(() => {
     const values: FilterValues = {}
@@ -130,6 +137,13 @@ export function EventsPage() {
     }
   }
 
+  const eventColumns: ColumnDef<any>[] = [
+    { header: "Evento", cell: (event) => <span className="font-semibold text-foreground">{event.name}</span> },
+    { header: "Estado", cell: (event) => getStatusBadge(event.status) },
+    { header: "Creado", cell: (event) => event.createdAt ? new Date(event.createdAt).toLocaleDateString("es-ES") : "—" },
+    { header: "Acción", headerClassName: "text-right", className: "text-right", cell: (event) => <Button variant="outline" size="sm" onClick={() => navigate(`/dashboard/events/${event.id}`)}>Gestionar</Button> },
+  ]
+
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
       <PageHeader
@@ -154,10 +168,15 @@ export function EventsPage() {
         modalTitle="Filtros de Eventos"
       />
 
+      <div className="flex justify-end gap-1">
+        <Button variant={view === "grid" ? "secondary" : "ghost"} size="icon" className="size-8" title="Vista en cuadrícula" onClick={() => setView("grid")}><Grid2X2 className="size-4" /></Button>
+        <Button variant={view === "table" ? "secondary" : "ghost"} size="icon" className="size-8" title="Vista en tabla" onClick={() => setView("table")}><List className="size-4" /></Button>
+      </div>
+
       {/* Events Grid */}
       {isLoading ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => (
+          {Array.from({ length: 8 }).map((_, i) => (
             <EventCardSkeleton key={i} />
           ))}
         </div>
@@ -176,6 +195,8 @@ export function EventsPage() {
             </Button>
           )}
         </div>
+      ) : view === "table" ? (
+        <DataTable columns={eventColumns} data={events} maxHeight="36rem" />
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {events.map((event) => (

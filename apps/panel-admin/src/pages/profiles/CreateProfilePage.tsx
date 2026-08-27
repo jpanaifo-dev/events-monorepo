@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch"
 import { api } from "@/api/client"
 import { CheckCircle2, AlertTriangle, Copy, Check } from "lucide-react"
 import { uploadToR2 } from "@/utils/r2-storage"
+import { useAuthStore } from "@/store/auth.store"
 
 // Helper to generate a strong random password
 function generateRandomPassword(length = 12) {
@@ -26,6 +27,7 @@ function generateRandomPassword(length = 12) {
 export function CreateProfilePage() {
   const navigate = useNavigate()
   const { createProfile, updateProfile } = useAdminProfilesStore()
+  const selectedOrganization = useAuthStore((state) => state.selectedOrganization)
 
   // Form states
   const [firstName, setFirstName] = useState("")
@@ -39,7 +41,7 @@ export function CreateProfilePage() {
   const [institution, setInstitution] = useState("")
   const [dedication, setDedication] = useState("")
   const [bio, setBio] = useState("")
-  const [globalRole, setGlobalRole] = useState("user")
+  const [globalRole, setGlobalRole] = useState("USER")
   
   const [createAccount, setCreateAccount] = useState(false)
   const [credentialsModal, setCredentialsModal] = useState<{ email: string; password: string } | null>(null)
@@ -106,7 +108,7 @@ export function CreateProfilePage() {
 
       if (createAccount) {
         generatedPassword = generateRandomPassword()
-        const authData = await api.auth.adminCreate({ email: email.trim(), password: generatedPassword, firstName: firstName.trim(), lastName: lastName.trim() })
+        const authData = await api.auth.adminCreate({ email: email.trim(), password: generatedPassword, firstName: firstName.trim(), lastName: lastName.trim(), role: globalRole as "USER" | "ADMIN" | "SUPER_ADMIN" })
         linkedAuthId = authData.id
         emailSent = Boolean(authData.emailSent)
         newProfileId = authData.profile.id
@@ -125,6 +127,7 @@ export function CreateProfilePage() {
           bio: bio.trim() || null,
           globalRole,
           authId: linkedAuthId,
+          organizationId: selectedOrganization?.id,
         })
       }
 
@@ -377,9 +380,9 @@ export function CreateProfilePage() {
                     className="w-full h-9 rounded-md border border-input bg-background px-3 py-1.5 text-sm text-foreground shadow-xs outline-none focus-visible:ring-1 focus-visible:ring-ring"
                     disabled={isSubmitting}
                   >
-                    <option value="user">Usuario Regular</option>
-                    <option value="admin">Administrador</option>
-                    <option value="developer">Developer</option>
+                    <option value="USER">Usuario</option>
+                    <option value="ADMIN">Administrador</option>
+                    <option value="SUPER_ADMIN">Super administrador</option>
                   </select>
                 </div>
               </div>

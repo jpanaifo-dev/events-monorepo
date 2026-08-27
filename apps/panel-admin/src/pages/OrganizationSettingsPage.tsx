@@ -35,6 +35,7 @@ const organizationSchema = z.object({
 type OrganizationInput = z.infer<typeof organizationSchema>
 
 import { useSEO } from "@/hooks/use-seo"
+import { getRoleLabel } from "@/lib/role-labels"
 
 function isCurrentMember(member: any, accountId?: string) {
   if (!accountId) return false
@@ -1016,7 +1017,7 @@ export function OrganizationSettingsPage() {
                     {/* Right details: Role */}
                     <div className="text-right text-muted-foreground text-xs font-normal">
                       <span className="text-xs font-semibold px-2 py-0.5 rounded bg-muted border border-border text-foreground capitalize select-none">
-                        {member.role || "Developer"}
+                        {getRoleLabel(member.role)}
                       </span>
                     </div>
                   </div>

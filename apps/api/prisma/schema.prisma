@@ -65,6 +65,7 @@ model AuthUser {
 model Profile {
   id          String    @id @default(uuid()) @db.Uuid
   authUserId  String?   @unique @map("auth_user_id") @db.Uuid
+  organizationId String? @map("organization_id") @db.Uuid
   firstName   String?   @map("first_name")
   lastName    String?   @map("last_name")
   phone       String?
@@ -87,6 +88,7 @@ model Profile {
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
   authUser    AuthUser? @relation(fields: [authUserId], references: [id], onDelete: SetNull)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   memberships OrganizationMember[]
   education   Education[]
   employment  EmploymentHistory[]
@@ -107,6 +109,7 @@ model Organization {
   updatedAt   DateTime  @updatedAt @map("updated_at")
   isActive    Boolean   @default(true) @map("is_active")
   members     OrganizationMember[]
+  profiles    Profile[]
   branches    OrganizationBranch[]
   events      MainEvent[]
   subscription OrganizationSubscription?
