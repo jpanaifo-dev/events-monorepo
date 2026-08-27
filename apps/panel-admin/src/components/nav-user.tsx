@@ -37,6 +37,7 @@ export function NavUser({
 
   const handleLogout = async () => {
     localStorage.removeItem("events-api-access-token")
+    localStorage.removeItem("events-api-refresh-token")
     logout()
     navigate("/login", { replace: true })
   }

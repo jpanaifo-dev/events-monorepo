@@ -21,12 +21,10 @@ export class AuthService {
     if (!user || !user.isActive || !(await bcrypt.compare(password, user.passwordHash))) {
       throw new UnauthorizedException('Credenciales inválidas');
     }
-    const payload = { sub: user.id, email: user.email };
+    const payload = { sub: user.id, email: user.email, role: user.role };
     return {
-      accessToken: await this.jwt.signAsync(
-        { ...payload, role: user.role },
-        { secret: process.env.JWT_ACCESS_SECRET, expiresIn: '15m' }
-      ),
+      accessToken: await this.jwt.signAsync(payload, { secret: process.env.JWT_ACCESS_SECRET, expiresIn: '15m' }),
+      refreshToken: await this.jwt.signAsync({ ...payload, type: 'refresh' }, { secret: process.env.JWT_REFRESH_SECRET, expiresIn: '7d' }),
       user: {
         ...(user.profile ?? {}),
         id: user.id,
@@ -34,6 +32,19 @@ export class AuthService {
         role: user.role,
       },
     };
+  }
+  async refreshSession(refreshToken: string) {
+    try {
+      const payload = await this.jwt.verifyAsync<{ sub: string; email: string; role: 'SUPER_ADMIN' | 'ADMIN' | 'USER'; type?: string }>(refreshToken, { secret: process.env.JWT_REFRESH_SECRET });
+      if (payload.type !== 'refresh') throw new UnauthorizedException('Sesión inválida');
+      const user = await this.prisma.authUser.findUnique({ where: { id: payload.sub } });
+      if (!user || !user.isActive) throw new UnauthorizedException('La cuenta no está disponible');
+      const accessPayload = { sub: user.id, email: user.email, role: user.role };
+      return { accessToken: await this.jwt.signAsync(accessPayload, { secret: process.env.JWT_ACCESS_SECRET, expiresIn: '15m' }), refreshToken: await this.jwt.signAsync({ ...accessPayload, type: 'refresh' }, { secret: process.env.JWT_REFRESH_SECRET, expiresIn: '7d' }) };
+    } catch (error) {
+      if (error instanceof UnauthorizedException) throw error;
+      throw new UnauthorizedException('Tu sesión expiró. Inicia sesión nuevamente.');
+    }
   }
 
   async createAccount(data: {

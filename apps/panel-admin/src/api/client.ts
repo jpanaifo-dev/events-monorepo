@@ -15,7 +15,20 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   headers.set("Content-Type", "application/json")
   const token = localStorage.getItem("events-api-access-token")
   if (token) headers.set("Authorization", `Bearer ${token}`)
-  const response = await fetch(`${API_URL}${path}`, { ...init, headers, credentials: "include" })
+  let response = await fetch(`${API_URL}${path}`, { ...init, headers, credentials: "include" })
+  if (response.status === 401 && path !== "/auth/refresh") {
+    const refreshToken = localStorage.getItem("events-api-refresh-token")
+    if (refreshToken) {
+      const refreshResponse = await fetch(`${API_URL}/auth/refresh`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ refreshToken }), credentials: "include" })
+      const refreshed = await refreshResponse.json().catch(() => null)
+      if (refreshResponse.ok && refreshed?.accessToken) {
+        localStorage.setItem("events-api-access-token", refreshed.accessToken)
+        localStorage.setItem("events-api-refresh-token", refreshed.refreshToken)
+        headers.set("Authorization", `Bearer ${refreshed.accessToken}`)
+        response = await fetch(`${API_URL}${path}`, { ...init, headers, credentials: "include" })
+      }
+    }
+  }
   const body = await response.json().catch(() => null)
   if (!response.ok) {
     const message = Array.isArray(body?.message) ? body.message.join(". ") : body?.message || "No se pudo completar la operación."
@@ -26,7 +39,8 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
 
 export const api = {
   auth: {
-    login: (email: string, password: string) => apiFetch<{ accessToken: string; user: any }>("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
+    login: (email: string, password: string) => apiFetch<{ accessToken: string; refreshToken: string; user: any }>("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
+    refresh: (refreshToken: string) => apiFetch<{ accessToken: string; refreshToken: string }>("/auth/refresh", { method: "POST", body: JSON.stringify({ refreshToken }) }),
     forgotPassword: (email: string) => apiFetch<any>("/auth/forgot-password", { method: "POST", body: JSON.stringify({ email }) }),
     resetPassword: (token: string, password: string) => apiFetch<any>("/auth/reset-password", { method: "POST", body: JSON.stringify({ token, password }) }),
     adminCreate: (data: any) => apiFetch<any>("/auth/admin-create", { method: "POST", body: JSON.stringify(data) }),

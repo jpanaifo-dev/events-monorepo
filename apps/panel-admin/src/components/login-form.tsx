@@ -89,6 +89,7 @@ export function LoginForm({
     try {
       const authData = await api.auth.login(email, password)
       localStorage.setItem("events-api-access-token", authData.accessToken)
+      localStorage.setItem("events-api-refresh-token", authData.refreshToken)
       const sessionUser = authData.user
       const profile = authData.user
 
