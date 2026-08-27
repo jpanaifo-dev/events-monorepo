@@ -89,6 +89,7 @@ export function ResetPasswordPage() {
       const token = new URLSearchParams(window.location.search).get("token") || ""
       await api.auth.resetPassword(token, password)
       localStorage.removeItem("events-api-access-token")
+      localStorage.removeItem("events-api-refresh-token")
       toast.success("Tu contraseña ha sido restablecida correctamente.")
       navigate("/login", { replace: true })
     } catch (err: any) {
