@@ -10,5 +10,7 @@ import { ParticipantsModule } from './modules/participants/participants.module.j
 import { CertificatesModule } from './modules/certificates/certificates.module.js';
 import { EventContentModule } from './modules/event-content/event-content.module.js';
 
-@Module({ imports: [AuthModule, ProfilesModule, OrganizationsModule, EventsModule, EditionsModule, ParticipantsModule, CertificatesModule, EventContentModule], controllers: [HealthController], providers: [PrismaService], exports: [PrismaService] })
+import { MailModule } from './modules/mail/mail.module.js';
+
+@Module({ imports: [MailModule, AuthModule, ProfilesModule, OrganizationsModule, EventsModule, EditionsModule, ParticipantsModule, CertificatesModule, EventContentModule], controllers: [HealthController], providers: [PrismaService], exports: [PrismaService] })
 export class AppModule {}
