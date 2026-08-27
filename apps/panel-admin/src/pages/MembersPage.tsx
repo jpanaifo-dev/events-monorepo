@@ -18,11 +18,6 @@ function isCurrentMember(member: any, accountId?: string) {
   return member.accountId === accountId || member.account_id === accountId || member.profile?.authUserId === accountId || member.profile?.auth_user_id === accountId || member.profileId === accountId || member.profile_id === accountId
 }
 
-function isCurrentMember(member: any, accountId?: string) {
-  if (!accountId) return false
-  return member.profile?.authUserId === accountId || member.profile?.auth_user_id === accountId || member.profileId === accountId || member.profile_id === accountId
-}
-
 export function MembersPage() {
   const navigate = useNavigate()
   const { user, selectedOrganization } = useAuthStore()

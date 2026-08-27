@@ -182,6 +182,9 @@ importers:
       '@eslint/js':
         specifier: ^10.0.1
         version: 10.0.1(eslint@10.5.0(jiti@2.7.0))
+      '@rolldown/binding-win32-x64-msvc':
+        specifier: ^1.2.6
+        version: 1.2.6
       '@rolldown/plugin-babel':
         specifier: ^0.2.3
         version: 0.2.3(@babel/core@8.0.1)(@babel/runtime@7.29.7)(rolldown@1.0.3)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12))
@@ -1905,6 +1908,12 @@ packages:
 
   '@rolldown/binding-win32-x64-msvc@1.0.3':
     resolution: {integrity: sha512-eXB7CHuaQdqmJcc3koCNtNPmT/bj2gc999kUFgBxG8Ac0NdgXc4rkCHhqrgrhN3zddvvvrgzj1e90SuSfmyIXA==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    cpu: [x64]
+    os: [win32]
+
+  '@rolldown/binding-win32-x64-msvc@1.2.6':
+    resolution: {integrity: sha512-np8iZSLfXlAD4kWhiyq/u0Yt8oZDtRQ8lGhQaCXo2rl37KNjeU0GjJuwr4P3oeZ++ROfofsKNBqR5LTO8aXyWQ==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [x64]
     os: [win32]
@@ -6327,6 +6336,8 @@ snapshots:
 
   '@rolldown/binding-win32-x64-msvc@1.0.3':
     optional: true
+
+  '@rolldown/binding-win32-x64-msvc@1.2.6': {}
 
   '@rolldown/plugin-babel@0.2.3(@babel/core@8.0.1)(@babel/runtime@7.29.7)(rolldown@1.0.3)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12))':
     dependencies:

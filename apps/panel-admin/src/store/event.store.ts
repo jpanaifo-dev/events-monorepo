@@ -18,6 +18,10 @@ export interface Event {
   isActive: boolean
   websiteUrl: string
   contactEmail: string
+  eventMode?: string
+  venueAddress?: string
+  latitude?: number | string
+  longitude?: number | string
   socialLinks: { twitter: string; facebook: string; linkedin: string; instagram: string }
   settings: Record<string, any>
   createdAt: string
@@ -262,6 +266,10 @@ function mapMainEvent(row: any): Event {
     isActive: row.is_active !== false,
     websiteUrl: row.website_url || "",
     contactEmail: row.contact_email || "",
+    eventMode: row.event_mode || row.eventMode || "",
+    venueAddress: row.venue_address || row.venueAddress || "",
+    latitude: row.latitude ?? undefined,
+    longitude: row.longitude ?? undefined,
     socialLinks: row.social_links || { twitter: "", facebook: "", linkedin: "", instagram: "" },
     settings: row.settings || {},
     createdAt: row.created_at || row.createdAt || "",
