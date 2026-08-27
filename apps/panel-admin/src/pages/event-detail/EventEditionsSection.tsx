@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useParams } from "react-router-dom"
 import { z } from "zod"
 import { useEventStore, type Edition } from "@/store/event.store"
@@ -30,13 +30,25 @@ import {
 
 import { useSEO } from "@/hooks/use-seo"
 import { PageHeader } from "@/components/page-header"
+import { api } from "@/api/client"
 
 export function EventEditionsSection() {
   const { id } = useParams<{ id: string }>()
   const { events, editions, addEdition, updateEdition, deleteEdition } = useEventStore()
 
   const event = events.find((e) => e.id === id)
-  const eventEditions = editions.filter((ed) => ed.mainEventId === id)
+  const [remoteEditions, setRemoteEditions] = useState<Edition[]>([])
+  const [isLoadingEditions, setIsLoadingEditions] = useState(true)
+  const eventEditions = (remoteEditions.length ? remoteEditions : editions.filter((ed) => ed.mainEventId === id))
+
+  useEffect(() => {
+    if (!id) return
+    setIsLoadingEditions(true)
+    api.editions.list(id)
+      .then((rows) => setRemoteEditions(rows.map((row: any) => ({ id: row.id, mainEventId: row.mainEventId, name: row.name, startDate: row.startDate || "", endDate: row.endDate || "", slug: "", year: row.startDate ? new Date(row.startDate).getFullYear() : new Date().getFullYear(), description: "", coverUrl: "", isCurrent: false, location: "", modality: "" }))))
+      .catch((error: any) => toast.error(error?.message || "No se pudieron cargar las ediciones."))
+      .finally(() => setIsLoadingEditions(false))
+  }, [id])
 
   useSEO({
     title: event ? `${event.name} - Ediciones` : "Ediciones de Evento",
@@ -218,7 +230,9 @@ export function EventEditionsSection() {
         }
       />
 
-      {eventEditions.length === 0 ? (
+      {isLoadingEditions ? (
+        <div className="flex min-h-32 items-center justify-center text-sm text-muted-foreground">Cargando ediciones…</div>
+      ) : eventEditions.length === 0 ? (
         <div className="p-8 text-center text-muted-foreground text-sm border border-dashed border-border rounded-lg">
           No hay ediciones programadas.
         </div>

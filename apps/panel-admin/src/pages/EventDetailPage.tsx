@@ -31,10 +31,12 @@ export function EventDetailPage() {
   const [setupChecked, setSetupChecked] = useState(false)
 
   useEffect(() => {
-    if (selectedOrganization?.id) {
+    // No recargamos todo el catálogo al navegar entre pestañas del mismo evento:
+    // las secciones de ediciones y ponentes consultan sus datos puntualmente.
+    if (selectedOrganization?.id && !events.some((item) => item.id === id)) {
       loadData(selectedOrganization.id)
     }
-  }, [selectedOrganization?.id, loadData])
+  }, [selectedOrganization?.id, id, events, loadData])
 
   useEffect(() => {
     if (id) {

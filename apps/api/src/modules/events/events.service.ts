@@ -55,5 +55,9 @@ export class EventsService {
   }
   contacts(eventId: string) { return this.prisma.eventContact.findMany({ where: { eventId }, orderBy: { createdAt: 'asc' } }); }
   addContact(eventId: string, data: { name: string; email?: string; phone?: string; role?: string }) { return this.prisma.eventContact.create({ data: { eventId, ...data } }); }
+  updateContact(id: string, data: { name?: string; email?: string; phone?: string; role?: string }) {
+    const input = Object.fromEntries(Object.entries(data).filter(([key, value]) => ['name', 'email', 'phone', 'role'].includes(key) && value !== undefined));
+    return this.prisma.eventContact.update({ where: { id }, data: input });
+  }
   removeContact(id: string) { return this.prisma.eventContact.delete({ where: { id } }); }
 }

@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service.js';
 import crypto from 'node:crypto';
 @Injectable()
@@ -32,7 +32,11 @@ export class EventContentService {
     return this.prisma.participantRole.create({ data: { ...data, name } });
   }
   updateRole(id: string, data: { name?: string; mainEventId?: string; editionId?: string }) { return this.prisma.participantRole.update({ where: { id }, data }); }
-  deleteRole(id: string) { return this.prisma.participantRole.delete({ where: { id } }); }
+  async deleteRole(id: string) {
+    const assignedParticipants = await this.prisma.eventParticipant.count({ where: { roleId: id } });
+    if (assignedParticipants > 0) throw new ConflictException(`No se puede eliminar este rol porque está asignado a ${assignedParticipants} participante${assignedParticipants === 1 ? '' : 's'}. Reasigna o elimina esos participantes primero.`);
+    return this.prisma.participantRole.delete({ where: { id } });
+  }
   async speakers(eventId: string, editionId?: string) {
     const editions = editionId ? [editionId] : (await this.prisma.edition.findMany({ where: { mainEventId: eventId }, select: { id: true } })).map((e: { id: string }) => e.id);
     return this.prisma.eventParticipant.findMany({ where: { editionId: { in: editions } }, include: { profile: true, edition: true }, orderBy: { registeredAt: 'desc' } });

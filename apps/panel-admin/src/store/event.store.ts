@@ -662,7 +662,11 @@ export const useEventStore = create<EventState>((set, get) => ({
         ? parseInt(editionData.startDate.substring(0, 4))
         : new Date().getFullYear()
 
-      const createdEdition = await api.editions.create(editionData.mainEventId, { name: String(editionData.name), startDate: editionData.startDate, endDate: editionData.endDate })
+      const createdEdition = await api.editions.create(editionData.mainEventId, {
+        name: String(editionData.name),
+        startDate: editionData.startDate,
+        ...(editionData.endDate ? { endDate: editionData.endDate } : {}),
+      })
 
       const newEdition: Edition = {
         id: createdEdition.id,

@@ -29,6 +29,7 @@ export function CreateEditionPage() {
   const [coverUrl, setCoverUrl] = useState("")
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
+  const [isSingleDay, setIsSingleDay] = useState(false)
   const [status, setStatus] = useState<"active" | "planned">("planned")
   const [location, setLocation] = useState("")
   const [modality, setModality] = useState("presencial")
@@ -39,7 +40,10 @@ export function CreateEditionPage() {
     name: z.string().trim().min(1, "El nombre de la edición es obligatorio."),
     coverUrl: z.string().trim().url("El enlace de portada no es válido.").or(z.literal("")).optional(),
     startDate: z.string().min(1, "La fecha de inicio es requerida."),
-    endDate: z.string().min(1, "La fecha de fin es requerida."),
+    endDate: z.string(),
+  }).refine((data) => isSingleDay || data.endDate.length > 0, {
+    message: "La fecha de fin es requerida para una edición de varios días.",
+    path: ["endDate"],
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -66,7 +70,7 @@ export function CreateEditionPage() {
         description: description.trim(),
         coverUrl: coverUrl.trim() || "",
         startDate: startDate || "",
-        endDate: endDate || "",
+        endDate: isSingleDay ? "" : endDate,
         isCurrent: status === "active",
         location,
         modality,
@@ -181,7 +185,22 @@ export function CreateEditionPage() {
                 <p className="text-xs text-muted-foreground">Cuándo se llevará a cabo esta edición.</p>
               </div>
               <div className="md:w-2/3 max-w-md w-full">
-                <div className="grid grid-cols-2 gap-4">
+                <label className="mb-4 flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-muted/30 p-3 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={isSingleDay}
+                    onChange={(e) => {
+                      setIsSingleDay(e.target.checked)
+                      if (e.target.checked) setEndDate("")
+                    }}
+                    className="mt-0.5 size-4 accent-primary"
+                  />
+                  <span>
+                    <span className="block font-medium text-foreground">Edición de un solo día</span>
+                    <span className="block text-xs text-muted-foreground">Solo se registrará la fecha de inicio.</span>
+                  </span>
+                </label>
+                <div className={`grid gap-4 ${isSingleDay ? "grid-cols-1" : "grid-cols-2"}`}>
                   <div className="space-y-1.5">
                     <label htmlFor="ed-start" className="text-[10px] font-bold uppercase text-muted-foreground">
                       Fecha Inicio
@@ -195,7 +214,7 @@ export function CreateEditionPage() {
                       className="bg-background"
                     />
                   </div>
-                  <div className="space-y-1.5">
+                  {!isSingleDay && <div className="space-y-1.5">
                     <label htmlFor="ed-end" className="text-[10px] font-bold uppercase text-muted-foreground">
                       Fecha Fin
                     </label>
@@ -207,7 +226,7 @@ export function CreateEditionPage() {
                       onChange={(e) => setEndDate(e.target.value)}
                       className="bg-background"
                     />
-                  </div>
+                  </div>}
                 </div>
               </div>
             </div>

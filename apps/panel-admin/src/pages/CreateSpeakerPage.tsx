@@ -32,7 +32,8 @@ export function CreateSpeakerPage() {
 
   const { roles, editions, thematicLines, loadRoles, loadThematicLines, addSpeaker } = useEventStore()
 
-  const eventEditions = editions.filter((ed) => ed.mainEventId === eventId)
+  const [remoteEditions, setRemoteEditions] = useState<any[]>([])
+  const eventEditions = remoteEditions.length ? remoteEditions : editions.filter((ed) => ed.mainEventId === eventId)
   const currentEdition = eventEditions.find((ed) => ed.isCurrent)
 
   // Form states
@@ -64,6 +65,7 @@ export function CreateSpeakerPage() {
     if (eventId) {
       loadRoles(eventId)
       loadThematicLines(eventId)
+      api.editions.list(eventId).then((rows) => setRemoteEditions(rows.map((row: any) => ({ ...row, startDate: row.startDate || "", endDate: row.endDate || "", year: row.startDate ? new Date(row.startDate).getFullYear() : "Sin fecha", isCurrent: false })))).catch(() => setRemoteEditions([]))
     }
   }, [eventId, loadRoles, loadThematicLines])
 
@@ -455,7 +457,7 @@ export function CreateSpeakerPage() {
                     <SelectContent>
                       {eventEditions.map((ed) => (
                         <SelectItem key={ed.id} value={ed.id}>
-                          {`${ed.name} (${ed.year}) ${ed.isCurrent ? "— [Actual]" : ""}`}
+                          {`${ed.name} (${ed.year ?? (ed.startDate ? new Date(ed.startDate).getFullYear() : "Sin fecha")}) ${ed.isCurrent ? "— [Actual]" : ""}`}
                         </SelectItem>
                       ))}
                     </SelectContent>

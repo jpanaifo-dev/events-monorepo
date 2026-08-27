@@ -96,6 +96,7 @@ export const api = {
     completeSetup: (id: string) => apiFetch<any>(`/events/${id}/setup/complete`, { method: "POST" }),
     contacts: (id: string) => apiFetch<any[]>(`/events/${id}/contacts`),
     addContact: (id: string, data: any) => apiFetch<any>(`/events/${id}/contacts`, { method: "POST", body: JSON.stringify(data) }),
+    updateContact: (id: string, data: any) => apiFetch<any>(`/events/contacts/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     removeContact: (id: string) => apiFetch<any>(`/events/contacts/${id}`, { method: "DELETE" }),
   },
   editions: {

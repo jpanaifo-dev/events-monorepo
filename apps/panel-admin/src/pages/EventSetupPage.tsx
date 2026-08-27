@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
-import { Check, ChevronRight, Users, CalendarDays, Mail, Settings2 } from "lucide-react"
+import { Check, ChevronRight, Users, CalendarDays, Mail, Settings2, LoaderCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { api } from "@/api/client"
 import { useSEO } from "@/hooks/use-seo"
@@ -14,6 +14,14 @@ const steps = [
   { key: "peopleCompleted", title: "Primer ponente", description: "Asocia una persona registrada al evento.", icon: Users },
   { key: "contactCompleted", title: "Contactos", description: "Añade uno o varios contactos para el evento.", icon: Mail },
 ]
+
+function EventSetupLoading() {
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-background px-6 text-foreground" aria-busy="true" aria-label="Cargando configuración del evento">
+      <LoaderCircle className="size-9 animate-spin text-primary" />
+    </main>
+  )
+}
 
 export function EventSetupPage() {
   const { id } = useParams<{ id: string }>()
@@ -39,16 +47,17 @@ export function EventSetupPage() {
   const completedCount = useMemo(() => progress ? steps.filter((step) => progress[step.key]).length : 0, [progress])
 
   const getStepPath = (key: string) => {
-    if (key === "contactCompleted" || key === "basicInfoCompleted") return `/dashboard/events/${id}/info`
+    if (key === "contactCompleted") return `/dashboard/events/${id}/info#contacts`
+    if (key === "basicInfoCompleted") return `/dashboard/events/${id}/info`
     if (key === "rolesCompleted") return `/dashboard/events/${id}/roles`
     if (key === "editionCompleted") return `/dashboard/events/${id}/editions/new`
     if (key === "peopleCompleted") return `/dashboard/events/${id}/speakers/new`
     return `/dashboard/events/${id}/edit`
   }
 
-  if (loading) return <div className="p-8 text-muted-foreground">Cargando configuración…</div>
+  if (loading) return <EventSetupLoading />
   if (error) return <div className="p-8"><p className="text-destructive">{error}</p><Button className="mt-4" onClick={() => navigate("/dashboard/events")}>Volver a eventos</Button></div>
-  if (!event || !progress) return <div className="p-8 text-muted-foreground">Cargando evento…</div>
+  if (!event || !progress) return <EventSetupLoading />
 
   return (
     <main className="min-h-screen bg-background px-6 py-10 text-foreground">

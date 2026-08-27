@@ -348,7 +348,7 @@ export function EventRolesSection() {
               <AlertDialogHeader>
                 <AlertDialogTitle>¿Eliminar rol de participante?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Se eliminará el rol "{role.name.es}" ({role.slug}). Esto removerá la asociación en los participantes que lo utilicen. Esta acción no se puede deshacer.
+                  No podrás eliminar este rol si tiene participantes o ponentes asignados. Primero reasigna esos registros a otro rol.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>

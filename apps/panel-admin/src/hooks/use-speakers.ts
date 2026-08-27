@@ -17,12 +17,16 @@ export interface FetchSpeakersResult {
 }
 
 function mapParticipantRole(row: any): ParticipantRole {
+  const name = typeof row.name === "string"
+    ? (() => { try { return JSON.parse(row.name) } catch { return { es: row.name } } })()
+    : (row.name || { es: "" })
+  const label = typeof name === "string" ? name : (name.es || "")
   return {
     id: row.id,
     mainEventId: row.mainEventId,
     editionId: row.editionId,
-    slug: row.slug,
-    name: typeof row.name === "string" ? JSON.parse(row.name) : (row.name || { es: "" }),
+    slug: row.slug || label.toLowerCase().trim().replace(/\s+/g, "-"),
+    name: typeof name === "string" ? { es: name } : name,
     badgeColor: row.badgeColor,
     isActive: row.isActive !== false,
     createdAt: row.createdAt || "",
@@ -35,7 +39,7 @@ export async function fetchEventSpeakers(
 ): Promise<FetchSpeakersResult> {
   const formattedRoles = (await api.content.roles(eventId)).map(mapParticipantRole)
   const speakerRoleIds = formattedRoles
-    .filter((r) => r.slug === "speaker" || r.slug === "keynote-speaker")
+    .filter((r) => ["speaker", "keynote-speaker", "ponente", "conferencista", "expositor"].includes(r.slug))
     .map((r) => r.id)
 
   if (speakerRoleIds.length === 0) {
