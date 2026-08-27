@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service.js';
 import crypto from 'node:crypto';
 @Injectable()
@@ -25,16 +25,31 @@ export class EventContentService {
   updateThematicLine(id: string, data: Record<string, unknown>) { return this.prisma.thematicLine.update({ where: { id }, data }); }
   deleteThematicLine(id: string) { return this.prisma.thematicLine.delete({ where: { id } }); }
   roles(mainEventId?: string, editionId?: string) { return this.prisma.participantRole.findMany({ where: { mainEventId: mainEventId || undefined, editionId: editionId || undefined }, orderBy: { createdAt: 'desc' } }); }
-  createRole(data: { name: string; mainEventId?: string; editionId?: string }) { return this.prisma.participantRole.create({ data }); }
+  async createRole(data: { name: string; mainEventId?: string; editionId?: string }) {
+    const name = data.name.trim();
+    const existing = await this.prisma.participantRole.findFirst({ where: { mainEventId: data.mainEventId || null, editionId: data.editionId || null, name: { equals: name, mode: 'insensitive' } } });
+    if (existing) return existing;
+    return this.prisma.participantRole.create({ data: { ...data, name } });
+  }
   updateRole(id: string, data: { name?: string; mainEventId?: string; editionId?: string }) { return this.prisma.participantRole.update({ where: { id }, data }); }
   deleteRole(id: string) { return this.prisma.participantRole.delete({ where: { id } }); }
   async speakers(eventId: string, editionId?: string) {
     const editions = editionId ? [editionId] : (await this.prisma.edition.findMany({ where: { mainEventId: eventId }, select: { id: true } })).map((e: { id: string }) => e.id);
     return this.prisma.eventParticipant.findMany({ where: { editionId: { in: editions } }, include: { profile: true, edition: true }, orderBy: { registeredAt: 'desc' } });
   }
-  async createSpeaker(data: { eventId: string; editionId: string; firstName: string; lastName: string; bio?: string }) {
-    const profile = await this.prisma.profile.create({ data: { id: crypto.randomUUID(), firstName: data.firstName, lastName: data.lastName, bio: data.bio } });
-    return this.prisma.eventParticipant.create({ data: { editionId: data.editionId, profileId: profile.id }, include: { profile: true, edition: true } });
+  async createSpeaker(data: { eventId: string; editionId: string; profileId?: string | null; roleId?: string | null; firstName: string; lastName: string; bio?: string }) {
+    const edition = await this.prisma.edition.findFirst({ where: { id: data.editionId, mainEventId: data.eventId } });
+    if (!edition) throw new BadRequestException('La edición seleccionada no pertenece a este evento');
+    if (!data.roleId) throw new BadRequestException('Debes seleccionar un rol para registrar al ponente');
+    if (data.roleId) {
+      const role = await this.prisma.participantRole.findFirst({ where: { id: data.roleId, OR: [{ mainEventId: data.eventId }, { editionId: data.editionId }] } });
+      if (!role) throw new BadRequestException('El rol seleccionado no pertenece a este evento');
+    }
+    const profile = data.profileId ? await this.prisma.profile.findUnique({ where: { id: data.profileId } }) : await this.prisma.profile.create({ data: { id: crypto.randomUUID(), firstName: data.firstName, lastName: data.lastName, bio: data.bio } });
+    if (!profile) throw new NotFoundException('El perfil seleccionado no existe');
+    const existing = await this.prisma.eventParticipant.findUnique({ where: { editionId_profileId: { editionId: data.editionId, profileId: profile.id } } });
+    if (existing) return this.prisma.eventParticipant.findUnique({ where: { id: existing.id }, include: { profile: true, edition: true } });
+    return this.prisma.eventParticipant.create({ data: { editionId: data.editionId, profileId: profile.id, roleId: data.roleId || undefined }, include: { profile: true, edition: true } });
   }
   async updateSpeaker(id: string, data: Record<string, unknown>) { const participant = await this.prisma.eventParticipant.findUnique({ where: { id } }); if (!participant) throw new NotFoundException('Ponente no encontrado'); const profileData = Object.fromEntries(Object.entries({ firstName: data.firstName, lastName: data.lastName, bio: data.bio }).filter(([, v]) => v !== undefined)); if (Object.keys(profileData).length) await this.prisma.profile.update({ where: { id: participant.profileId }, data: profileData }); return this.prisma.eventParticipant.findUnique({ where: { id }, include: { profile: true, edition: true } }); }
   async deleteSpeaker(id: string) { const participant = await this.prisma.eventParticipant.delete({ where: { id } }); await this.prisma.profile.delete({ where: { id: participant.profileId } }); return participant; }

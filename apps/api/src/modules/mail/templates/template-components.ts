@@ -25,7 +25,7 @@ export function escapeHtml(str: string): string {
  * Main shell layout wrapping email content in a card with branding and footer
  */
 export function renderEmailLayout(props: EmailLayoutProps): string {
-  const brandName = props.brandName || process.env.APP_NAME || 'Events Platform';
+  const brandName = props.brandName || process.env.APP_NAME || 'Zyncro';
   const brandUrl = props.brandUrl || process.env.FRONTEND_URL?.split(',')[0] || 'http://localhost:5173';
   const accentColor = props.accentColor || '#4f46e5';
   const year = new Date().getFullYear();
@@ -134,7 +134,7 @@ export function renderEmailLayout(props: EmailLayoutProps): string {
       </table>
 
       <!-- Main Card -->
-      <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05); overflow: hidden;">
+      <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #ffffff; border-radius: 6px; border: 1px solid #e2e8f0; overflow: hidden;">
         <!-- Top Accent Strip -->
         <tr>
           <td height="4" style="background: linear-gradient(90deg, #6366f1, #8b5cf6, #ec4899); font-size: 0; line-height: 0;">&nbsp;</td>
@@ -187,7 +187,7 @@ export function renderButton(text: string, url: string, color = '#4f46e5'): stri
         </v:roundrect>
         <![endif]-->
         <!--[if !mso]><!-->
-        <a href="${escapeHtml(url)}" target="_blank" class="button-link" style="background-color: ${color}; color: #ffffff; display: inline-block; font-size: 15px; font-weight: 600; line-height: 46px; text-align: center; text-decoration: none; width: auto; min-width: 200px; padding: 0 28px; border-radius: 8px; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25); border: 1px solid ${color};">
+        <a href="${escapeHtml(url)}" target="_blank" class="button-link" style="background-color: ${color}; color: #ffffff; display: inline-block; font-size: 15px; font-weight: 600; line-height: 46px; text-align: center; text-decoration: none; width: auto; min-width: 200px; padding: 0 28px; border-radius: 6px; border: 1px solid ${color};">
           ${escapeHtml(text)} &rarr;
         </a>
         <!--<![endif]-->
@@ -219,7 +219,7 @@ export function renderInfoCard(title: string, items: Array<{ label: string; valu
     .join('');
 
   return `
-  <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 24px; margin: 24px 0;">
+  <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 20px 24px; margin: 24px 0;">
     ${title ? `<div style="font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #475569; margin-bottom: 12px;">${escapeHtml(title)}</div>` : ''}
     <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
       ${rows}
@@ -259,5 +259,5 @@ export function renderBadge(text: string, variant: 'primary' | 'success' | 'warn
     purple: 'background-color: #f3e8ff; color: #6b21a8; border: 1px solid #e9d5ff;',
   }[variant];
 
-  return `<span style="display: inline-block; padding: 3px 10px; border-radius: 9999px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; ${styles}">${escapeHtml(text)}</span>`;
+  return `<span style="display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; ${styles}">${escapeHtml(text)}</span>`;
 }

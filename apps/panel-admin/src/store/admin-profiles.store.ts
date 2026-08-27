@@ -27,6 +27,7 @@ export interface Profile {
   onboardingCompleted: boolean
   accountType: string
   globalRole: string
+  organizationId?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -230,7 +231,7 @@ export const useAdminProfilesStore = create<AdminProfilesState>((set) => ({
         avatar_url: profileData.avatarUrl || null,
         institution: profileData.institution || null,
         dedication: profileData.dedication || null,
-        global_role: profileData.globalRole || "user",
+        global_role: profileData.globalRole || "USER",
         account_type: profileData.accountType || "basic",
         is_public: !!profileData.isPublic,
         onboarding_completed: !!profileData.onboardingCompleted,
@@ -241,7 +242,7 @@ export const useAdminProfilesStore = create<AdminProfilesState>((set) => ({
       }
       void newProfile
 
-      const created = await api.profiles.create({ id, firstName: profileData.firstName, lastName: profileData.lastName, email: profileData.email || undefined, phone: profileData.phone || undefined, bio: profileData.bio || undefined })
+      const created = await api.profiles.create({ id, firstName: profileData.firstName, lastName: profileData.lastName, email: profileData.email || undefined, phone: profileData.phone || undefined, bio: profileData.bio || undefined, organizationId: profileData.organizationId || undefined })
 
       const mapped = mapProfile({
         ...created,

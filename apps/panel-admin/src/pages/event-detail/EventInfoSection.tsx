@@ -21,6 +21,7 @@ import {
 
 import { useSEO } from "@/hooks/use-seo"
 import { PageHeader } from "@/components/page-header"
+import { api } from "@/api/client"
 
 export function EventInfoSection() {
   const { id } = useParams<{ id: string }>()
@@ -42,6 +43,13 @@ export function EventInfoSection() {
   const [isActive, setIsActive] = useState(true)
   const [websiteUrl, setWebsiteUrl] = useState("")
   const [contactEmail, setContactEmail] = useState("")
+  const [eventMode, setEventMode] = useState("")
+  const [venueAddress, setVenueAddress] = useState("")
+  const [latitude, setLatitude] = useState("")
+  const [longitude, setLongitude] = useState("")
+  const [contacts, setContacts] = useState<any[]>([])
+  const [newContact, setNewContact] = useState({ name: "", email: "", phone: "", role: "" })
+  const [contactDialogOpen, setContactDialogOpen] = useState(false)
   const [brandPrimary, setBrandPrimary] = useState("#000000")
   const [brandSecondary, setBrandSecondary] = useState("#ffffff")
   const [socialTwitter, setSocialTwitter] = useState("")
@@ -51,6 +59,7 @@ export function EventInfoSection() {
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteConfirmation, setDeleteConfirmation] = useState("")
 
   useEffect(() => {
     if (event) {
@@ -63,6 +72,10 @@ export function EventInfoSection() {
       setIsActive(event.isActive !== false)
       setWebsiteUrl(event.websiteUrl || "")
       setContactEmail(event.contactEmail || "")
+      setEventMode(event.eventMode || "")
+      setVenueAddress(event.venueAddress || "")
+      setLatitude(event.latitude?.toString() || "")
+      setLongitude(event.longitude?.toString() || "")
       setBrandPrimary(event.brandColors?.primary || "#000000")
       setBrandSecondary(event.brandColors?.secondary || "#ffffff")
       setSocialTwitter(event.socialLinks?.twitter || "")
@@ -71,6 +84,7 @@ export function EventInfoSection() {
       setSocialInstagram(event.socialLinks?.instagram || "")
     }
   }, [event])
+  useEffect(() => { if (event?.id) api.events.contacts(event.id).then(setContacts).catch(() => setContacts([])) }, [event?.id])
 
   if (!event) return null
 
@@ -115,6 +129,10 @@ export function EventInfoSection() {
         isActive,
         websiteUrl: websiteUrl.trim() || "",
         contactEmail: contactEmail.trim() || "",
+        eventMode,
+        venueAddress: venueAddress.trim() || "",
+        latitude: latitude ? Number(latitude) : undefined,
+        longitude: longitude ? Number(longitude) : undefined,
         brandColors: { primary: brandPrimary, secondary: brandSecondary },
         socialLinks: {
           twitter: socialTwitter.trim(),
@@ -238,10 +256,27 @@ export function EventInfoSection() {
         </div>
       </div>
 
+      <h2 className="text-lg">Contactos</h2>
+      <div className="border border-border rounded-xl bg-card p-6 space-y-4 mb-6">
+        <div className="flex items-center justify-between"><p className="text-sm text-muted-foreground">{contacts.length ? `${contacts.length} contacto${contacts.length === 1 ? "" : "s"} añadido${contacts.length === 1 ? "" : "s"}` : "Ningún contacto añadido"}</p><AlertDialog open={contactDialogOpen} onOpenChange={setContactDialogOpen}><AlertDialogTrigger asChild><Button type="button">Añadir contacto</Button></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Añadir contacto</AlertDialogTitle><AlertDialogDescription>Registra una persona de contacto para consultas y coordinación del evento.</AlertDialogDescription></AlertDialogHeader><div className="grid gap-3 py-4"><Input placeholder="Nombre" value={newContact.name} onChange={(e) => setNewContact({ ...newContact, name: e.target.value })} /><Input placeholder="Correo" type="email" value={newContact.email} onChange={(e) => setNewContact({ ...newContact, email: e.target.value })} /><Input placeholder="Teléfono" value={newContact.phone} onChange={(e) => setNewContact({ ...newContact, phone: e.target.value })} /><Input placeholder="Cargo" value={newContact.role} onChange={(e) => setNewContact({ ...newContact, role: e.target.value })} /></div><AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><Button type="button" onClick={async () => { if (!newContact.name.trim()) return; const created = await api.events.addContact(event.id, newContact); setContacts([...contacts, created]); setNewContact({ name: "", email: "", phone: "", role: "" }); setContactDialogOpen(false) }}>Guardar contacto</Button></AlertDialogFooter></AlertDialogContent></AlertDialog></div>
+        <div className="overflow-hidden rounded-md border"><div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-3 border-b bg-muted/40 px-4 py-2 text-xs font-medium text-muted-foreground"><span>Contacto</span><span>Correo</span><span>Teléfono</span><span>Acciones</span></div>{contacts.length === 0 ? <div className="px-4 py-8 text-center text-sm text-muted-foreground">Ningún contacto añadido</div> : contacts.map((contact) => <div key={contact.id} className="grid grid-cols-[1fr_1fr_1fr_auto] items-center gap-3 border-b px-4 py-3 text-sm last:border-0"><span className="font-medium">{contact.name}{contact.role ? <small className="ml-2 text-muted-foreground">{contact.role}</small> : null}</span><span className="text-muted-foreground">{contact.email || "—"}</span><span className="text-muted-foreground">{contact.phone || "—"}</span><Button type="button" variant="ghost" size="sm" onClick={async () => { await api.events.removeContact(contact.id); setContacts(contacts.filter((item) => item.id !== contact.id)) }}>Eliminar</Button></div>)}</div>
+      </div>
+
+      <h2 className="text-lg">Modalidad y ubicación</h2>
+      <div className="border border-border rounded-xl bg-card overflow-hidden shadow-sm mb-6">
+        <div className="p-6 space-y-4">
+          <div><label className="text-sm font-medium">Tipo de evento</label><select value={eventMode} onChange={(e) => setEventMode(e.target.value)} className="mt-2 w-full max-w-md h-9 rounded-md border bg-background px-3 text-sm"><option value="">Selecciona una modalidad</option><option value="PHYSICAL">Presencial</option><option value="ONLINE">Virtual</option><option value="HYBRID">Híbrido</option></select></div>
+          {eventMode !== "ONLINE" && eventMode && <><div><label className="text-sm font-medium">Dirección</label><Input className="mt-2 max-w-md bg-background" value={venueAddress} onChange={(e) => setVenueAddress(e.target.value)} placeholder="Dirección del evento" /></div><div className="grid max-w-md grid-cols-2 gap-3"><Input type="number" step="any" value={latitude} onChange={(e) => setLatitude(e.target.value)} placeholder="Latitud" /><Input type="number" step="any" value={longitude} onChange={(e) => setLongitude(e.target.value)} placeholder="Longitud" /></div><iframe title="Ubicación del evento" className="h-48 w-full max-w-2xl rounded-md border" src={`https://www.openstreetmap.org/export/embed.html?layer=mapnik${latitude && longitude ? `&marker=${latitude}%2C${longitude}` : ""}`} /></>}
+          <p className="text-xs text-muted-foreground">La ubicación se guarda junto con la información general del evento.</p>
+        </div>
+      </div>
+
       <h2 className="text-lg">Contacto y Enlaces</h2>
       {/* Contacto y Enlaces */}
       <div className="border border-border rounded-xl bg-card overflow-hidden shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+        {false && <>
+        </>}
+        <div style={{ display: "none" }} className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
           <div className="md:w-1/3 space-y-1">
             <label htmlFor="evt-email" className="text-sm font-medium text-foreground">Email de Contacto</label>
             <p className="text-xs text-muted-foreground">Correo para consultas del evento.</p>
@@ -272,9 +307,9 @@ export function EventInfoSection() {
         </div>
       </div>
 
-      <h2 className="text-lg">Colores del Evento</h2>
+      <h2 style={{ display: "none" }} className="text-lg">Colores del Evento</h2>
       {/* Colores de Marca */}
-      <div className="border border-border rounded-xl bg-card overflow-hidden shadow-sm">
+      <div style={{ display: "none" }} className="border border-border rounded-xl bg-card overflow-hidden shadow-sm">
         <div className="p-6 flex flex-col md:flex-row gap-6">
           <div className="space-y-2">
             <label className="text-xs font-bold uppercase text-muted-foreground">Primario</label>
@@ -320,7 +355,8 @@ export function EventInfoSection() {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  <Input value={deleteConfirmation} onChange={(e) => setDeleteConfirmation(e.target.value)} placeholder="Escribe ELIMINAR" />
+                  <AlertDialogAction disabled={deleteConfirmation !== "ELIMINAR"} onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                     Sí, eliminar
                   </AlertDialogAction>
                 </AlertDialogFooter>

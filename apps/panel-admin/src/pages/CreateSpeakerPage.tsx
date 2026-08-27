@@ -182,7 +182,11 @@ export function CreateSpeakerPage() {
         const sessionId = session.id
 
         // 2. Insert into session_speakers (pivot)
-        await api.content.addSpeaker(sessionId, payload.profileId || participantId)
+        const speakerRows = await api.content.speakers(eventId!)
+        const createdSpeaker = speakerRows.find((speaker: any) => speaker.id === participantId)
+        const speakerProfileId = payload.profileId || createdSpeaker?.profileId
+        if (!speakerProfileId) throw new Error("No se pudo obtener el perfil del ponente creado")
+        await api.content.addSpeaker(sessionId, speakerProfileId)
 
         // 3. Insert into session_thematic_lines
         if (selectedThematicLines.length > 0) {

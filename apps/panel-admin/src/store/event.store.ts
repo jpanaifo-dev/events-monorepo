@@ -258,7 +258,7 @@ function mapMainEvent(row: any): Event {
     logoUrl: row.logo_url || row.logoUrl || "",
     coverUrl: row.cover_url || row.coverUrl || "",
     brandColors: row.brand_colors || { primary: "#000000", secondary: "#ffffff" },
-    status: row.status || "draft",
+    status: String(row.status || "DRAFT").toLowerCase() as Event["status"],
     isActive: row.is_active !== false,
     websiteUrl: row.website_url || "",
     contactEmail: row.contact_email || "",
@@ -350,7 +350,12 @@ export const useEventStore = create<EventState>((set, get) => ({
     set({ isLoading: true })
     try {
       const eventsData = await api.events.list(organizationId)
-      let formattedEvents: Event[] = (eventsData || []).map(mapMainEvent)
+      // Defensa adicional: el API ya filtra por organizationId, pero el panel también
+      // descarta cualquier registro que no pertenezca a la institución activa.
+      let formattedEvents: Event[] = (eventsData || []).map(mapMainEvent).filter((event) => event.organizationId === organizationId)
+      // Publicar el catálogo base inmediatamente. Las cargas secundarias (ediciones,
+      // agenda, roles, etc.) no deben hacer que parezca que los eventos desaparecieron.
+      set({ events: formattedEvents })
       if (filters?.search) {
         const search = filters.search.toLowerCase()
         formattedEvents = formattedEvents.filter((event) => event.name.toLowerCase().includes(search) || event.shortDescription.toLowerCase().includes(search))
@@ -538,13 +543,13 @@ export const useEventStore = create<EventState>((set, get) => ({
         }
       }
 
-      await api.events.create({ eventName: restData.name, startDate: new Date().toISOString(), organizationId: org.id, description: restData.shortDescription || undefined })
+      const createdEvent = await api.events.create({ eventName: restData.name, startDate: new Date().toISOString(), organizationId: org.id, description: restData.shortDescription || undefined, coverUrl, logoUrl })
 
       const newEvent: Event = {
         ...restData,
         logoUrl,
         coverUrl,
-        id,
+        id: createdEvent.id,
         organizationId: org.id,
         ownerId: user.id,
         slug,
@@ -556,7 +561,7 @@ export const useEventStore = create<EventState>((set, get) => ({
         events: [newEvent, ...state.events]
       }))
 
-      return id
+      return createdEvent.id
     } catch (e) {
       console.error("Error adding event:", e)
       throw e
@@ -600,7 +605,7 @@ export const useEventStore = create<EventState>((set, get) => ({
       mappedUpdates.updated_at = new Date().toISOString()
 
       if (Object.keys(mappedUpdates).length > 1) {
-        await api.events.update(id, { eventName: mappedUpdates.name, description: mappedUpdates.description, status: mappedUpdates.status, coverUrl, logoUrl })
+        await api.events.update(id, { eventName: mappedUpdates.name, description: mappedUpdates.description, status: mappedUpdates.status, coverUrl, logoUrl, contactEmail: restUpdates.contactEmail, eventMode: restUpdates.eventMode, venueAddress: restUpdates.venueAddress, latitude: restUpdates.latitude, longitude: restUpdates.longitude })
       }
 
       set((state) => ({
@@ -649,10 +654,10 @@ export const useEventStore = create<EventState>((set, get) => ({
         ? parseInt(editionData.startDate.substring(0, 4))
         : new Date().getFullYear()
 
-      await api.editions.create(editionData.mainEventId, { name: String(editionData.name), startDate: editionData.startDate, endDate: editionData.endDate })
+      const createdEdition = await api.editions.create(editionData.mainEventId, { name: String(editionData.name), startDate: editionData.startDate, endDate: editionData.endDate })
 
       const newEdition: Edition = {
-        id,
+        id: createdEdition.id,
         mainEventId: editionData.mainEventId,
         slug,
         year: yearVal,
@@ -720,7 +725,7 @@ export const useEventStore = create<EventState>((set, get) => ({
   addSpeaker: async (speakerData) => {
     try {
       if (speakerData.editionId) {
-        const created = await api.content.createSpeaker(speakerData.eventId, { editionId: speakerData.editionId, firstName: speakerData.firstName, lastName: speakerData.lastName, bio: speakerData.bio })
+        const created = await api.content.createSpeaker(speakerData.eventId, { editionId: speakerData.editionId, profileId: speakerData.profileId || undefined, roleId: speakerData.roleId || undefined, firstName: speakerData.firstName, lastName: speakerData.lastName, bio: speakerData.bio })
         const profile = created.profile || {}
         const participantId = created.id
         set((state) => ({ speakers: [...state.speakers, { ...speakerData, id: participantId, profileId: profile.id || "", name: `${speakerData.firstName} ${speakerData.lastName}`.trim(), checkedIn: false }] as Speaker[] }))

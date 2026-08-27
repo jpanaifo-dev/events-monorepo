@@ -35,7 +35,7 @@ export function ProfileManageAccountSection() {
     description: "Administra las credenciales de acceso, roles y tipo de cuenta del perfil."
   })
 
-  const [globalRole, setGlobalRole] = useState("user")
+  const [globalRole, setGlobalRole] = useState("USER")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isCreatingAccount, setIsCreatingAccount] = useState(false)
   
@@ -45,7 +45,7 @@ export function ProfileManageAccountSection() {
 
   useEffect(() => {
     if (targetProfile) {
-      setGlobalRole(targetProfile.globalRole || "user")
+      setGlobalRole(targetProfile.globalRole || "USER")
     }
   }, [targetProfile])
 
@@ -55,9 +55,11 @@ export function ProfileManageAccountSection() {
 
     setIsSubmitting(true)
     try {
-      await updateProfile(profileId, {
-        globalRole,
-      })
+      if (!targetProfile?.authId) {
+        toast.error("Este perfil no tiene una cuenta de acceso. Crea una cuenta antes de asignar un rol global.")
+        return
+      }
+      await api.auth.updateUser(targetProfile.authId, { role: globalRole as "USER" | "ADMIN" | "SUPER_ADMIN" })
       toast.success("Configuración de cuenta actualizada correctamente")
     } catch (err: any) {
       console.error(err)
@@ -212,9 +214,9 @@ export function ProfileManageAccountSection() {
                   <SelectValue placeholder="Selecciona un rol" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="user">Usuario Regular</SelectItem>
-                  <SelectItem value="admin">Administrador del Sistema</SelectItem>
-                  <SelectItem value="developer">Developer</SelectItem>
+                  <SelectItem value="USER">Usuario</SelectItem>
+                  <SelectItem value="ADMIN">Administrador del Sistema</SelectItem>
+                  <SelectItem value="SUPER_ADMIN">Super administrador</SelectItem>
                 </SelectContent>
               </Select>
             </div>
