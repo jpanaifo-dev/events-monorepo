@@ -26,6 +26,10 @@ export const api = {
     forgotPassword: (email: string) => apiFetch<any>("/auth/forgot-password", { method: "POST", body: JSON.stringify({ email }) }),
     resetPassword: (token: string, password: string) => apiFetch<any>("/auth/reset-password", { method: "POST", body: JSON.stringify({ token, password }) }),
     adminCreate: (data: any) => apiFetch<any>("/auth/admin-create", { method: "POST", body: JSON.stringify(data) }),
+    users: () => apiFetch<any[]>("/auth/users"),
+    updateUser: (id: string, data: any) => apiFetch<any>(`/auth/users/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    resetUserPassword: (id: string) => apiFetch<{ accepted: boolean; emailSent: boolean }>(`/auth/users/${id}/reset-password`, { method: "POST" }),
+    removeUser: (id: string) => apiFetch<any>(`/auth/users/${id}`, { method: "DELETE" }),
   },
   profiles: {
     list: (organizationId?: string) => apiFetch<any[]>(`/profiles${organizationId ? `?organizationId=${encodeURIComponent(organizationId)}` : ""}`),
@@ -58,8 +62,10 @@ export const api = {
     removeBranch: (id: string) => apiFetch<any>(`/organizations/branches/${id}`, { method: "DELETE" }),
     members: (id: string) => apiFetch<any[]>(`/organizations/${id}/members`),
     addMember: (id: string, data: any) => apiFetch<any>(`/organizations/${id}/members`, { method: "POST", body: JSON.stringify(data) }),
+    inviteMember: (id: string, data: { email: string; role: string }) => apiFetch<any>(`/organizations/${id}/invitations`, { method: "POST", body: JSON.stringify(data) }),
     updateMember: (id: string, data: any) => apiFetch<any>(`/organizations/members/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     removeMember: (id: string) => apiFetch<any>(`/organizations/members/${id}`, { method: "DELETE" }),
+    updateSubscription: (id: string, data: { plan?: "FREE" | "PREMIUM" | "ENTERPRISE"; status?: string }) => apiFetch<any>(`/organizations/${id}/subscription`, { method: "PATCH", body: JSON.stringify(data) }),
   },
   events: {
     list: (organizationId?: string) => apiFetch<any[]>(`/events${organizationId ? `?organizationId=${encodeURIComponent(organizationId)}` : ""}`),

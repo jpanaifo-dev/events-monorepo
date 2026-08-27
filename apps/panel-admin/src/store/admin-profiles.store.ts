@@ -63,31 +63,31 @@ interface AdminProfilesState {
 function mapProfile(row: any): Profile {
   return {
     id: row.id,
-    authId: row.auth_id || null,
-    firstName: row.first_name || "",
-    lastName: row.last_name || "",
-    email: row.email || null,
-    identityDocumentType: row.identity_document_type || null,
-    identityDocumentNumber: row.identity_document_number || null,
+    authId: row.authId || row.auth_id || null,
+    firstName: row.firstName || row.first_name || "",
+    lastName: row.lastName || row.last_name || "",
+    email: row.email || row.authUser?.email || null,
+    identityDocumentType: row.identityDocumentType || row.identity_document_type || null,
+    identityDocumentNumber: row.identityDocumentNumber || row.identity_document_number || null,
     phone: row.phone || null,
-    birthDate: row.birth_date || null,
+    birthDate: row.birthDate || row.birth_date || null,
     sex: row.sex || null,
-    avatarUrl: row.avatar_url || null,
+    avatarUrl: row.avatarUrl || row.avatar_url || null,
     bio: row.bio || null,
     location: row.location || null,
     institution: row.institution || null,
     dedication: row.dedication || null,
-    researchInterests: row.research_interests || null,
-    areasOfInterest: row.areas_of_interest || [],
-    expertiseAreas: row.expertise_areas || [],
-    socialLinks: row.social_links || [],
-    additionalEmails: row.additional_emails || [],
-    isPublic: !!row.is_public,
-    onboardingCompleted: !!row.onboarding_completed,
-    accountType: row.account_type || "basic",
-    globalRole: row.global_role || "user",
-    createdAt: row.created_at || "",
-    updatedAt: row.updated_at || "",
+    researchInterests: row.researchInterests || row.research_interests || null,
+    areasOfInterest: row.areasOfInterest || row.areas_of_interest || [],
+    expertiseAreas: row.expertiseAreas || row.expertise_areas || [],
+    socialLinks: row.socialLinks || row.social_links || [],
+    additionalEmails: row.additionalEmails || row.additional_emails || [],
+    isPublic: row.isPublic ?? row.is_public ?? false,
+    onboardingCompleted: row.onboardingCompleted ?? row.onboarding_completed ?? false,
+    accountType: row.accountType || row.account_type || "FREE",
+    globalRole: row.globalRole || row.global_role || "USER",
+    createdAt: row.createdAt || row.created_at || "",
+    updatedAt: row.updatedAt || row.updated_at || "",
   }
 }
 
@@ -183,25 +183,12 @@ export const useAdminProfilesStore = create<AdminProfilesState>((set) => ({
 
   updateProfile: async (profileId, updates) => {
     try {
-      const dbUpdates: any = {}
-      if (updates.firstName !== undefined) dbUpdates.first_name = updates.firstName
-      if (updates.lastName !== undefined) dbUpdates.last_name = updates.lastName
-      if (updates.phone !== undefined) dbUpdates.phone = updates.phone
-      if (updates.bio !== undefined) dbUpdates.bio = updates.bio
-      if (updates.avatarUrl !== undefined) dbUpdates.avatar_url = updates.avatarUrl
-      if (updates.institution !== undefined) dbUpdates.institution = updates.institution
-      if (updates.dedication !== undefined) dbUpdates.dedication = updates.dedication
-      if (updates.identityDocumentType !== undefined) dbUpdates.identity_document_type = updates.identityDocumentType
-      if (updates.identityDocumentNumber !== undefined) dbUpdates.identity_document_number = updates.identityDocumentNumber
-      if (updates.isPublic !== undefined) dbUpdates.is_public = updates.isPublic
-      if (updates.onboardingCompleted !== undefined) dbUpdates.onboarding_completed = updates.onboardingCompleted
-      if (updates.accountType !== undefined) dbUpdates.account_type = updates.accountType
-      if (updates.globalRole !== undefined) dbUpdates.global_role = updates.globalRole
-      if (updates.authId !== undefined) dbUpdates.auth_id = updates.authId
-      if (updates.email !== undefined) dbUpdates.email = updates.email
-      dbUpdates.updated_at = new Date().toISOString()
-
-      await api.profiles.update(profileId, updates)
+      const profileUpdates = { ...updates }
+      delete profileUpdates.accountType
+      delete profileUpdates.globalRole
+      delete profileUpdates.authId
+      delete profileUpdates.email
+      await api.profiles.update(profileId, profileUpdates)
 
       set((state) => ({
         profiles: state.profiles.map((p) =>

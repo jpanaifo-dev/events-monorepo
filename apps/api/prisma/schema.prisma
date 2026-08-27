@@ -28,6 +28,18 @@ enum GlobalRole {
   ADMIN
   USER
 }
+enum AccountPlan {
+  FREE
+  PREMIUM
+  ENTERPRISE
+}
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  SUSPENDED
+}
 enum CertificateStatus {
   ISSUED
   REVOKED
@@ -38,23 +50,43 @@ model AuthUser {
   email           String    @unique
   passwordHash    String    @map("password_hash")
   role            GlobalRole @default(USER)
+  plan            AccountPlan @default(FREE)
+  isActive        Boolean    @default(true) @map("is_active")
   emailVerifiedAt DateTime? @map("email_verified_at")
+  passwordResetTokenHash String? @map("password_reset_token_hash")
+  passwordResetExpiresAt DateTime? @map("password_reset_expires_at")
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
   profile         Profile?
+  memberships     OrganizationMember[]
   @@map("auth_users")
 }
 
 model Profile {
-  id          String    @id @db.Uuid
+  id          String    @id @default(uuid()) @db.Uuid
+  authUserId  String?   @unique @map("auth_user_id") @db.Uuid
   firstName   String?   @map("first_name")
   lastName    String?   @map("last_name")
   phone       String?
   avatarUrl   String?   @map("avatar_url")
   bio         String?
+  identityDocumentType   String? @map("identity_document_type")
+  identityDocumentNumber String? @map("identity_document_number")
+  birthDate              DateTime? @map("birth_date")
+  sex                    String?
+  location               String?
+  institution            String?
+  dedication             String?
+  researchInterests      String? @map("research_interests")
+  areasOfInterest        String[] @default([]) @map("areas_of_interest")
+  expertiseAreas         String[] @default([]) @map("expertise_areas")
+  socialLinks            Json? @map("social_links")
+  additionalEmails       Json? @map("additional_emails")
+  isPublic               Boolean @default(false) @map("is_public")
+  onboardingCompleted    Boolean @default(false) @map("onboarding_completed")
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
-  authUser    AuthUser  @relation(fields: [id], references: [id], onDelete: Cascade)
+  authUser    AuthUser? @relation(fields: [authUserId], references: [id], onDelete: SetNull)
   memberships OrganizationMember[]
   education   Education[]
   employment  EmploymentHistory[]
@@ -77,6 +109,7 @@ model Organization {
   members     OrganizationMember[]
   branches    OrganizationBranch[]
   events      MainEvent[]
+  subscription OrganizationSubscription?
   @@map("organizations")
 }
 
@@ -84,12 +117,31 @@ model OrganizationMember {
   id             String       @id @default(uuid()) @db.Uuid
   organizationId String       @map("organization_id") @db.Uuid
   profileId      String       @map("profile_id") @db.Uuid
+  accountId      String?      @map("account_id") @db.Uuid
   role           MemberRole   @default(MEMBER)
   createdAt      DateTime     @default(now()) @map("created_at")
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   profile        Profile      @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  account        AuthUser?    @relation(fields: [accountId], references: [id], onDelete: Cascade)
   @@unique([organizationId, profileId])
+  @@unique([organizationId, accountId])
   @@map("organization_members")
+}
+
+model OrganizationSubscription {
+  id             String             @id @default(uuid()) @db.Uuid
+  organizationId String             @unique @map("organization_id") @db.Uuid
+  plan           AccountPlan        @default(FREE)
+  status         SubscriptionStatus @default(ACTIVE)
+  startsAt       DateTime           @default(now()) @map("starts_at")
+  renewsAt       DateTime?          @map("renews_at")
+  endsAt         DateTime?          @map("ends_at")
+  provider       String?
+  providerRef    String?            @map("provider_ref")
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
+  organization   Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@map("organization_subscriptions")
 }
 
 model OrganizationBranch {

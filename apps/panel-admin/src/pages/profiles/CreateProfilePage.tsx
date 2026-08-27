@@ -12,7 +12,6 @@ import { Switch } from "@/components/ui/switch"
 import { api } from "@/api/client"
 import { CheckCircle2, AlertTriangle, Copy, Check } from "lucide-react"
 import { uploadToR2 } from "@/utils/r2-storage"
-import { sendEmailWithResend } from "@/utils/resend"
 
 // Helper to generate a strong random password
 function generateRandomPassword(length = 12) {
@@ -41,7 +40,6 @@ export function CreateProfilePage() {
   const [dedication, setDedication] = useState("")
   const [bio, setBio] = useState("")
   const [globalRole, setGlobalRole] = useState("user")
-  const [accountType, setAccountType] = useState("basic")
   
   const [createAccount, setCreateAccount] = useState(false)
   const [credentialsModal, setCredentialsModal] = useState<{ email: string; password: string } | null>(null)
@@ -67,7 +65,6 @@ export function CreateProfilePage() {
     dedication: z.string().trim().optional().nullable(),
     bio: z.string().trim().optional().nullable(),
     globalRole: z.string().min(1),
-    accountType: z.string().min(1),
   })
 
   const handleSave = async (e: React.FormEvent) => {
@@ -87,7 +84,6 @@ export function CreateProfilePage() {
       dedication: dedication || null,
       bio: bio || null,
       globalRole,
-      accountType,
     })
 
     if (!validation.success) {
@@ -105,28 +101,32 @@ export function CreateProfilePage() {
     try {
       let linkedAuthId: string | null = null
       let generatedPassword = ""
+      let emailSent = false
+      let newProfileId: string
 
       if (createAccount) {
         generatedPassword = generateRandomPassword()
         const authData = await api.auth.adminCreate({ email: email.trim(), password: generatedPassword, firstName: firstName.trim(), lastName: lastName.trim() })
         linkedAuthId = authData.id
+        emailSent = Boolean(authData.emailSent)
+        newProfileId = authData.profile.id
+        await api.profiles.update(newProfileId, { phone: phone.trim() || null, avatarUrl: null, identityDocumentType: identityDocumentType || null, identityDocumentNumber: identityDocumentNumber.trim() || null, institution: institution.trim() || null, dedication: dedication.trim() || null, bio: bio.trim() || null })
+      } else {
+        newProfileId = await createProfile({
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          email: email.trim() || null,
+          avatarUrl: null,
+          phone: phone.trim() || null,
+          identityDocumentType: identityDocumentType || null,
+          identityDocumentNumber: identityDocumentNumber.trim() || null,
+          institution: institution.trim() || null,
+          dedication: dedication.trim() || null,
+          bio: bio.trim() || null,
+          globalRole,
+          authId: linkedAuthId,
+        })
       }
-
-      const newProfileId = await createProfile({
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        email: email.trim() || null,
-        avatarUrl: null, // Initially null, we will upload it after creation
-        phone: phone.trim() || null,
-        identityDocumentType: identityDocumentType || null,
-        identityDocumentNumber: identityDocumentNumber.trim() || null,
-        institution: institution.trim() || null,
-        dedication: dedication.trim() || null,
-        bio: bio.trim() || null,
-        globalRole,
-        accountType,
-        authId: linkedAuthId,
-      })
 
       // If they selected a file to upload, upload it now
       if (avatarFile) {
@@ -147,29 +147,7 @@ export function CreateProfilePage() {
       toast.success("Perfil registrado correctamente")
 
       if (createAccount) {
-        // Send email with Resend
-        const emailSubject = "Tus credenciales de acceso a la plataforma Zynqro"
-        const emailHtml = `
-          <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-            <h2 style="color: #e11d48;">¡Tu cuenta de Zynqro ha sido creada!</h2>
-            <p>Hola <strong>${firstName.trim()} ${lastName.trim()}</strong>,</p>
-            <p>Se ha configurado una cuenta de acceso para tu perfil en la plataforma de forma automática.</p>
-            <div style="background-color: #f9f9f9; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #ddd;">
-              <p style="margin: 5px 0;"><strong>Usuario (Correo):</strong> ${email.trim()}</p>
-              <p style="margin: 5px 0;"><strong>Contraseña temporal:</strong> <code style="font-size: 1.1em; color: #1e293b; font-weight: bold; background: #e2e8f0; padding: 2px 6px; border-radius: 4px;">${generatedPassword}</code></p>
-            </div>
-            <p style="color: #64748b; font-size: 0.9em;">* Por razones de seguridad, te sugerimos ingresar a la plataforma y cambiar esta contraseña temporal a la mayor brevedad posible.</p>
-            <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
-            <p style="font-size: 0.8em; color: #94a3b8; text-align: center;">Zynqro Events Platform</p>
-          </div>
-        `
-        const emailResult = await sendEmailWithResend(email.trim(), emailSubject, emailHtml)
-        if (!emailResult.success) {
-          toast.warning(`Perfil y cuenta creados, pero el correo no se pudo enviar: ${emailResult.error || "API Key no configurada"}`)
-        } else {
-          toast.success("Perfil y cuenta creados con éxito, correo enviado.")
-        }
-
+        toast.success(emailSent ? "Perfil y cuenta creados; las credenciales fueron enviadas por correo." : "Perfil y cuenta creados. El correo no está configurado en el servidor.")
         setCredentialsModal({
           email: email.trim(),
           password: generatedPassword
@@ -381,13 +359,13 @@ export function CreateProfilePage() {
               </div>
             </div>
 
-            {/* Roles and Plans */}
+            {/* Privilegios globales: los planes se asignan únicamente por institución. */}
             <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
               <div className="md:w-1/3 space-y-1">
                 <label className="text-sm font-normal text-foreground block">
                   Privilegios & Cuenta
                 </label>
-                <p className="text-xs text-muted-foreground">Rol de sistema y tipo de suscripción.</p>
+                <p className="text-xs text-muted-foreground">El rol global controla el acceso a la plataforma.</p>
               </div>
               <div className="md:w-2/3 w-full flex flex-col sm:flex-row gap-3">
                 <div className="flex-1 space-y-1.5">
@@ -402,20 +380,6 @@ export function CreateProfilePage() {
                     <option value="user">Usuario Regular</option>
                     <option value="admin">Administrador</option>
                     <option value="developer">Developer</option>
-                  </select>
-                </div>
-                <div className="flex-1 space-y-1.5">
-                  <label htmlFor="regAccountType" className="text-xs font-normal text-muted-foreground block">Plan / Cuenta</label>
-                  <select
-                    id="regAccountType"
-                    value={accountType}
-                    onChange={(e) => setAccountType(e.target.value)}
-                    className="w-full h-9 rounded-md border border-input bg-background px-3 py-1.5 text-sm text-foreground shadow-xs outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                    disabled={isSubmitting}
-                  >
-                    <option value="basic">Gratuito</option>
-                    <option value="premium">Premium</option>
-                    <option value="enterprise">Enterprise</option>
                   </select>
                 </div>
               </div>
