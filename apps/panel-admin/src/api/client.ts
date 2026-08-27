@@ -6,7 +6,8 @@ if (!API_URL) {
 
 export class ApiError extends Error {
   readonly status: number
-  constructor(status: number, message: string) { super(message); this.status = status }
+  readonly code?: string
+  constructor(status: number, message: string, code?: string) { super(message); this.status = status; this.code = code }
 }
 
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -16,7 +17,10 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   if (token) headers.set("Authorization", `Bearer ${token}`)
   const response = await fetch(`${API_URL}${path}`, { ...init, headers, credentials: "include" })
   const body = await response.json().catch(() => null)
-  if (!response.ok) throw new ApiError(response.status, body?.message || "Error en el servidor")
+  if (!response.ok) {
+    const message = Array.isArray(body?.message) ? body.message.join(". ") : body?.message || "No se pudo completar la operación."
+    throw new ApiError(response.status, message, body?.code)
+  }
   return body as T
 }
 

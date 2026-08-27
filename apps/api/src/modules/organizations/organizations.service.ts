@@ -2,12 +2,12 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { PrismaService } from '../../database/prisma.service.js';
 import { organizationPermissions } from './organization-permissions.js';
 import { AuthService } from '../auth/auth.service.js';
-import { EmailService } from '../auth/email.service.js';
+import { MailService } from '../mail/mail.service.js';
 import { randomBytes } from 'node:crypto';
 
 @Injectable()
 export class OrganizationsService {
-  constructor(private readonly prisma: PrismaService, private readonly auth: AuthService, private readonly email: EmailService) {}
+  constructor(private readonly prisma: PrismaService, private readonly auth: AuthService, private readonly mail: MailService) {}
   list() { return this.prisma.organization.findMany({ include: { subscription: true, branches: true, _count: { select: { members: true, events: true } } }, orderBy: { createdAt: 'desc' } }); }
   async get(id: string) { const item = await this.prisma.organization.findUnique({ where: { id }, include: { subscription: true, branches: true, members: { include: { profile: true } }, events: true } }); if (!item) throw new NotFoundException('Organización no encontrada'); return item; }
   async create(data: { name: string; slug: string; description?: string }, actor: { accountId: string; role?: string }) {
@@ -37,8 +37,17 @@ export class OrganizationsService {
       account = await this.prisma.authUser.findUniqueOrThrow({ where: { id: created.id }, include: { profile: true } });
     }
     if (!account.profile) throw new BadRequestException('La cuenta invitada no tiene perfil');
-    const membership = await this.prisma.organizationMember.upsert({ where: { organizationId_accountId: { organizationId, accountId: account.id } }, update: { role }, create: { organizationId, accountId: account.id, profileId: account.profile.id, role } });
-    const delivery = await this.email.invitation(account.email, organization.name, role);
+    const membership = await this.prisma.organizationMember.upsert({
+      where: { organizationId_accountId: { organizationId, accountId: account.id } },
+      update: { role },
+      create: { organizationId, accountId: account.id, profileId: account.profile.id, role },
+    });
+    const fullName = `${account.profile?.firstName ?? ''} ${account.profile?.lastName ?? ''}`.trim() || undefined;
+    const delivery = await this.mail.sendInvitation(account.email, {
+      recipientName: fullName,
+      organizationName: organization.name,
+      role,
+    });
     return { membership, emailSent: delivery.sent };
   }
   updateMember(id: string, role: 'OWNER' | 'ADMIN' | 'EDITOR' | 'MEMBER') { return this.prisma.organizationMember.update({ where: { id }, data: { role } }); }
