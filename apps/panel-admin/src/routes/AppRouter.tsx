@@ -55,6 +55,7 @@ import {
 import { VerifyCertificatePage } from "@/pages/VerifyCertificatePage"
 import { AdminLayout } from "@/layouts/AdminLayout"
 import { AdminPage } from "@/pages/AdminPage"
+import { EventSetupPage } from "@/pages/EventSetupPage"
 
 function HashHandler() {
   const navigate = useNavigate()
@@ -182,6 +183,14 @@ export function AppRouter() {
           element={
             <AuthGuard requireSelectedOrganization={true}>
               <EditEventPage />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/dashboard/events/:id/setup"
+          element={
+            <AuthGuard requireSelectedOrganization={true}>
+              <EventSetupPage />
             </AuthGuard>
           }
         />

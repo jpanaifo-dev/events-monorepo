@@ -34,7 +34,7 @@ export class EventContentController {
   @Patch('participant-roles/:id') updateRole(@Param('id') id: string, @Body() dto: LineDto) { return this.content.updateRole(id, { name: dto.name }); }
   @Delete('participant-roles/:id') deleteRole(@Param('id') id: string) { return this.content.deleteRole(id); }
   @Get('events/:eventId/speakers') speakers(@Param('eventId') eventId: string, @Query('editionId') editionId?: string) { return this.content.speakers(eventId, editionId); }
-  @Post('events/:eventId/speakers') createSpeaker(@Param('eventId') eventId: string, @Body() dto: { editionId: string; firstName: string; lastName: string; bio?: string }) { return this.content.createSpeaker({ eventId, ...dto }); }
+  @Post('events/:eventId/speakers') createSpeaker(@Param('eventId') eventId: string, @Body() dto: { editionId: string; profileId?: string | null; roleId?: string | null; firstName: string; lastName: string; bio?: string }) { return this.content.createSpeaker({ eventId, ...dto }); }
   @Patch('speakers/:id') updateSpeaker(@Param('id') id: string, @Body() body: Record<string, unknown>) { return this.content.updateSpeaker(id, body); }
   @Delete('speakers/:id') deleteSpeaker(@Param('id') id: string) { return this.content.deleteSpeaker(id); }
   @Get('sessions/:sessionId/resources') resources(@Param('sessionId') id: string) { return this.content.resources(id); }

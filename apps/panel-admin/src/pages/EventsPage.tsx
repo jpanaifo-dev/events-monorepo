@@ -1,13 +1,15 @@
-import { useEffect, useCallback, useMemo } from "react"
+import { useEffect, useCallback, useMemo, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { useAuthStore } from "@/store/auth.store"
 import { useEventStore, type EventFilters } from "@/store/event.store"
 import { DynamicFilters, type FilterConfig, type FilterValues } from "@/components/ui/dynamic-filters"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Calendar, Globe, Plus, Grid2X2, List } from "lucide-react"
+import { Calendar, Globe, Plus, Grid2X2, List, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { PageHeader } from "@/components/page-header"
 import { DataTable, type ColumnDef } from "@/components/ui/data-table"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 
 const FILTER_CONFIGS: FilterConfig[] = [
   {
@@ -41,6 +43,20 @@ const FILTER_CONFIGS: FilterConfig[] = [
     isBasic: false,
   },
 ]
+
+function DeleteEventDialog({ event }: { event: any }) {
+  const [confirmation, setConfirmation] = useState("")
+  return <AlertDialog onOpenChange={(open) => { if (!open) setConfirmation("") }}>
+    <AlertDialogTrigger asChild><Button variant="ghost" size="icon" title="Eliminar evento" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}><Trash2 className="size-4 text-destructive" /></Button></AlertDialogTrigger>
+    <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+      <AlertDialogHeader><AlertDialogTitle>¿Eliminar este evento?</AlertDialogTitle><AlertDialogDescription>Esta acción eliminará permanentemente “{event.name}”, sus ediciones, ponentes, agenda y participantes. Escribe ELIMINAR para confirmar.</AlertDialogDescription></AlertDialogHeader>
+      <Input value={confirmation} onChange={(e) => setConfirmation(e.target.value)} placeholder="Escribe ELIMINAR" autoFocus />
+      <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction disabled={confirmation !== "ELIMINAR"}
+        className="bg-red-500 text-white"
+        onClick={() => useEventStore.getState().deleteEvent(event.id)}>Sí, eliminar</AlertDialogAction></AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>
+}
 
 const defaultBanner = "https://images.unsplash.com/photo-1511578314322-379afb476865?w=800&auto=format&fit=crop&q=60"
 
@@ -76,7 +92,7 @@ export function EventsPage() {
 
   useSEO({
     title: "Eventos",
-    description: selectedOrganization 
+    description: selectedOrganization
       ? `Lista de eventos, borradores y conferencias publicadas para la organización ${selectedOrganization.name}.`
       : "Listado de eventos de la organización."
   })
@@ -138,10 +154,10 @@ export function EventsPage() {
   }
 
   const eventColumns: ColumnDef<any>[] = [
-    { header: "Evento", cell: (event) => <span className="font-semibold text-foreground">{event.name}</span> },
+    { header: "Evento", cell: (event) => <button type="button" title={`Abrir ${event.name}`} onClick={() => navigate(`/dashboard/events/${event.id}`)} className="cursor-pointer text-left font-semibold text-foreground hover:text-primary hover:underline">{event.name}</button> },
     { header: "Estado", cell: (event) => getStatusBadge(event.status) },
     { header: "Creado", cell: (event) => event.createdAt ? new Date(event.createdAt).toLocaleDateString("es-ES") : "—" },
-    { header: "Acción", headerClassName: "text-right", className: "text-right", cell: (event) => <Button variant="outline" size="sm" onClick={() => navigate(`/dashboard/events/${event.id}`)}>Gestionar</Button> },
+    { header: "Acción", headerClassName: "text-right", className: "text-right", cell: (event) => <div className="flex justify-end gap-2"><Button variant="outline" size="sm" onClick={() => navigate(`/dashboard/events/${event.id}`)}>Gestionar</Button><DeleteEventDialog event={event} /></div> },
   ]
 
   return (
@@ -166,16 +182,15 @@ export function EventsPage() {
         values={filterValues}
         onChange={handleFiltersChange}
         modalTitle="Filtros de Eventos"
+        trailingContent={<div className="flex gap-1 border-l border-border pl-2">
+          <Button variant={view === "grid" ? "secondary" : "ghost"} size="icon" className="size-8" title="Vista en cuadrícula" onClick={() => setView("grid")}><Grid2X2 className="size-4" /></Button>
+          <Button variant={view === "table" ? "secondary" : "ghost"} size="icon" className="size-8" title="Vista en tabla" onClick={() => setView("table")}><List className="size-4" /></Button>
+        </div>}
       />
-
-      <div className="flex justify-end gap-1">
-        <Button variant={view === "grid" ? "secondary" : "ghost"} size="icon" className="size-8" title="Vista en cuadrícula" onClick={() => setView("grid")}><Grid2X2 className="size-4" /></Button>
-        <Button variant={view === "table" ? "secondary" : "ghost"} size="icon" className="size-8" title="Vista en tabla" onClick={() => setView("table")}><List className="size-4" /></Button>
-      </div>
 
       {/* Events Grid */}
       {isLoading ? (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
             <EventCardSkeleton key={i} />
           ))}
@@ -198,12 +213,11 @@ export function EventsPage() {
       ) : view === "table" ? (
         <DataTable columns={eventColumns} data={events} maxHeight="36rem" />
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           {events.map((event) => (
             <div
               key={event.id}
-              onClick={() => navigate(`/dashboard/events/${event.id}`)}
-              className="group bg-card border border-border rounded-xl overflow-hidden hover:shadow-md cursor-pointer transition-all flex flex-col h-full"
+              className="group bg-card border border-border rounded-xl overflow-hidden hover:shadow-md transition-all flex flex-col h-full"
             >
               <div className="h-44 w-full overflow-hidden bg-muted relative">
                 <img
@@ -234,9 +248,9 @@ export function EventsPage() {
                       {event.createdAt ? new Date(event.createdAt).toLocaleDateString("es-ES", { year: "numeric", month: "short" }) : ""}
                     </span>
                   </div>
-                  <h3 className="font-bold text-lg line-clamp-2 group-hover:text-primary transition-colors">
+                  <button type="button" title={`Abrir ${event.name}`} onClick={() => navigate(`/dashboard/events/${event.id}`)} className="cursor-pointer text-left font-bold text-lg line-clamp-2 group-hover:text-primary transition-colors">
                     {event.name}
-                  </h3>
+                  </button>
                   <p className="text-xs text-muted-foreground line-clamp-2">
                     {event.shortDescription || "Sin descripción proporcionada."}
                   </p>
@@ -257,9 +271,10 @@ export function EventsPage() {
                       </a>
                     )}
                   </div>
-                  <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full shrink-0">
-                    Administrar
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" title={`Gestionar ${event.name}`} className="cursor-pointer h-7 px-2 text-xs" onClick={() => navigate(`/dashboard/events/${event.id}`)}>Gestionar</Button>
+                    <DeleteEventDialog event={event} />
+                  </div>
                 </div>
               </div>
             </div>

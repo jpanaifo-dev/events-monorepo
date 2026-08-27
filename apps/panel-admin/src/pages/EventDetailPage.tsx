@@ -7,6 +7,7 @@ import { AlertCircle, Menu, ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { api } from "@/api/client"
 
 const NAV_ITEMS = [
   { to: "info", label: "General" },
@@ -23,9 +24,11 @@ const NAV_ITEMS = [
 export function EventDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { pathname } = useLocation()
   const { selectedOrganization } = useAuthStore()
   const { events, editions, speakers, agendaItems, attendees, roles, thematicLines, tickets, isLoading, loadData, loadRoles } = useEventStore()
   const [isSheetOpen, setIsSheetOpen] = useState(false)
+  const [setupChecked, setSetupChecked] = useState(false)
 
   useEffect(() => {
     if (selectedOrganization?.id) {
@@ -40,6 +43,19 @@ export function EventDetailPage() {
   }, [id, loadRoles])
 
   const event = events.find((e) => e.id === id)
+
+  useEffect(() => {
+    if (!id || !event) return
+    api.events.setup(id).then((setup) => {
+      setSetupChecked(true)
+      const allowedDuringSetup = setup.completed || pathname.endsWith(`/events/${id}/info`) || (pathname.endsWith(`/events/${id}/roles`) && setup.editionCompleted)
+      if (!allowedDuringSetup) navigate(`/dashboard/events/${id}/setup`, { replace: true })
+    }).catch(() => setSetupChecked(true))
+  }, [id, event?.id, navigate, pathname])
+
+  if (event && !setupChecked) {
+    return <div className="min-h-screen bg-background p-8 text-muted-foreground">Verificando configuración del evento…</div>
+  }
 
   const eventEditions = editions.filter((ed) => ed.mainEventId === id)
   const eventSpeakers = speakers.filter((sp) => sp.eventId === id)
@@ -162,7 +178,6 @@ export function EventDetailPage() {
   }
 
   const basePath = `/dashboard/events/${event.id}`
-  const { pathname } = useLocation()
   const isWidePage = pathname.includes("/agenda") || pathname.includes("/speakers/import")
   const activeItem = NAV_ITEMS.find((item) => pathname.includes(item.to))
   const activeLabel = activeItem ? activeItem.label : "Secciones"

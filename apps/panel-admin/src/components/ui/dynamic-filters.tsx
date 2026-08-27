@@ -86,6 +86,7 @@ interface DynamicFiltersProps {
     maxBasicFilters?: number
     className?: string
     modalTitle?: string
+    trailingContent?: React.ReactNode
 }
 
 const DebouncedInput = ({
@@ -141,6 +142,7 @@ export const DynamicFilters = ({
     maxBasicFilters = 4,
     className,
     modalTitle = 'Filtros Avanzados'
+    , trailingContent
 }: DynamicFiltersProps) => {
 
     const { basicFilters, advancedFilters } = useMemo(() => {
@@ -385,6 +387,7 @@ export const DynamicFilters = ({
                         Limpiar Todo
                     </Button>
                 </div>
+                {trailingContent && <div className="flex items-end pb-0.5">{trailingContent}</div>}
             </div>
 
             {/* Active Filters Badges */}

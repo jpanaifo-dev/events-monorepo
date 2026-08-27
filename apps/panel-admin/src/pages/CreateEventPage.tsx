@@ -131,7 +131,7 @@ export function CreateEventPage() {
       }
 
       toast.success("Evento creado exitosamente")
-      navigate("/dashboard/events")
+      navigate(`/dashboard/events/${eventId}/setup`)
     } catch (err: any) {
       console.error(err)
       toast.error("Error al crear el evento. Intentalo de nuevo.")
@@ -282,6 +282,7 @@ export function CreateEventPage() {
             </div>
           </div>
 
+          {false && <>
           {/* Contact & Links */}
           <div className="border border-border rounded-xl bg-card overflow-hidden shadow-sm">
             <div className="p-6 border-b border-border">
@@ -360,6 +361,7 @@ export function CreateEventPage() {
               </div>
             </div>
           </div>
+          </>}
 
           {/* Brand Colors */}
           <div className="border border-border rounded-xl bg-card overflow-hidden shadow-sm">
