@@ -183,6 +183,8 @@ export const api = {
       apiFetch<any>(`/email-templates/${id}`, { method: "DELETE" }),
     duplicate: (id: string) =>
       apiFetch<any>(`/email-templates/${id}/duplicate`, { method: "POST" }),
+    sendTest: (id: string, email: string) =>
+      apiFetch<any>(`/email-templates/${id}/test`, { method: "POST", body: JSON.stringify({ email }) }),
   },
   marketing: {
     contacts: (organizationId: string, search?: string) => apiFetch<any[]>(`/organizations/${organizationId}/marketing/contacts${search ? `?search=${encodeURIComponent(search)}` : ""}`),

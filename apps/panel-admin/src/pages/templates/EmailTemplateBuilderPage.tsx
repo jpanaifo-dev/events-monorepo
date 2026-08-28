@@ -97,11 +97,12 @@ export function EmailTemplateBuilderPage() {
 
   // Left Sidebar Mode: "content" (blocks) | "style" (theme)
   const [sidebarMode, setSidebarMode] = useState<"content" | "style">("content")
-  const [contentTab, setContentTab] = useState<"blocks" | "sections" | "saved">("blocks")
+  const [contentTab, setContentTab] = useState<"blocks" | "sections">("blocks")
 
   // Blocks & Selection State
   const [blocks, setBlocks] = useState<EmailBlock[]>([])
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null)
+  const [draggedBlockId, setDraggedBlockId] = useState<string | null>(null)
   const [theme, setTheme] = useState<EmailTheme>(DEFAULT_THEME)
 
   // Undo / Redo History
@@ -380,11 +381,6 @@ export function EmailTemplateBuilderPage() {
       <header className="h-16 border-b border-border/80 bg-white dark:bg-zinc-900 px-5 flex items-center justify-between z-30 shrink-0 shadow-xs">
         {/* Left: Brand Icon + Editable Title */}
         <div className="flex items-center gap-3">
-          {/* Brand Green/Emerald Icon Badge (Image 5) */}
-          <div className="size-8 rounded-full bg-[#009245] text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-xs">
-            B
-          </div>
-
           <button
             onClick={() => navigate("/dashboard/templates")}
             className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors mr-1"
@@ -734,10 +730,10 @@ export function EmailTemplateBuilderPage() {
               </div>
             </div>
           ) : (
-            /* Subtabs (Bloques | Secciones | Guardado) & 12 Blocks Grid (Image 5) */
+            /* Subtabs de bloques y secciones reutilizables */
             <div className="flex flex-col h-full">
               {/* Subtabs Header */}
-              <div className="grid grid-cols-3 border-b border-border/80 text-center text-xs font-semibold bg-slate-50 dark:bg-zinc-800/40 shrink-0">
+              <div className="grid grid-cols-2 border-b border-border/80 text-center text-xs font-semibold bg-slate-50 dark:bg-zinc-800/40 shrink-0">
                 <button
                   onClick={() => setContentTab("blocks")}
                   className={`py-3 border-b-2 transition-all ${contentTab === "blocks"
@@ -756,22 +752,13 @@ export function EmailTemplateBuilderPage() {
                 >
                   Secciones
                 </button>
-                <button
-                  onClick={() => setContentTab("saved")}
-                  className={`py-3 border-b-2 transition-all ${contentTab === "saved"
-                    ? "border-violet-600 text-violet-600 dark:text-violet-400 font-bold bg-white dark:bg-zinc-900"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
-                    }`}
-                >
-                  Guardado
-                </button>
               </div>
 
               {/* 12 Emerald-bordered Blocks Grid (Exact Match with Image 5) */}
               <div className="p-4 flex-1 overflow-y-auto">
                 <div className="grid grid-cols-3 gap-2.5">
                   {/* 1. Título */}
-                  <button
+                  <button draggable onDragStart={(event) => event.dataTransfer.setData("application/x-email-block", "heading")}
                     onClick={() => addBlock("heading", "Título")}
                     className="flex flex-col items-center justify-center p-3 rounded-2xl border border-slate-200 dark:border-zinc-800 hover:border-emerald-500 hover:bg-emerald-50/20 dark:hover:bg-emerald-950/20 transition-all group bg-white dark:bg-zinc-900 shadow-2xs"
                   >
@@ -782,7 +769,7 @@ export function EmailTemplateBuilderPage() {
                   </button>
 
                   {/* 2. Texto */}
-                  <button
+                  <button draggable onDragStart={(event) => event.dataTransfer.setData("application/x-email-block", "text")}
                     onClick={() => addBlock("text", "Texto")}
                     className="flex flex-col items-center justify-center p-3 rounded-2xl border border-slate-200 dark:border-zinc-800 hover:border-emerald-500 hover:bg-emerald-50/20 dark:hover:bg-emerald-950/20 transition-all group bg-white dark:bg-zinc-900 shadow-2xs"
                   >
@@ -793,7 +780,7 @@ export function EmailTemplateBuilderPage() {
                   </button>
 
                   {/* 3. Imagen */}
-                  <button
+                  <button draggable onDragStart={(event) => event.dataTransfer.setData("application/x-email-block", "image")}
                     onClick={() => addBlock("image", "Imagen")}
                     className="flex flex-col items-center justify-center p-3 rounded-2xl border border-slate-200 dark:border-zinc-800 hover:border-emerald-500 hover:bg-emerald-50/20 dark:hover:bg-emerald-950/20 transition-all group bg-white dark:bg-zinc-900 shadow-2xs"
                   >
@@ -804,7 +791,7 @@ export function EmailTemplateBuilderPage() {
                   </button>
 
                   {/* 4. Vídeo */}
-                  <button
+                  <button draggable onDragStart={(event) => event.dataTransfer.setData("application/x-email-block", "video")}
                     onClick={() => addBlock("video", "Vídeo")}
                     className="flex flex-col items-center justify-center p-3 rounded-2xl border border-slate-200 dark:border-zinc-800 hover:border-emerald-500 hover:bg-emerald-50/20 dark:hover:bg-emerald-950/20 transition-all group bg-white dark:bg-zinc-900 shadow-2xs"
                   >
@@ -815,7 +802,7 @@ export function EmailTemplateBuilderPage() {
                   </button>
 
                   {/* 5. Botón */}
-                  <button
+                  <button draggable onDragStart={(event) => event.dataTransfer.setData("application/x-email-block", "button")}
                     onClick={() => addBlock("button", "Botón")}
                     className="flex flex-col items-center justify-center p-3 rounded-2xl border border-slate-200 dark:border-zinc-800 hover:border-emerald-500 hover:bg-emerald-50/20 dark:hover:bg-emerald-950/20 transition-all group bg-white dark:bg-zinc-900 shadow-2xs"
                   >
@@ -826,7 +813,7 @@ export function EmailTemplateBuilderPage() {
                   </button>
 
                   {/* 6. Contenido dinámico */}
-                  <button
+                  <button draggable onDragStart={(event) => event.dataTransfer.setData("application/x-email-block", "dynamic")}
                     onClick={() => addBlock("dynamic", "Contenido dinámico")}
                     className="flex flex-col items-center justify-center p-3 rounded-2xl border border-slate-200 dark:border-zinc-800 hover:border-emerald-500 hover:bg-emerald-50/20 dark:hover:bg-emerald-950/20 transition-all group bg-white dark:bg-zinc-900 shadow-2xs"
                   >
@@ -839,7 +826,7 @@ export function EmailTemplateBuilderPage() {
                   </button>
 
                   {/* 7. Logotipo */}
-                  <button
+                  <button draggable onDragStart={(event) => event.dataTransfer.setData("application/x-email-block", "logo")}
                     onClick={() => addBlock("logo", "Logotipo")}
                     className="flex flex-col items-center justify-center p-3 rounded-2xl border border-slate-200 dark:border-zinc-800 hover:border-emerald-500 hover:bg-emerald-50/20 dark:hover:bg-emerald-950/20 transition-all group bg-white dark:bg-zinc-900 shadow-2xs"
                   >
@@ -850,7 +837,7 @@ export function EmailTemplateBuilderPage() {
                   </button>
 
                   {/* 8. Redes sociales */}
-                  <button
+                  <button draggable onDragStart={(event) => event.dataTransfer.setData("application/x-email-block", "social")}
                     onClick={() => addBlock("social", "Redes sociales")}
                     className="flex flex-col items-center justify-center p-3 rounded-2xl border border-slate-200 dark:border-zinc-800 hover:border-emerald-500 hover:bg-emerald-50/20 dark:hover:bg-emerald-950/20 transition-all group bg-white dark:bg-zinc-900 shadow-2xs"
                   >
@@ -863,7 +850,7 @@ export function EmailTemplateBuilderPage() {
                   </button>
 
                   {/* 9. HTML */}
-                  <button
+                  <button draggable onDragStart={(event) => event.dataTransfer.setData("application/x-email-block", "html")}
                     onClick={() => addBlock("html", "HTML")}
                     className="flex flex-col items-center justify-center p-3 rounded-2xl border border-slate-200 dark:border-zinc-800 hover:border-emerald-500 hover:bg-emerald-50/20 dark:hover:bg-emerald-950/20 transition-all group bg-white dark:bg-zinc-900 shadow-2xs"
                   >
@@ -874,7 +861,7 @@ export function EmailTemplateBuilderPage() {
                   </button>
 
                   {/* 10. Divisor */}
-                  <button
+                  <button draggable onDragStart={(event) => event.dataTransfer.setData("application/x-email-block", "divider")}
                     onClick={() => addBlock("divider", "Divisor")}
                     className="flex flex-col items-center justify-center p-3 rounded-2xl border border-slate-200 dark:border-zinc-800 hover:border-emerald-500 hover:bg-emerald-50/20 dark:hover:bg-emerald-950/20 transition-all group bg-white dark:bg-zinc-900 shadow-2xs"
                   >
@@ -885,7 +872,7 @@ export function EmailTemplateBuilderPage() {
                   </button>
 
                   {/* 11. Producto */}
-                  <button
+                  <button draggable onDragStart={(event) => event.dataTransfer.setData("application/x-email-block", "product")}
                     onClick={() => addBlock("product", "Producto")}
                     className="flex flex-col items-center justify-center p-3 rounded-2xl border border-slate-200 dark:border-zinc-800 hover:border-emerald-500 hover:bg-emerald-50/20 dark:hover:bg-emerald-950/20 transition-all group bg-white dark:bg-zinc-900 shadow-2xs"
                   >
@@ -896,7 +883,7 @@ export function EmailTemplateBuilderPage() {
                   </button>
 
                   {/* 12. Navegación */}
-                  <button
+                  <button draggable onDragStart={(event) => event.dataTransfer.setData("application/x-email-block", "navigation")}
                     onClick={() => addBlock("navigation", "Navegación")}
                     className="flex flex-col items-center justify-center p-3 rounded-2xl border border-slate-200 dark:border-zinc-800 hover:border-emerald-500 hover:bg-emerald-50/20 dark:hover:bg-emerald-950/20 transition-all group bg-white dark:bg-zinc-900 shadow-2xs"
                   >
@@ -921,6 +908,29 @@ export function EmailTemplateBuilderPage() {
             backgroundSize: "20px 20px",
           }}
           onClick={() => setSelectedBlockId(null)}
+          onDragOver={(event) => event.preventDefault()}
+          onDrop={(event) => {
+            event.preventDefault()
+            const type = event.dataTransfer.getData("application/x-email-block") as EmailBlock["type"]
+            if (!type) return
+            const labels: Record<EmailBlock["type"], string> = {
+              heading: "Título",
+              text: "Texto",
+              image: "Imagen",
+              video: "Vídeo",
+              button: "Botón",
+              dynamic: "Contenido dinámico",
+              logo: "Logotipo",
+              social: "Redes sociales",
+              html: "HTML",
+              divider: "Divisor",
+              product: "Producto",
+              navigation: "Navegación",
+            }
+            if (labels[type]) {
+              addBlock(type, labels[type])
+            }
+          }}
         >
           {/* Email Container (600px width on desktop / 360px on mobile) */}
           <div
@@ -943,6 +953,14 @@ export function EmailTemplateBuilderPage() {
                 return (
                   <div
                     key={block.id}
+                    draggable
+                    onDragStart={() => setDraggedBlockId(block.id)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => {
+                      if (!draggedBlockId || draggedBlockId === block.id) return
+                      setBlocks((items) => { const next = [...items]; const from = next.findIndex((item) => item.id === draggedBlockId); const to = next.findIndex((item) => item.id === block.id); const [moved] = next.splice(from, 1); next.splice(to, 0, moved); return next })
+                      setDraggedBlockId(null)
+                    }}
                     onClick={(e) => {
                       e.stopPropagation()
                       setSelectedBlockId(block.id)
@@ -1238,4 +1256,3 @@ function TwitterIcon({ className = "size-4" }: { className?: string }) {
     </svg>
   )
 }
-

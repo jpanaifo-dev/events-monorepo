@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react"
+import { useLocation, useNavigate } from "react-router-dom"
 import { useAuthStore } from "@/store/auth.store"
 import { api } from "@/api/client"
 import { toast } from "sonner"
@@ -26,8 +27,11 @@ export function MarketingPage() {
   const { selectedOrganization } = useAuthStore()
   const organizationId = selectedOrganization?.id
 
-  // View navigation state
-  const [activeTab, setActiveTab] = useState<MainTab>("campaigns")
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const routeTab = pathname.split("/").pop()
+  const activeTab: MainTab = (["campaigns", "automations", "contacts", "segments"].includes(routeTab || "") ? routeTab : "campaigns") as MainTab
+  const setActiveTab = (tab: MainTab) => navigate(`/dashboard/marketing/${tab}`)
   const [viewMode, setViewMode] = useState<"list" | "report" | "setup">("list")
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null)
 
@@ -225,6 +229,11 @@ export function MarketingPage() {
   // Load from API if available
   const loadData = async () => {
     if (!organizationId) return
+    // Nunca conservar datos de demostración: la API es la única fuente de verdad.
+    setCampaigns([])
+    setAutomations([])
+    setContacts([])
+    setSegments([])
     try {
       const [cRes, sRes, caRes, aRes] = await Promise.allSettled([
         api.marketing.contacts(organizationId),
@@ -233,15 +242,16 @@ export function MarketingPage() {
         api.marketing.automations(organizationId),
       ])
 
-      if (cRes.status === "fulfilled" && Array.isArray(cRes.value) && cRes.value.length > 0) {
+      if (cRes.status === "fulfilled" && Array.isArray(cRes.value)) {
         setContacts(cRes.value)
       }
-      if (sRes.status === "fulfilled" && Array.isArray(sRes.value) && sRes.value.length > 0) {
+      if (sRes.status === "fulfilled" && Array.isArray(sRes.value)) {
         setSegments(sRes.value)
       }
-      if (caRes.status === "fulfilled" && Array.isArray(caRes.value) && caRes.value.length > 0) {
+      if (caRes.status === "fulfilled" && Array.isArray(caRes.value)) {
         // Merge API campaigns with rich stats
         setCampaigns((prev) => {
+          if (caRes.value.length === 0) return []
           const apiMap = new Map(caRes.value.map((x: any) => [x.id, x]))
           const merged = prev.map((p) => (apiMap.has(p.id) ? { ...p, ...apiMap.get(p.id) } : p))
           caRes.value.forEach((x: any) => {
@@ -264,8 +274,9 @@ export function MarketingPage() {
           return merged
         })
       }
-      if (aRes.status === "fulfilled" && Array.isArray(aRes.value) && aRes.value.length > 0) {
+      if (aRes.status === "fulfilled" && Array.isArray(aRes.value)) {
         setAutomations((prev) => {
+          if (aRes.value.length === 0) return []
           const merged = [...prev]
           aRes.value.forEach((x: any) => {
             if (!merged.some((m) => m.id === x.id)) {
