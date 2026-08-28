@@ -184,4 +184,17 @@ export const api = {
     duplicate: (id: string) =>
       apiFetch<any>(`/email-templates/${id}/duplicate`, { method: "POST" }),
   },
+  marketing: {
+    contacts: (organizationId: string, search?: string) => apiFetch<any[]>(`/organizations/${organizationId}/marketing/contacts${search ? `?search=${encodeURIComponent(search)}` : ""}`),
+    createContact: (organizationId: string, data: any) => apiFetch<any>(`/organizations/${organizationId}/marketing/contacts`, { method: "POST", body: JSON.stringify(data) }),
+    removeContact: (organizationId: string, id: string) => apiFetch<any>(`/organizations/${organizationId}/marketing/contacts/${id}`, { method: "DELETE" }),
+    segments: (organizationId: string) => apiFetch<any[]>(`/organizations/${organizationId}/marketing/segments`),
+    createSegment: (organizationId: string, data: any) => apiFetch<any>(`/organizations/${organizationId}/marketing/segments`, { method: "POST", body: JSON.stringify(data) }),
+    removeSegment: (organizationId: string, id: string) => apiFetch<any>(`/organizations/${organizationId}/marketing/segments/${id}`, { method: "DELETE" }),
+    campaigns: (organizationId: string) => apiFetch<any[]>(`/organizations/${organizationId}/marketing/campaigns`),
+    createCampaign: (organizationId: string, data: any) => apiFetch<any>(`/organizations/${organizationId}/marketing/campaigns`, { method: "POST", body: JSON.stringify(data) }),
+    sendCampaign: (organizationId: string, id: string) => apiFetch<any>(`/organizations/${organizationId}/marketing/campaigns/${id}/send`, { method: "POST" }),
+    automations: (organizationId: string) => apiFetch<any[]>(`/organizations/${organizationId}/marketing/automations`),
+    createAutomation: (organizationId: string, data: any) => apiFetch<any>(`/organizations/${organizationId}/marketing/automations`, { method: "POST", body: JSON.stringify(data) }),
+  },
 }

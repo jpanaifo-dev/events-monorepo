@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { z } from "zod"
 import { useEventStore } from "@/store/event.store"
+import { useAuthStore } from "@/store/auth.store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
@@ -16,10 +17,21 @@ const toDateInputValue = (value: string) => value ? value.slice(0, 10) : ""
 export function EditEditionPage() {
   const { eventId, editionId } = useParams<{ eventId: string; editionId: string }>()
   const navigate = useNavigate()
-  const { events, editions, updateEdition, deleteEdition } = useEventStore()
+  const { events, editions, updateEdition, deleteEdition, loadData, loadEditions } = useEventStore()
+  const { selectedOrganization } = useAuthStore()
+  const [isLoadingEdition, setIsLoadingEdition] = useState(true)
 
   const event = events.find((e) => e.id === eventId)
   const edition = editions.find((ed) => ed.id === editionId)
+
+  useEffect(() => {
+    if (!eventId || !editionId) return
+    setIsLoadingEdition(true)
+    Promise.all([
+      selectedOrganization?.id && !events.some((item) => item.id === eventId) ? loadData(selectedOrganization.id) : Promise.resolve(),
+      loadEditions(eventId),
+    ]).finally(() => setIsLoadingEdition(false))
+  }, [eventId, editionId, selectedOrganization?.id])
 
   useSEO({
     title: edition ? `Editar Edición: ${edition.name}` : "Editar Edición",
@@ -58,7 +70,7 @@ export function EditEditionPage() {
       setModality(edition.modality || "presencial")
       setLatitude(edition.latitude?.toString() || "")
       setLongitude(edition.longitude?.toString() || "")
-    } else {
+    } else if (!isLoadingEdition) {
       toast.error("Edición no encontrada.")
       navigate(`/dashboard/events/${eventId}/editions`)
     }
@@ -363,7 +375,7 @@ export function EditEditionPage() {
           </div>
 
           {/* Form Action Footer */}
-          <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-border bg-background/80 px-8 py-4 backdrop-blur-md">
+          <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 px-4 py-4 backdrop-blur-md sm:px-8">
             <div className="max-w-4xl mx-auto flex justify-end gap-3 w-full">
               <Button
                 type="button"

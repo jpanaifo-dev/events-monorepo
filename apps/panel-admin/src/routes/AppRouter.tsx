@@ -63,6 +63,7 @@ import {
   TemplateConfigPage,
   EmailTemplateBuilderPage,
 } from "@/pages/templates"
+import { MarketingPage } from "@/pages/marketing"
 
 function HashHandler() {
   const navigate = useNavigate()
@@ -161,6 +162,7 @@ export function AppRouter() {
           <Route path="templates" element={<TemplatesListPage />} />
           <Route path="templates/new" element={<TemplateConfigPage />} />
           <Route path="templates/:templateId/edit" element={<TemplateConfigPage />} />
+          <Route path="marketing" element={<MarketingPage />} />
 
           {/* Registered Profiles Catalog */}
           <Route path="profiles" element={<ProfilesPage />} />

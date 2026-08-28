@@ -309,7 +309,7 @@ export function CreateEditionPage() {
           </div>
 
           {/* Form Action Footer */}
-          <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-border bg-background/80 px-8 py-4 backdrop-blur-md">
+          <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 px-4 py-4 backdrop-blur-md sm:px-8">
             <div className="max-w-4xl mx-auto flex justify-end gap-3 w-full">
               <Button
                 type="button"

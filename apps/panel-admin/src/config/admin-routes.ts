@@ -1,4 +1,4 @@
-import { LayoutDashboard, Calendar, Settings2, User, Users, Award, Mail } from "lucide-react"
+import { LayoutDashboard, Calendar, Settings2, User, Users, Award, Mail, Megaphone } from "lucide-react"
 
 export interface AdminRouteItem {
   title: string
@@ -27,6 +27,7 @@ export const getAdminRoutes = (_locale?: string): AdminRouteItem[] => {
       url: `/dashboard/templates`,
       icon: Mail,
     },
+    { title: "Marketing", url: `/dashboard/marketing`, icon: Megaphone },
     {
       title: "Perfiles Registrados",
       url: `/dashboard/profiles`,
