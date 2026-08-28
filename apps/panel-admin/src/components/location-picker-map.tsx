@@ -19,11 +19,11 @@ function MapClickHandler({ onSelect }: { onSelect: (coordinates: Coordinates) =>
 
 function RecenterMap({ position }: { position: [number, number] }) {
   const map = useMapEvents({})
-  useEffect(() => { map.setView(position) }, [map, position])
+  useEffect(() => { map.setView(position, position[0] === -3.7491 && position[1] === -73.2538 ? 13 : 15) }, [map, position])
   return null
 }
 
 export function LocationPickerMap({ latitude, longitude, onSelect }: { latitude?: number; longitude?: number; onSelect: (coordinates: Coordinates) => void }) {
-  const position = useMemo<[number, number]>(() => [latitude ?? -12.0464, longitude ?? -77.0428], [latitude, longitude])
+  const position = useMemo<[number, number]>(() => [latitude ?? -3.7491, longitude ?? -73.2538], [latitude, longitude])
   return <MapContainer center={position} zoom={latitude !== undefined && longitude !== undefined ? 15 : 5} className="h-64 w-full rounded-md border" scrollWheelZoom><TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" /><MapClickHandler onSelect={onSelect} /><RecenterMap position={position} />{latitude !== undefined && longitude !== undefined && <Marker position={position} icon={markerIcon} draggable eventHandlers={{ dragend: (event) => { const point = event.target.getLatLng(); onSelect({ latitude: point.lat, longitude: point.lng }) } }} />}</MapContainer>
 }

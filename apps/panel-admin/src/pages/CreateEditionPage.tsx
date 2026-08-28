@@ -10,6 +10,7 @@ import { LocationPickerMap } from "@/components/location-picker-map"
 
 import { useSEO } from "@/hooks/use-seo"
 
+
 export function CreateEditionPage() {
   const { eventId } = useParams<{ eventId: string }>()
   const navigate = useNavigate()
@@ -44,7 +45,7 @@ export function CreateEditionPage() {
     coverUrl: z.string().trim().url("El enlace de portada no es válido.").or(z.literal("")).optional(),
     startDate: z.string().min(1, "La fecha de inicio es requerida."),
     endDate: z.string(),
-  }).refine((data) => isSingleDay || data.endDate.length > 0, {
+  }).refine((data) => /^\d{4}-\d{2}-\d{2}$/.test(data.startDate), { message: "Selecciona una fecha de inicio válida.", path: ["startDate"] }).refine((data) => isSingleDay || data.endDate.length > 0, {
     message: "La fecha de fin es requerida para una edición de varios días.",
     path: ["endDate"],
   })
@@ -72,7 +73,7 @@ export function CreateEditionPage() {
         name: name.trim(),
         description: description.trim(),
         coverUrl: coverUrl.trim() || "",
-        startDate: startDate || "",
+        startDate,
         endDate: isSingleDay ? "" : endDate,
         isCurrent: status === "active",
         location,
@@ -82,7 +83,7 @@ export function CreateEditionPage() {
       })
 
       toast.success("Edición creada exitosamente")
-      navigate(`/dashboard/events/${eventId}`)
+      navigate(`/dashboard/events/${eventId}/editions`)
     } catch (err: any) {
       console.error(err)
       toast.error("Error al crear la edición. Inténtalo de nuevo.")
@@ -114,7 +115,7 @@ export function CreateEditionPage() {
             title="Crear una Nueva Edición"
             description={`Añade una edición anual, periódica o especial vinculada a ${event.name}.`}
             showBackButton
-            onBackClick={() => navigate(`/dashboard/events/${eventId}`)}
+            onBackClick={() => navigate(`/dashboard/events/${eventId}/editions`)}
           />
         </div>
 
@@ -208,11 +209,12 @@ export function CreateEditionPage() {
                 <div className={`grid gap-4 ${isSingleDay ? "grid-cols-1" : "grid-cols-2"}`}>
                   <div className="space-y-1.5">
                     <label htmlFor="ed-start" className="text-[10px] font-bold uppercase text-muted-foreground">
-                      Fecha Inicio
+                      Fecha Inicio (dd/mm/aaaa)
                     </label>
                     <Input
                       id="ed-start"
                       type="date"
+                      lang="es-PE"
                       required
                       value={startDate}
                       onChange={(e) => setStartDate(e.target.value)}
@@ -221,11 +223,12 @@ export function CreateEditionPage() {
                   </div>
                   {!isSingleDay && <div className="space-y-1.5">
                     <label htmlFor="ed-end" className="text-[10px] font-bold uppercase text-muted-foreground">
-                      Fecha Fin
+                      Fecha Fin (dd/mm/aaaa)
                     </label>
                     <Input
                       id="ed-end"
                       type="date"
+                      lang="es-PE"
                       required
                       value={endDate}
                       onChange={(e) => setEndDate(e.target.value)}
@@ -311,7 +314,7 @@ export function CreateEditionPage() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => navigate(`/dashboard/events/${eventId}`)}
+                onClick={() => navigate(`/dashboard/events/${eventId}/editions`)}
                 disabled={isSubmitting}
                 className="cursor-pointer"
               >

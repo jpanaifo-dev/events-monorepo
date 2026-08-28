@@ -11,6 +11,8 @@ import { Trash2 } from "lucide-react"
 import { useSEO } from "@/hooks/use-seo"
 import { LocationPickerMap } from "@/components/location-picker-map"
 
+const toDateInputValue = (value: string) => value ? value.slice(0, 10) : ""
+
 export function EditEditionPage() {
   const { eventId, editionId } = useParams<{ eventId: string; editionId: string }>()
   const navigate = useNavigate()
@@ -48,8 +50,8 @@ export function EditEditionPage() {
       setName(edition.name || "")
       setDescription(edition.description || "")
       setCoverUrl(edition.coverUrl || "")
-      setStartDate(edition.startDate || "")
-      setEndDate(edition.endDate || "")
+      setStartDate(toDateInputValue(edition.startDate || ""))
+      setEndDate(toDateInputValue(edition.endDate || ""))
       setIsSingleDay(!edition.endDate || edition.endDate === edition.startDate)
       setStatus(edition.isCurrent ? "active" : "planned")
       setLocation(edition.location || "")
@@ -58,7 +60,7 @@ export function EditEditionPage() {
       setLongitude(edition.longitude?.toString() || "")
     } else {
       toast.error("Edición no encontrada.")
-      navigate(`/dashboard/events/${eventId}`)
+      navigate(`/dashboard/events/${eventId}/editions`)
     }
   }, [edition, eventId, navigate])
 
@@ -67,7 +69,7 @@ export function EditEditionPage() {
     coverUrl: z.string().trim().url("El enlace de portada no es válido.").or(z.literal("")).optional(),
     startDate: z.string().min(1, "La fecha de inicio es requerida."),
     endDate: z.string(),
-  }).refine((data) => isSingleDay || data.endDate.length > 0, {
+  }).refine((data) => /^\d{4}-\d{2}-\d{2}$/.test(data.startDate), { message: "Selecciona una fecha de inicio válida.", path: ["startDate"] }).refine((data) => isSingleDay || data.endDate.length > 0, {
     message: "La fecha de fin es requerida para una edición de varios días.",
     path: ["endDate"],
   })
@@ -104,7 +106,7 @@ export function EditEditionPage() {
       })
 
       toast.success("Edición actualizada exitosamente")
-      navigate(`/dashboard/events/${eventId}`)
+      navigate(`/dashboard/events/${eventId}/editions`)
     } catch (err: any) {
       console.error(err)
       toast.error("Error al actualizar la edición. Inténtalo de nuevo.")
@@ -155,7 +157,7 @@ export function EditEditionPage() {
             title="Editar Edición"
             description={`Modifica los detalles, años o imagen de portada de la edición del evento ${event.name}.`}
             showBackButton
-            onBackClick={() => navigate(`/dashboard/events/${eventId}`)}
+            onBackClick={() => navigate(`/dashboard/events/${eventId}/editions`)}
             actionButton={
               <Button
                 type="button"
@@ -261,11 +263,12 @@ export function EditEditionPage() {
                 <div className={`grid gap-4 ${isSingleDay ? "grid-cols-1" : "grid-cols-2"}`}>
                   <div className="space-y-1.5">
                     <label htmlFor="ed-start" className="text-[10px] font-bold uppercase text-muted-foreground">
-                      Fecha Inicio
+                      Fecha Inicio (dd/mm/aaaa)
                     </label>
                     <Input
                       id="ed-start"
                       type="date"
+                      lang="es-PE"
                       required
                       value={startDate}
                       onChange={(e) => setStartDate(e.target.value)}
@@ -274,11 +277,12 @@ export function EditEditionPage() {
                   </div>
                   {!isSingleDay && <div className="space-y-1.5">
                     <label htmlFor="ed-end" className="text-[10px] font-bold uppercase text-muted-foreground">
-                      Fecha Fin
+                      Fecha Fin (dd/mm/aaaa)
                     </label>
                     <Input
                       id="ed-end"
                       type="date"
+                      lang="es-PE"
                       required
                       value={endDate}
                       onChange={(e) => setEndDate(e.target.value)}
