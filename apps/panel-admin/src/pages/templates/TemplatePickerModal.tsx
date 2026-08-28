@@ -13,7 +13,7 @@ import {
   FileText,
   Check,
 } from "lucide-react"
-import { STARTER_TEMPLATES } from "@/../../api/src/modules/email-templates/email-templates.service"
+import { STARTER_TEMPLATES } from "./starterTemplates"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
