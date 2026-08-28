@@ -145,7 +145,7 @@ export function EventSpeakersSection() {
       queryClient.invalidateQueries({ queryKey: ["speakers", id] })
       toast.success("Ponente eliminado con éxito.")
     } catch (error: any) {
-      toast.error("Error al eliminar al ponente.")
+      toast.error(error?.message || "No se pudo eliminar al ponente.")
     }
   }
 

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service.js';
 
 @Injectable()
@@ -9,7 +9,17 @@ export class ProfilesService {
   create(data: { id: string; firstName: string; lastName: string; phone?: string; bio?: string; organizationId?: string }) { return this.prisma.profile.create({ data: { id: data.id, firstName: data.firstName, lastName: data.lastName, phone: data.phone, bio: data.bio, organizationId: data.organizationId } }); }
   async get(id: string) { const profile = await this.prisma.profile.findUnique({ where: { id }, include: { authUser: true, education: true, employment: true, certifications: true } }); if (!profile) throw new NotFoundException('Perfil no encontrado'); return this.serialize(profile); }
   update(id: string, data: Record<string, unknown>) { const allowed = ['firstName', 'lastName', 'phone', 'avatarUrl', 'bio', 'identityDocumentType', 'identityDocumentNumber', 'birthDate', 'sex', 'location', 'institution', 'dedication', 'researchInterests', 'areasOfInterest', 'expertiseAreas', 'socialLinks', 'additionalEmails', 'isPublic', 'onboardingCompleted']; const clean = Object.fromEntries(Object.entries(data).filter(([key]) => allowed.includes(key))); return this.prisma.profile.update({ where: { id }, data: clean }); }
-  remove(id: string) { return this.prisma.profile.delete({ where: { id } }); }
+  async remove(id: string) {
+    const [memberships, participants, sessionSpeakers] = await Promise.all([
+      this.prisma.organizationMember.count({ where: { profileId: id } }),
+      this.prisma.eventParticipant.count({ where: { profileId: id } }),
+      this.prisma.sessionSpeaker.count({ where: { profileId: id } }),
+    ]);
+    if (memberships || participants || sessionSpeakers) {
+      throw new ConflictException('No se puede eliminar este perfil porque está siendo utilizado por miembros, participantes o temas del evento.');
+    }
+    return this.prisma.profile.delete({ where: { id } });
+  }
   education(userId: string) { return this.prisma.education.findMany({ where: { userId }, orderBy: { startDate: 'desc' } }); }
   addEducation(userId: string, data: { institution: string; degree?: string; startDate?: string; endDate?: string }) { return this.prisma.education.create({ data: { userId, institution: data.institution, degree: data.degree, startDate: data.startDate ? new Date(data.startDate) : undefined, endDate: data.endDate ? new Date(data.endDate) : undefined } }); }
   updateEducation(id: string, data: Record<string, unknown>) { return this.prisma.education.update({ where: { id }, data }); }

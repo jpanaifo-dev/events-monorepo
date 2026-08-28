@@ -51,6 +51,19 @@ enum CertificateStatus {
   REVOKED
 }
 
+enum RegistrationFormStatus {
+  DRAFT
+  PUBLISHED
+  PAUSED
+  ARCHIVED
+}
+
+enum RegistrationSubmissionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model AuthUser {
   id                     String               @id @default(uuid()) @db.Uuid
   email                  String               @unique
@@ -202,6 +215,7 @@ model MainEvent {
   thematicLines  ThematicLine[]
   setupProgress  EventSetupProgress?
   contacts       EventContact[]
+  registrationForms RegistrationForm[]
 
   @@index([organizationId, status])
   @@map("main_events")
@@ -257,14 +271,72 @@ model Edition {
   name         String
   startDate    DateTime?          @map("start_date")
   endDate      DateTime?          @map("end_date")
+  modality     String?
+  location     String?
   createdAt    DateTime           @default(now()) @map("created_at")
   mainEvent    MainEvent          @relation(fields: [mainEventId], references: [id], onDelete: Cascade)
   activities   EventActivity[]
   participants EventParticipant[]
   tickets      EventTicket[]
+  registrationForms RegistrationForm[]
 
   @@index([mainEventId])
   @@map("editions")
+}
+
+model RegistrationForm {
+  id                    String                     @id @default(uuid()) @db.Uuid
+  mainEventId           String                     @map("main_event_id") @db.Uuid
+  editionId             String?                    @map("edition_id") @db.Uuid
+  title                 String
+  description           String?
+  slug                  String                     @unique
+  status                RegistrationFormStatus     @default(DRAFT)
+  opensAt               DateTime?                  @map("opens_at")
+  closesAt              DateTime?                  @map("closes_at")
+  maxSubmissions        Int?                       @map("max_submissions")
+  approvalMode          String                     @default("MANUAL") @map("approval_mode")
+  allowEditionSelection Boolean                    @default(false) @map("allow_edition_selection")
+  defaultEditionId      String?                    @map("default_edition_id") @db.Uuid
+  createdAt             DateTime                   @default(now()) @map("created_at")
+  updatedAt             DateTime                   @updatedAt @map("updated_at")
+  mainEvent             MainEvent                  @relation(fields: [mainEventId], references: [id], onDelete: Cascade)
+  edition               Edition?                   @relation(fields: [editionId], references: [id], onDelete: SetNull)
+  fields                RegistrationFormField[]
+  submissions           RegistrationSubmission[]
+  @@index([mainEventId])
+  @@map("registration_forms")
+}
+
+model RegistrationFormField {
+  id          String           @id @default(uuid()) @db.Uuid
+  formId      String           @map("form_id") @db.Uuid
+  key         String
+  label       String
+  type        String
+  required    Boolean          @default(false)
+  options     Json?
+  validation  Json?
+  position    Int              @default(0)
+  form        RegistrationForm @relation(fields: [formId], references: [id], onDelete: Cascade)
+  @@unique([formId, key])
+  @@map("registration_form_fields")
+}
+
+model RegistrationSubmission {
+  id              String                     @id @default(uuid()) @db.Uuid
+  formId          String                     @map("form_id") @db.Uuid
+  editionId       String?                    @map("edition_id") @db.Uuid
+  status          RegistrationSubmissionStatus @default(PENDING)
+  email           String?
+  answers         Json
+  profileId       String?                    @map("profile_id") @db.Uuid
+  participantId   String?                    @map("participant_id") @db.Uuid
+  submittedAt     DateTime                   @default(now()) @map("submitted_at")
+  reviewedAt      DateTime?                  @map("reviewed_at")
+  form            RegistrationForm           @relation(fields: [formId], references: [id], onDelete: Cascade)
+  @@index([formId, status])
+  @@map("registration_submissions")
 }
 
 model EventActivity {
@@ -335,6 +407,7 @@ model EventParticipant {
   checkedIn    Boolean                  @default(false) @map("checked_in")
   edition      Edition                  @relation(fields: [editionId], references: [id], onDelete: Cascade)
   profile      Profile                  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  role         ParticipantRole?         @relation(fields: [roleId], references: [id], onDelete: Restrict)
   certificates ParticipantCertificate[]
 
   @@unique([editionId, profileId])
@@ -347,6 +420,7 @@ model ParticipantRole {
   editionId   String?  @map("edition_id") @db.Uuid
   name        String
   createdAt   DateTime @default(now()) @map("created_at")
+  participants EventParticipant[]
 
   @@index([mainEventId, editionId])
   @@unique([mainEventId, editionId, name])

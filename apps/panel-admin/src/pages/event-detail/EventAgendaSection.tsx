@@ -104,12 +104,20 @@ export function EventAgendaSection() {
     agendaItems,
     speakers,
     editions,
+    loadFilteredSpeakers,
+    loadRoles,
     deleteAgendaItem,
     addAgendaItem,
     updateAgendaItem
   } = useEventStore()
 
   const [selectedEditionId, setSelectedEditionId] = useState<string>("")
+
+  useEffect(() => {
+    if (!eventId) return
+    void loadFilteredSpeakers(eventId)
+    void loadRoles(eventId)
+  }, [eventId, loadFilteredSpeakers, loadRoles])
 
   const event = events.find((e) => e.id === eventId)
   const currentEdition = useMemo(() => {

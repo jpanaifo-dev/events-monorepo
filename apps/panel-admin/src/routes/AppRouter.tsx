@@ -39,6 +39,8 @@ import {
   EventAttendeeFormPage,
   EventSpeakersImportPage,
   EventCertificatesSection,
+  EventFormsSection,
+  EventFormBuilderPage,
 } from "@/pages/event-detail"
 import { GlobalCertificatesPage } from "@/pages/GlobalCertificatesPage"
 import {
@@ -250,6 +252,8 @@ export function AppRouter() {
           <Route path="thematic-lines" element={<EventThematicLinesSection />} />
           <Route path="tickets" element={<EventTicketsSection />} />
           <Route path="certificates" element={<EventCertificatesSection />} />
+          <Route path="forms" element={<EventFormsSection />} />
+          <Route path="forms/:formId" element={<EventFormBuilderPage />} />
         </Route>
 
         {/* Profiles Detail - Standalone (no admin layout) */}

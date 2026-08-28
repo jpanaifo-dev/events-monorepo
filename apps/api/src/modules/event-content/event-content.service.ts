@@ -39,7 +39,7 @@ export class EventContentService {
   }
   async speakers(eventId: string, editionId?: string) {
     const editions = editionId ? [editionId] : (await this.prisma.edition.findMany({ where: { mainEventId: eventId }, select: { id: true } })).map((e: { id: string }) => e.id);
-    return this.prisma.eventParticipant.findMany({ where: { editionId: { in: editions } }, include: { profile: true, edition: true }, orderBy: { registeredAt: 'desc' } });
+    return this.prisma.eventParticipant.findMany({ where: { editionId: { in: editions } }, include: { profile: true, edition: true, role: true }, orderBy: { registeredAt: 'desc' } });
   }
   async createSpeaker(data: { eventId: string; editionId: string; profileId?: string | null; roleId?: string | null; firstName: string; lastName: string; bio?: string }) {
     const edition = await this.prisma.edition.findFirst({ where: { id: data.editionId, mainEventId: data.eventId } });
@@ -56,7 +56,13 @@ export class EventContentService {
     return this.prisma.eventParticipant.create({ data: { editionId: data.editionId, profileId: profile.id, roleId: data.roleId || undefined }, include: { profile: true, edition: true } });
   }
   async updateSpeaker(id: string, data: Record<string, unknown>) { const participant = await this.prisma.eventParticipant.findUnique({ where: { id } }); if (!participant) throw new NotFoundException('Ponente no encontrado'); const profileData = Object.fromEntries(Object.entries({ firstName: data.firstName, lastName: data.lastName, bio: data.bio }).filter(([, v]) => v !== undefined)); if (Object.keys(profileData).length) await this.prisma.profile.update({ where: { id: participant.profileId }, data: profileData }); return this.prisma.eventParticipant.findUnique({ where: { id }, include: { profile: true, edition: true } }); }
-  async deleteSpeaker(id: string) { const participant = await this.prisma.eventParticipant.delete({ where: { id } }); await this.prisma.profile.delete({ where: { id: participant.profileId } }); return participant; }
+  async deleteSpeaker(id: string) {
+    const participant = await this.prisma.eventParticipant.findUnique({ where: { id } });
+    if (!participant) throw new NotFoundException('Ponente no encontrado');
+    const topics = await this.prisma.sessionSpeaker.count({ where: { profileId: participant.profileId } });
+    if (topics) throw new ConflictException('No se puede eliminar este ponente porque tiene temas o sesiones asignados.');
+    return this.prisma.eventParticipant.delete({ where: { id } });
+  }
   resources(sessionId: string) { return this.prisma.sessionResource.findMany({ where: { sessionId }, orderBy: { createdAt: 'asc' } }); }
   addResource(sessionId: string, data: { name: string; url: string; type?: string }) { return this.prisma.sessionResource.create({ data: { sessionId, ...data } }); }
   updateResource(id: string, data: Record<string, unknown>) { return this.prisma.sessionResource.update({ where: { id }, data }); }

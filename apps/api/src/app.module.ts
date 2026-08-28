@@ -11,6 +11,7 @@ import { CertificatesModule } from './modules/certificates/certificates.module.j
 import { EventContentModule } from './modules/event-content/event-content.module.js';
 
 import { MailModule } from './modules/mail/mail.module.js';
+import { RegistrationFormsModule } from './modules/registration-forms/registration-forms.module.js';
 
-@Module({ imports: [MailModule, AuthModule, ProfilesModule, OrganizationsModule, EventsModule, EditionsModule, ParticipantsModule, CertificatesModule, EventContentModule], controllers: [HealthController], providers: [PrismaService], exports: [PrismaService] })
+@Module({ imports: [MailModule, AuthModule, ProfilesModule, OrganizationsModule, EventsModule, EditionsModule, ParticipantsModule, CertificatesModule, EventContentModule, RegistrationFormsModule], controllers: [HealthController], providers: [PrismaService], exports: [PrismaService] })
 export class AppModule {}

@@ -38,18 +38,10 @@ export async function fetchEventSpeakers(
   params: FetchSpeakersParams
 ): Promise<FetchSpeakersResult> {
   const formattedRoles = (await api.content.roles(eventId)).map(mapParticipantRole)
-  const speakerRoleIds = formattedRoles
-    .filter((r) => ["speaker", "keynote-speaker", "ponente", "conferencista", "expositor"].includes(r.slug))
-    .map((r) => r.id)
-
-  if (speakerRoleIds.length === 0) {
-    return { speakers: [], totalCount: 0, roles: formattedRoles }
-  }
-
   const page = params.page || 1
   const pageSize = params.pageSize || 20
   const participantsData = await api.content.speakers(eventId, params.editionId !== "all" ? params.editionId : undefined)
-  const filtered = (participantsData || []).filter((part: any) => speakerRoleIds.includes(part.roleId) && (!params.search || `${part.profile?.firstName || ""} ${part.profile?.lastName || ""} ${part.profile?.email || ""}`.toLowerCase().includes(params.search.toLowerCase())))
+  const filtered = (participantsData || []).filter((part: any) => !params.search || `${part.profile?.firstName || ""} ${part.profile?.lastName || ""} ${part.profile?.email || ""}`.toLowerCase().includes(params.search.toLowerCase()))
   const totalCount = filtered.length
   const pageData = filtered.slice((page - 1) * pageSize, page * pageSize)
 

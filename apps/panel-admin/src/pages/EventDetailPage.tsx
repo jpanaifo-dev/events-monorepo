@@ -19,6 +19,7 @@ const NAV_ITEMS = [
   { to: "thematic-lines", label: "Líneas Temáticas" },
   { to: "tickets", label: "Tickets" },
   { to: "certificates", label: "Certificados" },
+  { to: "forms", label: "Formularios" },
 ]
 
 export function EventDetailPage() {
@@ -26,7 +27,7 @@ export function EventDetailPage() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const { selectedOrganization } = useAuthStore()
-  const { events, editions, speakers, agendaItems, attendees, roles, thematicLines, tickets, isLoading, loadData, loadRoles } = useEventStore()
+  const { events, editions, speakers, agendaItems, attendees, roles, thematicLines, tickets, isLoading, loadData, loadEditions, loadRoles } = useEventStore()
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [setupChecked, setSetupChecked] = useState(false)
 
@@ -40,9 +41,10 @@ export function EventDetailPage() {
 
   useEffect(() => {
     if (id) {
+      loadEditions(id)
       loadRoles(id)
     }
-  }, [id, loadRoles])
+  }, [id, loadEditions, loadRoles])
 
   const event = events.find((e) => e.id === id)
 

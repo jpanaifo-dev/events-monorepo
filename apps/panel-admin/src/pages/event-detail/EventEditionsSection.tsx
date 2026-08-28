@@ -45,7 +45,7 @@ export function EventEditionsSection() {
     if (!id) return
     setIsLoadingEditions(true)
     api.editions.list(id)
-      .then((rows) => setRemoteEditions(rows.map((row: any) => ({ id: row.id, mainEventId: row.mainEventId, name: row.name, startDate: row.startDate || "", endDate: row.endDate || "", slug: "", year: row.startDate ? new Date(row.startDate).getFullYear() : new Date().getFullYear(), description: "", coverUrl: "", isCurrent: false, location: "", modality: "" }))))
+      .then((rows) => setRemoteEditions(rows.map((row: any) => ({ id: row.id, mainEventId: row.mainEventId, name: row.name, startDate: row.startDate || "", endDate: row.endDate || "", slug: "", year: row.startDate ? new Date(row.startDate).getFullYear() : new Date().getFullYear(), description: "", coverUrl: "", isCurrent: false, location: row.location || "", modality: row.modality || "" }))))
       .catch((error: any) => toast.error(error?.message || "No se pudieron cargar las ediciones."))
       .finally(() => setIsLoadingEditions(false))
   }, [id])
@@ -61,9 +61,15 @@ export function EventEditionsSection() {
   const [description, setDescription] = useState("")
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
+  const [isSingleDay, setIsSingleDay] = useState(false)
   const [isCurrent, setIsCurrent] = useState(false)
   const [location, setLocation] = useState("")
   const [modality, setModality] = useState("presencial")
+  const suggestedModality = event?.eventMode === "ONLINE" ? "virtual" : event?.eventMode === "HYBRID" ? "hibrido" : event?.eventMode ? "presencial" : ""
+  const applyEventSuggestions = () => {
+    if (suggestedModality) setModality(suggestedModality)
+    if (event?.venueAddress) setLocation(event.venueAddress)
+  }
 
   const openCreate = () => {
     setEditingId(null)
@@ -72,8 +78,8 @@ export function EventEditionsSection() {
     setStartDate("")
     setEndDate("")
     setIsCurrent(false)
-    setLocation("")
-    setModality("presencial")
+    setLocation(event?.venueAddress || "")
+    setModality(event?.eventMode === "ONLINE" ? "virtual" : event?.eventMode === "HYBRID" ? "hibrido" : "presencial")
     setIsSheetOpen(true)
   }
 
@@ -83,6 +89,7 @@ export function EventEditionsSection() {
     setDescription(ed.description)
     setStartDate(ed.startDate)
     setEndDate(ed.endDate)
+    setIsSingleDay(!ed.endDate || ed.endDate === ed.startDate)
     setIsCurrent(ed.isCurrent)
     setLocation(ed.location || "")
     setModality(ed.modality || "presencial")
@@ -96,6 +103,7 @@ export function EventEditionsSection() {
     setDescription("")
     setStartDate("")
     setEndDate("")
+    setIsSingleDay(false)
     setIsCurrent(false)
     setLocation("")
     setModality("presencial")
@@ -104,8 +112,8 @@ export function EventEditionsSection() {
   const editionSchema = z.object({
     name: z.string().trim().min(1, "El nombre de la edición es obligatorio."),
     startDate: z.string().min(1, "La fecha de inicio es requerida."),
-    endDate: z.string().min(1, "La fecha de fin es requerida."),
-  })
+    endDate: z.string(),
+  }).refine((data) => isSingleDay || data.endDate.length > 0, { message: "La fecha de fin es requerida.", path: ["endDate"] })
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -113,7 +121,7 @@ export function EventEditionsSection() {
     const validation = editionSchema.safeParse({
       name,
       startDate,
-      endDate,
+      endDate: isSingleDay ? "" : endDate,
     })
 
     if (!validation.success) {
@@ -121,7 +129,7 @@ export function EventEditionsSection() {
       return
     }
     if (editingId) {
-      await updateEdition(editingId, { name, description, startDate, endDate, isCurrent, location, modality })
+      await updateEdition(editingId, { name, description, startDate, endDate: isSingleDay ? "" : endDate, isCurrent, location, modality })
     } else {
       await addEdition({
         mainEventId: id!,
@@ -129,13 +137,23 @@ export function EventEditionsSection() {
         description,
         coverUrl: "",
         startDate,
-        endDate,
+        endDate: isSingleDay ? "" : endDate,
         isCurrent,
         location,
         modality,
       })
     }
     closeSheet()
+  }
+
+  const handleDelete = async (editionId: string) => {
+    try {
+      await deleteEdition(editionId)
+      setRemoteEditions((items) => items.filter((item) => item.id !== editionId))
+      toast.success("Edición eliminada con éxito.")
+    } catch (error: any) {
+      toast.error(error?.message || "No se pudo eliminar la edición.")
+    }
   }
 
   const columns: ColumnDef<any>[] = [
@@ -156,8 +174,8 @@ export function EventEditionsSection() {
       header: "Fechas",
       className: "p-3 text-xs text-muted-foreground",
       headerClassName: "p-3",
-      cell: (ed) => ed.startDate && ed.endDate
-        ? `${new Date(ed.startDate).toLocaleDateString("es-ES")} – ${new Date(ed.endDate).toLocaleDateString("es-ES")}`
+      cell: (ed) => ed.startDate
+        ? ed.endDate ? `${new Date(ed.startDate).toLocaleDateString("es-ES")} – ${new Date(ed.endDate).toLocaleDateString("es-ES")}` : new Date(ed.startDate).toLocaleDateString("es-ES")
         : "Por definir"
     },
     {
@@ -206,7 +224,7 @@ export function EventEditionsSection() {
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={() => deleteEdition(ed.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                <AlertDialogAction onClick={() => handleDelete(ed.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                   Sí, eliminar
                 </AlertDialogAction>
               </AlertDialogFooter>
@@ -264,16 +282,22 @@ export function EventEditionsSection() {
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 />
               </Field>
-              <div className="grid grid-cols-2 gap-4">
+              <div className={`grid gap-4 ${isSingleDay ? "grid-cols-1" : "grid-cols-2"}`}>
                 <Field>
                   <FieldLabel htmlFor="edStart">Fecha Inicio</FieldLabel>
                   <Input id="edStart" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
                 </Field>
-                <Field>
+                {!isSingleDay && <Field>
                   <FieldLabel htmlFor="edEnd">Fecha Fin</FieldLabel>
                   <Input id="edEnd" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-                </Field>
+                </Field>}
               </div>
+              <Field>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={isSingleDay} onChange={(e) => setIsSingleDay(e.target.checked)} className="rounded border-input" />
+                  <span className="text-sm font-medium">Full day (solo una fecha)</span>
+                </label>
+              </Field>
               <div className="grid grid-cols-2 gap-4">
                 <Field>
                   <FieldLabel htmlFor="edModality">Modalidad</FieldLabel>
@@ -299,6 +323,12 @@ export function EventEditionsSection() {
                   />
                 </Field>
               </div>
+              {(suggestedModality || event?.venueAddress) && (
+                <div className="rounded-md border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
+                  <p>El evento general tiene configurada {suggestedModality ? `modalidad ${suggestedModality}` : ""}{suggestedModality && event?.venueAddress ? " y " : ""}{event?.venueAddress ? `ubicación ${event.venueAddress}` : ""}.</p>
+                  <Button type="button" variant="link" className="h-auto px-0 py-1 text-xs" onClick={applyEventSuggestions}>Usar como sugerencia</Button>
+                </div>
+              )}
               <Field>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input

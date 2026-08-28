@@ -185,6 +185,7 @@ interface EventState {
   isLoading: boolean
 
   loadData: (organizationId: string, filters?: EventFilters) => Promise<void>
+  loadEditions: (mainEventId: string) => Promise<void>
   loadRoles: (mainEventId: string) => Promise<void>
   loadFilteredSpeakers: (eventId: string, filters?: { search?: string; editionId?: string; page?: number; pageSize?: number; order?: { field: "name" | "created_at"; direction: "asc" | "desc" } }) => Promise<void>
   fetchAllSpeakersForExport: (eventId: string, filters?: { search?: string; editionId?: string }) => Promise<Speaker[]>
@@ -666,6 +667,8 @@ export const useEventStore = create<EventState>((set, get) => ({
         name: String(editionData.name),
         startDate: editionData.startDate,
         ...(editionData.endDate ? { endDate: editionData.endDate } : {}),
+        ...(editionData.modality ? { modality: editionData.modality } : {}),
+        ...(editionData.location ? { location: editionData.location } : {}),
       })
 
       const newEdition: Edition = {
@@ -707,7 +710,7 @@ export const useEventStore = create<EventState>((set, get) => ({
 
       const currentEdition = get().editions.find((edition) => edition.id === id)
       if (!currentEdition) throw new Error("Edición no encontrada")
-      await api.editions.update(currentEdition.mainEventId, id, { name: updates.name, startDate: updates.startDate, endDate: updates.endDate })
+      await api.editions.update(currentEdition.mainEventId, id, { name: updates.name, startDate: updates.startDate, endDate: updates.endDate, modality: updates.modality, location: updates.location })
 
       set((state) => ({
         editions: state.editions.map((ed) => ed.id === id ? { ...ed, ...updates } : ed)
@@ -1033,10 +1036,21 @@ export const useEventStore = create<EventState>((set, get) => ({
     }
   },
 
+  loadEditions: async (mainEventId) => {
+    try {
+      const rows = await api.editions.list(mainEventId)
+      const loaded = (rows || []).map((row: any) => mapEdition({ ...row, mainEventId: row.mainEventId || mainEventId }))
+      set((state) => ({ editions: [...state.editions.filter((edition) => edition.mainEventId !== mainEventId), ...loaded] }))
+    } catch (error) {
+      console.error("Error loading editions:", error)
+    }
+  },
+
   loadRoles: async (mainEventId) => {
     try {
       const data = await api.content.roles(mainEventId)
-      set({ roles: (data || []).map((row: any) => ({ id: row.id, mainEventId, editionId: null, slug: row.name.toLowerCase().replace(/\s+/g, "-"), name: { es: row.name }, badgeColor: null, isActive: true, createdAt: row.createdAt || new Date().toISOString() })) })
+      const loaded = (data || []).map((row: any) => ({ id: row.id, mainEventId, editionId: row.editionId || null, slug: row.slug || row.name.toLowerCase().replace(/\s+/g, "-"), name: { es: row.name }, badgeColor: row.badgeColor || null, isActive: row.isActive !== false, createdAt: row.createdAt || new Date().toISOString() }))
+      set((state) => ({ roles: [...state.roles.filter((role) => role.mainEventId !== mainEventId), ...loaded] }))
     } catch (e) {
       console.error("Error loading participant roles:", e)
     }
@@ -1046,7 +1060,7 @@ export const useEventStore = create<EventState>((set, get) => ({
     set({ isLoading: true })
     try {
       const rows = await api.content.speakers(eventId, filters?.editionId && filters.editionId !== "all" ? filters.editionId : undefined)
-      let formatted = rows.map((row: any) => { const p = row.profile || {}; const name = `${p.firstName || ""} ${p.lastName || ""}`.trim() || "Participante"; return { id: row.id, eventId, editionId: row.editionId, profileId: p.id || "", roleId: "", roleSlug: "speaker", firstName: p.firstName || "", lastName: p.lastName || "", name, email: p.email || "", avatar: p.avatarUrl || "", talkTitle: "", talkDescription: p.bio || "", bio: p.bio || "", checkedIn: !!row.checkedIn, identityDocumentType: null, identityDocumentNumber: null, institution: "" } as Speaker })
+      let formatted = rows.map((row: any) => { const p = row.profile || {}; const name = `${p.firstName || ""} ${p.lastName || ""}`.trim() || "Participante"; return { id: row.id, eventId, editionId: row.editionId, profileId: p.id || "", roleId: row.roleId || "", roleSlug: row.role?.name?.toLowerCase().replace(/\s+/g, "-") || "speaker", firstName: p.firstName || "", lastName: p.lastName || "", name, email: p.email || "", avatar: p.avatarUrl || "", talkTitle: "", talkDescription: p.bio || "", bio: p.bio || "", checkedIn: !!row.checkedIn, identityDocumentType: null, identityDocumentNumber: null, institution: "" } as Speaker })
       if (filters?.search) { const query = filters.search.toLowerCase(); formatted = formatted.filter((speaker) => speaker.name.toLowerCase().includes(query) || (speaker.email || "").toLowerCase().includes(query)) }
       set({ speakers: formatted, speakersTotalCount: formatted.length, isLoading: false })
       return

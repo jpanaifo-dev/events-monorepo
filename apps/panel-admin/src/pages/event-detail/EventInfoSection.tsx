@@ -366,7 +366,7 @@ export function EventInfoSection() {
       </div>
 
       {/* Zona de Peligro */}
-      <div className="border border-destructive/30 rounded-xl bg-card overflow-hidden shadow-sm">
+      <div className="order-40 border border-destructive/30 rounded-xl bg-card overflow-hidden shadow-sm">
         <div className="p-6 border-b border-destructive/20 bg-destructive/5">
           <h2 className="text-sm font-bold uppercase tracking-wider text-destructive">Zona de Peligro</h2>
         </div>
