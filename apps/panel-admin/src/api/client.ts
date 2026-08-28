@@ -126,8 +126,10 @@ export const api = {
   },
   registrationForms: {
     list: (eventId: string) => apiFetch<any[]>(`/events/${eventId}/registration-forms`),
+    get: (id: string) => apiFetch<any>(`/registration-forms/${id}`),
     create: (eventId: string, data: any) => apiFetch<any>(`/events/${eventId}/registration-forms`, { method: "POST", body: JSON.stringify(data) }),
     update: (id: string, data: any) => apiFetch<any>(`/registration-forms/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    remove: (id: string) => apiFetch<any>(`/registration-forms/${id}`, { method: "DELETE" }),
     public: (slug: string) => apiFetch<any>(`/public/registration-forms/${slug}`),
     submit: (slug: string, data: any) => apiFetch<any>(`/public/registration-forms/${slug}/submissions`, { method: "POST", body: JSON.stringify(data) }),
   },

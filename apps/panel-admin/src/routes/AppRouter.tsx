@@ -228,6 +228,14 @@ export function AppRouter() {
             </AuthGuard>
           }
         />
+        <Route
+          path="/dashboard/events/:id/forms/:formId"
+          element={
+            <AuthGuard requireSelectedOrganization={true}>
+              <EventFormBuilderPage />
+            </AuthGuard>
+          }
+        />
 
         {/* Event Detail - Standalone (no admin layout) */}
         <Route
@@ -253,7 +261,6 @@ export function AppRouter() {
           <Route path="tickets" element={<EventTicketsSection />} />
           <Route path="certificates" element={<EventCertificatesSection />} />
           <Route path="forms" element={<EventFormsSection />} />
-          <Route path="forms/:formId" element={<EventFormBuilderPage />} />
         </Route>
 
         {/* Profiles Detail - Standalone (no admin layout) */}

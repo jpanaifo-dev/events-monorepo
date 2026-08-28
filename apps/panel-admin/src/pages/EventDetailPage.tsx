@@ -27,7 +27,20 @@ export function EventDetailPage() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const { selectedOrganization } = useAuthStore()
-  const { events, editions, speakers, agendaItems, attendees, roles, thematicLines, tickets, isLoading, loadData, loadEditions, loadRoles } = useEventStore()
+  const {
+    events,
+    editions,
+    speakers,
+    agendaItems,
+    attendees,
+    roles,
+    thematicLines,
+    tickets,
+    isLoading,
+    loadData,
+    loadEditions,
+    loadRoles,
+  } = useEventStore()
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [setupChecked, setSetupChecked] = useState(false)
 
@@ -50,15 +63,26 @@ export function EventDetailPage() {
 
   useEffect(() => {
     if (!id || !event) return
-    api.events.setup(id).then((setup) => {
-      setSetupChecked(true)
-      const allowedDuringSetup = setup.completed || pathname.endsWith(`/events/${id}/info`) || (pathname.endsWith(`/events/${id}/roles`) && setup.editionCompleted)
-      if (!allowedDuringSetup) navigate(`/dashboard/events/${id}/setup`, { replace: true })
-    }).catch(() => setSetupChecked(true))
+    api.events
+      .setup(id)
+      .then((setup) => {
+        setSetupChecked(true)
+        const allowedDuringSetup =
+          setup.completed ||
+          pathname.endsWith(`/events/${id}/info`) ||
+          (pathname.endsWith(`/events/${id}/roles`) && setup.editionCompleted)
+        if (!allowedDuringSetup) navigate(`/dashboard/events/${id}/setup`, { replace: true })
+      })
+      .catch(() => setSetupChecked(true))
   }, [id, event?.id, navigate, pathname])
 
   if (event && !setupChecked) {
-    return <div className="min-h-screen bg-background p-8 text-muted-foreground">Verificando configuración del evento…</div>
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-3">
+        <div className="size-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        <p className="text-sm font-medium text-muted-foreground animate-pulse">Cargando evento…</p>
+      </div>
+    )
   }
 
   const eventEditions = editions.filter((ed) => ed.mainEventId === id)
