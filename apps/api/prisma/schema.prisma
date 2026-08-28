@@ -64,6 +64,19 @@ enum RegistrationSubmissionStatus {
   REJECTED
 }
 
+enum EmailTemplateStatus {
+  DRAFT
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum TemplateChannel {
+  EMAIL
+  WHATSAPP
+  SMS
+}
+
 model AuthUser {
   id                     String               @id @default(uuid()) @db.Uuid
   email                  String               @unique
@@ -120,20 +133,21 @@ model Profile {
 }
 
 model Organization {
-  id           String                    @id @default(uuid()) @db.Uuid
-  name         String
-  slug         String                    @unique
-  description  String?
-  logoUrl      String?                   @map("logo_url")
-  coverUrl     String?                   @map("cover_url")
-  createdAt    DateTime                  @default(now()) @map("created_at")
-  updatedAt    DateTime                  @updatedAt @map("updated_at")
-  isActive     Boolean                   @default(true) @map("is_active")
-  members      OrganizationMember[]
-  profiles     Profile[]
-  branches     OrganizationBranch[]
-  events       MainEvent[]
-  subscription OrganizationSubscription?
+  id             String                    @id @default(uuid()) @db.Uuid
+  name           String
+  slug           String                    @unique
+  description    String?
+  logoUrl        String?                   @map("logo_url")
+  coverUrl       String?                   @map("cover_url")
+  createdAt      DateTime                  @default(now()) @map("created_at")
+  updatedAt      DateTime                  @updatedAt @map("updated_at")
+  isActive       Boolean                   @default(true) @map("is_active")
+  members        OrganizationMember[]
+  profiles       Profile[]
+  branches       OrganizationBranch[]
+  events         MainEvent[]
+  subscription   OrganizationSubscription?
+  emailTemplates EmailTemplate[]
 
   @@map("organizations")
 }
@@ -518,4 +532,27 @@ model Certification {
   profile  Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("certifications")
+}
+
+model EmailTemplate {
+  id             String              @id @default(uuid()) @db.Uuid
+  organizationId String              @map("organization_id") @db.Uuid
+  name           String
+  channel        TemplateChannel     @default(EMAIL)
+  status         EmailTemplateStatus @default(DRAFT)
+  subject        String?
+  senderName     String?             @map("sender_name")
+  senderEmail    String?             @map("sender_email")
+  previewText    String?             @map("preview_text")
+  content        Json?
+  htmlContent    String?             @map("html_content") @db.Text
+  category       String?             @default("CUSTOM")
+  thumbnailUrl   String?             @map("thumbnail_url")
+  tags           String[]            @default([])
+  createdAt      DateTime            @default(now()) @map("created_at")
+  updatedAt      DateTime            @updatedAt @map("updated_at")
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, channel, status])
+  @@map("email_templates")
 }

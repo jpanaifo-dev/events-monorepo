@@ -9,9 +9,26 @@ import { EditionsModule } from './modules/editions/editions.module.js';
 import { ParticipantsModule } from './modules/participants/participants.module.js';
 import { CertificatesModule } from './modules/certificates/certificates.module.js';
 import { EventContentModule } from './modules/event-content/event-content.module.js';
-
 import { MailModule } from './modules/mail/mail.module.js';
 import { RegistrationFormsModule } from './modules/registration-forms/registration-forms.module.js';
+import { EmailTemplatesModule } from './modules/email-templates/email-templates.module.js';
 
-@Module({ imports: [MailModule, AuthModule, ProfilesModule, OrganizationsModule, EventsModule, EditionsModule, ParticipantsModule, CertificatesModule, EventContentModule, RegistrationFormsModule], controllers: [HealthController], providers: [PrismaService], exports: [PrismaService] })
+@Module({
+  imports: [
+    MailModule,
+    AuthModule,
+    ProfilesModule,
+    OrganizationsModule,
+    EventsModule,
+    EditionsModule,
+    ParticipantsModule,
+    CertificatesModule,
+    EventContentModule,
+    RegistrationFormsModule,
+    EmailTemplatesModule,
+  ],
+  controllers: [HealthController],
+  providers: [PrismaService],
+  exports: [PrismaService],
+})
 export class AppModule {}

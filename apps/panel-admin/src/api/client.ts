@@ -170,4 +170,18 @@ export const api = {
     addSessionLine: (sessionId: string, thematicLineId: string) => apiFetch<any>(`/sessions/${sessionId}/thematic-lines`, { method: "POST", body: JSON.stringify({ thematicLineId }) }),
     removeSessionLine: (sessionId: string, thematicLineId: string) => apiFetch<any>(`/sessions/${sessionId}/thematic-lines/${thematicLineId}`, { method: "DELETE" }),
   },
+  emailTemplates: {
+    list: (organizationId: string, search?: string, category?: string) =>
+      apiFetch<any[]>(`/organizations/${organizationId}/email-templates?${search ? `search=${encodeURIComponent(search)}&` : ""}${category ? `category=${encodeURIComponent(category)}` : ""}`),
+    get: (id: string) => apiFetch<any>(`/email-templates/${id}`),
+    getStarters: () => apiFetch<any[]>("/email-templates/starters"),
+    create: (organizationId: string, data: any) =>
+      apiFetch<any>(`/organizations/${organizationId}/email-templates`, { method: "POST", body: JSON.stringify(data) }),
+    update: (id: string, data: any) =>
+      apiFetch<any>(`/email-templates/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    remove: (id: string) =>
+      apiFetch<any>(`/email-templates/${id}`, { method: "DELETE" }),
+    duplicate: (id: string) =>
+      apiFetch<any>(`/email-templates/${id}/duplicate`, { method: "POST" }),
+  },
 }

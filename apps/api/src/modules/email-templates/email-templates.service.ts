@@ -1,0 +1,353 @@
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../../database/prisma.service.js';
+
+export const STARTER_TEMPLATES = [
+  {
+    id: 'starter-default',
+    name: 'Plantilla predeterminada',
+    category: 'BASIC',
+    subject: 'Novedades y actualización importante',
+    previewText: 'Descubre todo lo nuevo que preparamos para ti',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=600&auto=format&fit=crop&q=60',
+    content: [
+      {
+        id: 'blk-logo-1',
+        type: 'logo',
+        label: 'Logotipo',
+        options: {
+          imageUrl: '',
+          alt: 'Logo',
+          align: 'center',
+          width: 140,
+        },
+      },
+      {
+        id: 'blk-head-1',
+        type: 'heading',
+        label: 'Este es el titular.',
+        options: {
+          text: 'Este es el titular.',
+          level: 1,
+          align: 'center',
+          color: '#111827',
+          fontSize: 28,
+        },
+      },
+      {
+        id: 'blk-img-1',
+        type: 'image',
+        label: 'Imagen Principal',
+        options: {
+          imageUrl: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&auto=format&fit=crop&q=80',
+          alt: 'Banner',
+          align: 'center',
+        },
+      },
+      {
+        id: 'blk-txt-1',
+        type: 'text',
+        label: 'Texto descriptivo',
+        options: {
+          text: 'Te invitamos a ser parte de esta experiencia única. Aquí encontrarás toda la información detallada para aprovechar al máximo este evento.',
+          align: 'center',
+          color: '#4b5563',
+          fontSize: 14,
+          lineHeight: 1.6,
+        },
+      },
+      {
+        id: 'blk-btn-1',
+        type: 'button',
+        label: 'Confirmar Asistencia',
+        options: {
+          text: 'Confirmar Asistencia',
+          url: 'https://ejemplo.com',
+          align: 'center',
+          bgColor: '#009245',
+          textColor: '#ffffff',
+          borderRadius: 8,
+        },
+      },
+      {
+        id: 'blk-div-1',
+        type: 'divider',
+        label: 'Divisor',
+        options: { color: '#e5e7eb', height: 1, marginY: 24 },
+      },
+      {
+        id: 'blk-soc-1',
+        type: 'social',
+        label: 'Redes Sociales',
+        options: {
+          align: 'center',
+          networks: [
+            { name: 'facebook', url: 'https://facebook.com' },
+            { name: 'instagram', url: 'https://instagram.com' },
+            { name: 'linkedin', url: 'https://linkedin.com' },
+            { name: 'web', url: 'https://ejemplo.com' },
+          ],
+        },
+      },
+    ],
+  },
+  {
+    id: 'starter-product',
+    name: 'Vender un producto o entrada',
+    category: 'PRODUCT',
+    subject: 'Equipamiento esencial para cada aventura',
+    previewText: 'Asegura tu pase exclusivo antes de que se agote',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=60',
+    content: [
+      {
+        id: 'blk-logo-p',
+        type: 'logo',
+        label: 'Logotipo',
+        options: { imageUrl: '', alt: 'Logo', align: 'center', width: 130 },
+      },
+      {
+        id: 'blk-head-p',
+        type: 'heading',
+        label: 'Equipamiento esencial para cada aventura',
+        options: {
+          text: 'Equipamiento esencial para cada aventura',
+          level: 1,
+          align: 'center',
+          color: '#0f172a',
+          fontSize: 26,
+        },
+      },
+      {
+        id: 'blk-txt-p1',
+        type: 'text',
+        label: 'Subtítulo',
+        options: {
+          text: 'Tanto si buscas momentos de serenidad como si te gustan las excursiones intensas, descubre nuestros nuevos pases y beneficios.',
+          align: 'center',
+          color: '#64748b',
+          fontSize: 14,
+        },
+      },
+      {
+        id: 'blk-prod-1',
+        type: 'product',
+        label: 'Pase General Early Bird',
+        options: {
+          title: 'Entrada VIP - Acceso Total',
+          price: 'S/ 150.00',
+          imageUrl: 'https://images.unsplash.com/photo-1505373877841-8d25f7d46678?w=800&auto=format&fit=crop&q=80',
+          description: 'Incluye acceso a todas las conferencias magistrales, talleres prácticos y certificado con código QR verificado.',
+          buttonText: 'Comprar Entrada',
+          buttonUrl: 'https://ejemplo.com/tickets',
+        },
+      },
+    ],
+  },
+  {
+    id: 'starter-story',
+    name: 'Contar una historia / Newsletter',
+    category: 'STORY',
+    subject: 'Un mensaje especial para ti',
+    previewText: 'Queremos compartir contigo los avances más recientes',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=600&auto=format&fit=crop&q=60',
+    content: [
+      {
+        id: 'blk-logo-s',
+        type: 'logo',
+        label: 'Logotipo',
+        options: { imageUrl: '', alt: 'Logo', align: 'left', width: 120 },
+      },
+      {
+        id: 'blk-head-s',
+        type: 'heading',
+        label: 'Hola {{ contact.FIRSTNAME | default: "amigo" }},',
+        options: {
+          text: 'Hola {{ contact.FIRSTNAME | default: "amigo" }},',
+          level: 2,
+          align: 'left',
+          color: '#1e293b',
+          fontSize: 22,
+        },
+      },
+      {
+        id: 'blk-txt-s1',
+        type: 'text',
+        label: 'Cuerpo del mensaje',
+        options: {
+          text: '¡Un nuevo año significa nuevas oportunidades! Tanto si te has marcado grandes objetivos como si solo quieres perfeccionar tus habilidades, estamos listos para acompañarte en cada paso.',
+          align: 'left',
+          color: '#334155',
+          fontSize: 14,
+          lineHeight: 1.7,
+        },
+      },
+      {
+        id: 'blk-img-s',
+        type: 'image',
+        label: 'Imagen historia',
+        options: {
+          imageUrl: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=800&auto=format&fit=crop&q=80',
+          alt: 'Equipo',
+          align: 'center',
+        },
+      },
+      {
+        id: 'blk-btn-s',
+        type: 'button',
+        label: 'Leer el artículo completo',
+        options: {
+          text: 'Leer el artículo completo',
+          url: 'https://ejemplo.com/blog',
+          align: 'center',
+          bgColor: '#2563eb',
+          textColor: '#ffffff',
+          borderRadius: 6,
+        },
+      },
+    ],
+  },
+];
+
+@Injectable()
+export class EmailTemplatesService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async list(organizationId: string, search?: string, category?: string) {
+    const where: any = { organizationId };
+
+    if (search && search.trim()) {
+      where.OR = [
+        { name: { contains: search.trim(), mode: 'insensitive' } },
+        { subject: { contains: search.trim(), mode: 'insensitive' } },
+      ];
+    }
+
+    if (category && category !== 'ALL') {
+      where.category = category;
+    }
+
+    const templates = await this.prisma.emailTemplate.findMany({
+      where,
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    return templates;
+  }
+
+  async get(id: string) {
+    // Check if requested starter template
+    const starter = STARTER_TEMPLATES.find((s) => s.id === id);
+    if (starter) {
+      return {
+        ...starter,
+        status: 'ACTIVE',
+        channel: 'EMAIL',
+        senderName: 'IIAP',
+        senderEmail: 'contacto@iiap.gob.pe',
+      };
+    }
+
+    const template = await this.prisma.emailTemplate.findUnique({
+      where: { id },
+      include: {
+        organization: { select: { id: true, name: true, logoUrl: true } },
+      },
+    });
+
+    if (!template) throw new NotFoundException('Plantilla de email no encontrada');
+    return template;
+  }
+
+  getStarters() {
+    return STARTER_TEMPLATES;
+  }
+
+  async create(organizationId: string, data: any) {
+    let initialContent = data.content;
+    let initialSubject = data.subject || 'Nuevo correo informativo';
+    let initialPreview = data.previewText || '';
+    let initialCategory = data.category || 'CUSTOM';
+
+    // If copying from starter
+    if (data.starterId) {
+      const starter = STARTER_TEMPLATES.find((s) => s.id === data.starterId);
+      if (starter) {
+        initialContent = starter.content;
+        initialSubject = starter.subject;
+        initialPreview = starter.previewText;
+        initialCategory = starter.category;
+      }
+    }
+
+    if (!initialContent || (Array.isArray(initialContent) && initialContent.length === 0)) {
+      // Default initial blocks
+      initialContent = STARTER_TEMPLATES[0].content;
+    }
+
+    return this.prisma.emailTemplate.create({
+      data: {
+        organizationId,
+        name: data.name?.trim() || 'Nueva plantilla',
+        channel: data.channel || 'EMAIL',
+        status: data.status || 'DRAFT',
+        subject: initialSubject,
+        senderName: data.senderName?.trim() || 'IIAP',
+        senderEmail: data.senderEmail?.trim() || 'contacto@iiap.gob.pe',
+        previewText: initialPreview,
+        category: initialCategory,
+        content: initialContent,
+        htmlContent: data.htmlContent || null,
+        thumbnailUrl: data.thumbnailUrl || null,
+        tags: data.tags || [],
+      },
+    });
+  }
+
+  async update(id: string, data: any) {
+    await this.get(id);
+
+    return this.prisma.emailTemplate.update({
+      where: { id },
+      data: {
+        name: data.name !== undefined ? data.name : undefined,
+        channel: data.channel !== undefined ? data.channel : undefined,
+        status: data.status !== undefined ? data.status : undefined,
+        subject: data.subject !== undefined ? data.subject : undefined,
+        senderName: data.senderName !== undefined ? data.senderName : undefined,
+        senderEmail: data.senderEmail !== undefined ? data.senderEmail : undefined,
+        previewText: data.previewText !== undefined ? data.previewText : undefined,
+        content: data.content !== undefined ? data.content : undefined,
+        htmlContent: data.htmlContent !== undefined ? data.htmlContent : undefined,
+        category: data.category !== undefined ? data.category : undefined,
+        thumbnailUrl: data.thumbnailUrl !== undefined ? data.thumbnailUrl : undefined,
+        tags: data.tags !== undefined ? data.tags : undefined,
+      },
+    });
+  }
+
+  async remove(id: string) {
+    await this.get(id);
+    return this.prisma.emailTemplate.delete({ where: { id } });
+  }
+
+  async duplicate(id: string) {
+    const original = await this.get(id);
+
+    return this.prisma.emailTemplate.create({
+      data: {
+        organizationId: (original as any).organizationId,
+        name: `${original.name} (Copia)`,
+        channel: (original as any).channel || 'EMAIL',
+        status: 'DRAFT',
+        subject: original.subject,
+        senderName: original.senderName,
+        senderEmail: original.senderEmail,
+        previewText: original.previewText,
+        category: (original as any).category || 'CUSTOM',
+        content: original.content as any,
+        htmlContent: (original as any).htmlContent,
+        thumbnailUrl: (original as any).thumbnailUrl,
+        tags: (original as any).tags || [],
+      },
+    });
+  }
+}

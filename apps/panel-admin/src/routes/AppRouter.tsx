@@ -58,6 +58,11 @@ import { VerifyCertificatePage } from "@/pages/VerifyCertificatePage"
 import { AdminLayout } from "@/layouts/AdminLayout"
 import { AdminPage } from "@/pages/AdminPage"
 import { EventSetupPage } from "@/pages/EventSetupPage"
+import {
+  TemplatesListPage,
+  TemplateConfigPage,
+  EmailTemplateBuilderPage,
+} from "@/pages/templates"
 
 function HashHandler() {
   const navigate = useNavigate()
@@ -152,6 +157,11 @@ export function AppRouter() {
           {/* Events Catalog */}
           <Route path="events" element={<EventsPage />} />
 
+          {/* Email Marketing Templates */}
+          <Route path="templates" element={<TemplatesListPage />} />
+          <Route path="templates/new" element={<TemplateConfigPage />} />
+          <Route path="templates/:templateId/edit" element={<TemplateConfigPage />} />
+
           {/* Registered Profiles Catalog */}
           <Route path="profiles" element={<ProfilesPage />} />
           <Route path="profiles/new" element={<CreateProfilePage />} />
@@ -233,6 +243,14 @@ export function AppRouter() {
           element={
             <AuthGuard requireSelectedOrganization={true}>
               <EventFormBuilderPage />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/dashboard/templates/:templateId/builder"
+          element={
+            <AuthGuard requireSelectedOrganization={true}>
+              <EmailTemplateBuilderPage />
             </AuthGuard>
           }
         />
