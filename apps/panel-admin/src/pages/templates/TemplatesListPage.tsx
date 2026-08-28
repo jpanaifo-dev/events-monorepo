@@ -115,7 +115,7 @@ export function TemplatesListPage() {
   )
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6 container mx-auto">
       {/* Top Header matching Brevo/Admin style (Image 1) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

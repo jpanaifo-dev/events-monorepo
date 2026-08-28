@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { PrismaService } from './database/prisma.service.js';
+import { PrismaModule } from './database/prisma.module.js';
 import { HealthController } from './health.controller.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { ProfilesModule } from './modules/profiles/profiles.module.js';
@@ -15,6 +15,7 @@ import { EmailTemplatesModule } from './modules/email-templates/email-templates.
 
 @Module({
   imports: [
+    PrismaModule,
     MailModule,
     AuthModule,
     ProfilesModule,
@@ -28,7 +29,6 @@ import { EmailTemplatesModule } from './modules/email-templates/email-templates.
     EmailTemplatesModule,
   ],
   controllers: [HealthController],
-  providers: [PrismaService],
-  exports: [PrismaService],
 })
 export class AppModule {}
+
