@@ -649,7 +649,7 @@ export function EventSpeakersSection() {
 
 function SpeakersSkeleton() {
   return (
-    <div className="border border-border rounded-xl bg-card/10 backdrop-blur-xs p-6 space-y-4 shadow-xs">
+    <div className="border border-border rounded-xl bg-background p-6 space-y-4 shadow-xs">
       <div className="space-y-3">
         {/* Table Header Skeleton */}
         <div className="flex gap-4 border-b border-border pb-3">

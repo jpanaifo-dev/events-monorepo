@@ -2,7 +2,6 @@ import { useEffect, useState, useMemo } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import {
   ArrowLeft,
-  Check,
   RotateCcw,
   Undo2,
   Redo2,
@@ -25,18 +24,17 @@ import {
   ChevronDown,
   Sparkles,
   Palette,
-  LayoutGrid,
   Save,
   HelpCircle,
-  ExternalLink,
   ChevronLeft,
   CheckCircle2,
+  Globe,
+  EyeOff,
 } from "lucide-react"
 import { toast } from "sonner"
 import { api } from "@/api/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Switch } from "@/components/ui/switch"
 import {
   Dialog,
   DialogContent,
@@ -105,7 +103,7 @@ export function EventFormBuilderPage() {
   const { id: eventId, formId } = useParams<{ id: string; formId: string }>()
   const navigate = useNavigate()
 
-  const [form, setForm] = useState<any>(null)
+  const [, setForm] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -479,14 +477,16 @@ export function EventFormBuilderPage() {
   }
 
   // Save changes to API
-  const handleSave = async (publish = false) => {
+  // Save changes to API
+  const handleSave = async (targetStatus?: string) => {
     if (!formId) return
     try {
       setSaving(true)
+      const finalStatus = targetStatus || formStatus
       const payload = {
         title: formTitle,
         slug: formSlug,
-        status: publish ? "PUBLISHED" : formStatus,
+        status: finalStatus,
         fields: blocks.map((b) => ({
           key: b.key,
           label: b.label,
@@ -497,8 +497,14 @@ export function EventFormBuilderPage() {
       }
 
       await api.registrationForms.update(formId, payload)
-      if (publish) setFormStatus("PUBLISHED")
-      toast.success(publish ? "¡Formulario publicado con éxito!" : "Diseño guardado correctamente")
+      if (targetStatus) setFormStatus(targetStatus)
+      if (targetStatus === "PUBLISHED") {
+        toast.success("¡Formulario publicado con éxito!")
+      } else if (targetStatus === "DRAFT") {
+        toast.success("Formulario despublicado (ahora en borrador)")
+      } else {
+        toast.success("Diseño guardado correctamente")
+      }
     } catch (err: any) {
       toast.error(err?.message || "Error al guardar el formulario.")
     } finally {
@@ -568,29 +574,27 @@ export function EventFormBuilderPage() {
             <button
               onClick={() => setViewMode("desktop")}
               title="Vista de escritorio"
-              className={`p-1.5 rounded-full transition-all flex items-center justify-center ${
-                viewMode === "desktop"
-                  ? "bg-white dark:bg-zinc-900 text-primary shadow-xs font-semibold"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
+              className={`p-1.5 rounded-full transition-all flex items-center justify-center ${viewMode === "desktop"
+                ? "bg-white dark:bg-zinc-900 text-primary shadow-xs font-semibold"
+                : "text-muted-foreground hover:text-foreground"
+                }`}
             >
               <Monitor className="size-4" />
             </button>
             <button
               onClick={() => setViewMode("mobile")}
               title="Vista móvil"
-              className={`p-1.5 rounded-full transition-all flex items-center justify-center ${
-                viewMode === "mobile"
-                  ? "bg-white dark:bg-zinc-900 text-primary shadow-xs font-semibold"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
+              className={`p-1.5 rounded-full transition-all flex items-center justify-center ${viewMode === "mobile"
+                ? "bg-white dark:bg-zinc-900 text-primary shadow-xs font-semibold"
+                : "text-muted-foreground hover:text-foreground"
+                }`}
             >
               <Smartphone className="size-4" />
             </button>
           </div>
         </div>
 
-        {/* Right Actions: Reset, Undo/Redo, Save */}
+        {/* Right Actions: Reset, Undo/Redo, Save, Publish/Unpublish */}
         <div className="flex items-center gap-2">
           <button
             onClick={handleReset}
@@ -622,7 +626,7 @@ export function EventFormBuilderPage() {
 
           <Button
             size="sm"
-            onClick={() => handleSave(false)}
+            onClick={() => handleSave()}
             disabled={saving}
             className="rounded-xl h-9 px-4 font-semibold bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-primary dark:text-primary-foreground shadow-xs"
           >
@@ -630,16 +634,31 @@ export function EventFormBuilderPage() {
             {saving ? "Guardando..." : "Guardar"}
           </Button>
 
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => handleSave(true)}
-            disabled={saving}
-            className="rounded-xl h-9 px-4 font-semibold border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
-          >
-            <Sparkles className="mr-1.5 size-3.5" />
-            Publicar
-          </Button>
+          {formStatus === "PUBLISHED" ? (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleSave("DRAFT")}
+              disabled={saving}
+              className="rounded-xl h-9 px-4 font-semibold border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+              title="Despublicar formulario y volver a borrador"
+            >
+              <EyeOff className="mr-1.5 size-3.5" />
+              Despublicar
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleSave("PUBLISHED")}
+              disabled={saving}
+              className="rounded-xl h-9 px-4 font-semibold border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+              title="Publicar formulario"
+            >
+              <Globe className="mr-1.5 size-3.5" />
+              Publicar
+            </Button>
+          )}
         </div>
       </header>
 
@@ -667,12 +686,12 @@ export function EventFormBuilderPage() {
                     {selectedBlock.type === "header"
                       ? "Título"
                       : selectedBlock.type === "paragraph"
-                      ? "Texto"
-                      : selectedBlock.type === "image"
-                      ? "Imagen"
-                      : selectedBlock.type === "phone"
-                      ? "SMS"
-                      : selectedBlock.options?.attributeKey || "Atributo"}
+                        ? "Texto"
+                        : selectedBlock.type === "image"
+                          ? "Imagen"
+                          : selectedBlock.type === "phone"
+                            ? "SMS"
+                            : selectedBlock.options?.attributeKey || "Atributo"}
                   </span>
                 </button>
 
@@ -965,21 +984,19 @@ export function EventFormBuilderPage() {
               <div className="grid grid-cols-2 border-b border-border/60 text-center font-bold text-sm bg-slate-50/40 dark:bg-zinc-800/20">
                 <button
                   onClick={() => setActiveTab("create")}
-                  className={`py-3.5 border-b-2 transition-all cursor-pointer ${
-                    activeTab === "create"
-                      ? "border-violet-600 text-violet-600 dark:text-violet-400 font-bold bg-white dark:bg-zinc-900"
-                      : "border-transparent text-muted-foreground hover:text-foreground"
-                  }`}
+                  className={`py-3.5 border-b-2 transition-all cursor-pointer ${activeTab === "create"
+                    ? "border-violet-600 text-violet-600 dark:text-violet-400 font-bold bg-white dark:bg-zinc-900"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                    }`}
                 >
                   Crear
                 </button>
                 <button
                   onClick={() => setActiveTab("design")}
-                  className={`py-3.5 border-b-2 transition-all cursor-pointer ${
-                    activeTab === "design"
-                      ? "border-violet-600 text-violet-600 dark:text-violet-400 font-bold bg-white dark:bg-zinc-900"
-                      : "border-transparent text-muted-foreground hover:text-foreground"
-                  }`}
+                  className={`py-3.5 border-b-2 transition-all cursor-pointer ${activeTab === "design"
+                    ? "border-violet-600 text-violet-600 dark:text-violet-400 font-bold bg-white dark:bg-zinc-900"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                    }`}
                 >
                   Diseño
                 </button>
@@ -1244,7 +1261,7 @@ export function EventFormBuilderPage() {
         {/* CENTER CANVAS: Interactive Live Form Preview (Desktop vs Mobile Frame)   */}
         {/* ========================================================================= */}
         <main
-          className="flex-1 overflow-y-auto p-6 md:p-10 flex items-center justify-center transition-all duration-300"
+          className="flex-1 overflow-y-auto p-4 md:p-6 flex items-center justify-center transition-all duration-300"
           style={{ backgroundColor: theme.bgColor }}
           onClick={() => setSelectedBlockKey(null)}
         >
@@ -1253,7 +1270,7 @@ export function EventFormBuilderPage() {
             /* DESKTOP CANVAS (Screenshots 2 & 3)                                      */
             /* ======================================================================= */
             <div
-              className="w-full max-w-xl rounded-2xl border border-slate-200/80 shadow-md p-8 md:p-10 space-y-6 transition-all"
+              className="w-full max-w-xl rounded-2xl border border-slate-200/80 shadow-md p-6 sm:p-8 space-y-3 transition-all"
               style={{
                 backgroundColor: theme.cardBgColor,
                 fontFamily: theme.fontFamily,
@@ -1262,7 +1279,7 @@ export function EventFormBuilderPage() {
               onClick={(e) => e.stopPropagation()}
             >
               {blocks.length === 0 ? (
-                <div className="p-8 text-center border-2 border-dashed border-slate-200 rounded-xl text-slate-400 text-xs">
+                <div className="p-6 text-center border-2 border-dashed border-slate-200 rounded-xl text-slate-400 text-xs">
                   Haz clic en los bloques de la izquierda para agregarlos a tu formulario.
                 </div>
               ) : (
@@ -1275,20 +1292,19 @@ export function EventFormBuilderPage() {
                         e.stopPropagation()
                         setSelectedBlockKey(block.key)
                       }}
-                      className={`relative group rounded-xl p-3.5 transition-all cursor-pointer ${
-                        isSelected
-                          ? "border-2 border-cyan-500 bg-cyan-50/10 shadow-xs"
-                          : "border-2 border-transparent hover:border-slate-200"
-                      }`}
+                      className={`relative group rounded-xl py-1.5 px-3 transition-all cursor-pointer ${isSelected
+                        ? "border-2 border-cyan-500 bg-cyan-50/10 shadow-xs"
+                        : "border-2 border-transparent hover:border-slate-200"
+                        }`}
                     >
                       {/* Floating Delete Trash Button (Screenshot 5) */}
                       {isSelected && (
                         <button
                           onClick={(e) => deleteBlock(block.key, e)}
                           title="Eliminar este elemento"
-                          className="absolute -top-3 -right-3 size-6 rounded-full bg-rose-500 hover:bg-rose-600 text-white flex items-center justify-center shadow-md transition-transform hover:scale-110 z-10"
+                          className="absolute -top-2.5 -right-2.5 size-5 rounded-full bg-rose-500 hover:bg-rose-600 text-white flex items-center justify-center shadow-md transition-transform hover:scale-110 z-10"
                         >
-                          <Trash2 className="size-3" />
+                          <Trash2 className="size-2.5" />
                         </button>
                       )}
 
@@ -1300,7 +1316,7 @@ export function EventFormBuilderPage() {
               )}
 
               {/* Submit Button */}
-              <div className="pt-2">
+              <div className="pt-1.5">
                 <button
                   type="button"
                   style={{
@@ -1308,7 +1324,7 @@ export function EventFormBuilderPage() {
                     color: theme.buttonTextColor,
                     borderRadius: theme.borderRadius,
                   }}
-                  className="w-full py-3.5 px-6 font-bold text-xs uppercase tracking-wider shadow-sm hover:opacity-90 transition-opacity"
+                  className="w-full py-2.5 px-5 font-bold text-xs uppercase tracking-wider shadow-sm hover:opacity-90 transition-opacity"
                 >
                   {theme.buttonText}
                 </button>
@@ -1319,18 +1335,18 @@ export function EventFormBuilderPage() {
             /* MOBILE PHONE MOCKUP CANVAS (Screenshot 4)                               */
             /* ======================================================================= */
             <div
-              className="relative w-[340px] sm:w-[380px] h-[720px] rounded-[48px] bg-slate-900 border-[10px] border-slate-800 shadow-2xl p-4 flex flex-col justify-between overflow-hidden"
+              className="relative w-[320px] sm:w-[360px] h-[680px] rounded-[44px] bg-slate-900 border-[8px] border-slate-800 shadow-2xl p-3 flex flex-col justify-between overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Phone Top Notch / Speaker */}
-              <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-36 h-5 bg-slate-900 rounded-b-2xl z-30 flex items-center justify-center">
-                <div className="size-2 rounded-full bg-slate-800 mr-3" />
-                <div className="w-12 h-1 rounded-full bg-slate-700" />
+              <div className="absolute top-2 left-1/2 -translate-x-1/2 w-32 h-4 bg-slate-900 rounded-b-xl z-30 flex items-center justify-center">
+                <div className="size-1.5 rounded-full bg-slate-800 mr-2" />
+                <div className="w-10 h-0.5 rounded-full bg-slate-700" />
               </div>
 
               {/* Phone Inner Screen (Scrollable) */}
               <div
-                className="w-full h-full rounded-[36px] overflow-y-auto p-5 pt-8 space-y-4 text-left select-none"
+                className="w-full h-full rounded-[32px] overflow-y-auto p-4 pt-6 space-y-2 text-left select-none"
                 style={{
                   backgroundColor: theme.cardBgColor,
                   fontFamily: theme.fontFamily,
@@ -1345,18 +1361,17 @@ export function EventFormBuilderPage() {
                         e.stopPropagation()
                         setSelectedBlockKey(block.key)
                       }}
-                      className={`relative group rounded-xl p-2.5 transition-all cursor-pointer ${
-                        isSelected
-                          ? "border-2 border-cyan-500 bg-cyan-50/10"
-                          : "border-2 border-transparent hover:border-slate-200"
-                      }`}
+                      className={`relative group rounded-lg py-1 px-2 transition-all cursor-pointer ${isSelected
+                        ? "border-2 border-cyan-500 bg-cyan-50/10"
+                        : "border-2 border-transparent hover:border-slate-200"
+                        }`}
                     >
                       {isSelected && (
                         <button
                           onClick={(e) => deleteBlock(block.key, e)}
-                          className="absolute -top-2.5 -right-2.5 size-5 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-md"
+                          className="absolute -top-2 -right-2 size-4.5 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-md"
                         >
-                          <Trash2 className="size-2.5" />
+                          <Trash2 className="size-2" />
                         </button>
                       )}
                       {renderCanvasBlock(block, theme, true)}
@@ -1365,7 +1380,7 @@ export function EventFormBuilderPage() {
                 })}
 
                 {/* Mobile Submit Button */}
-                <div className="pt-2">
+                <div className="pt-1">
                   <button
                     type="button"
                     style={{
@@ -1373,7 +1388,7 @@ export function EventFormBuilderPage() {
                       color: theme.buttonTextColor,
                       borderRadius: theme.borderRadius,
                     }}
-                    className="w-full py-3 px-4 font-bold text-xs uppercase tracking-wider shadow-sm"
+                    className="w-full py-2.5 px-4 font-bold text-xs uppercase tracking-wider shadow-sm"
                   >
                     {theme.buttonText}
                   </button>
@@ -1381,7 +1396,7 @@ export function EventFormBuilderPage() {
               </div>
 
               {/* Phone Bottom Home Bar */}
-              <div className="w-28 h-1 bg-white/40 rounded-full mx-auto my-1" />
+              <div className="w-24 h-1 bg-white/40 rounded-full mx-auto my-1" />
             </div>
           )}
         </main>
@@ -1450,7 +1465,7 @@ export function EventFormBuilderPage() {
               </Button>
               <Button
                 onClick={() => {
-                  handleSave(false)
+                  handleSave()
                   setOpenSettingsModal(false)
                 }}
                 className="rounded-xl h-9 font-semibold bg-neutral-900 text-white hover:bg-neutral-800"
@@ -1474,14 +1489,14 @@ function renderCanvasBlock(block: FormBlock, theme: FormTheme, isMobile = false)
   switch (block.type) {
     case "header":
       return (
-        <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight text-left">
+        <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight text-left">
           {block.options?.text || block.label || "Título"}
         </h2>
       )
 
     case "paragraph":
       return (
-        <p className="text-sm text-slate-600 leading-relaxed text-left">
+        <p className="text-xs sm:text-sm text-slate-600 leading-normal text-left">
           {block.options?.text || block.label}
         </p>
       )
@@ -1492,20 +1507,20 @@ function renderCanvasBlock(block: FormBlock, theme: FormTheme, isMobile = false)
           <img
             src={block.options?.imageUrl || "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&auto=format&fit=crop&q=60"}
             alt={block.options?.imageAlt || "Banner"}
-            className="w-full h-40 sm:h-48 object-cover"
+            className="w-full h-36 sm:h-44 object-cover"
           />
         </div>
       )
 
     case "divider":
-      return <hr className="border-t border-slate-200 my-2" />
+      return <hr className="border-t border-slate-200 my-1" />
 
     case "phone":
     case "sms":
       return (
-        <div className="space-y-1.5 text-left">
+        <div className="space-y-1 text-left">
           {showLabel && (
-            <label className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-1">
+            <label className="text-xs sm:text-sm font-semibold text-slate-900 flex items-center gap-1">
               {block.label}
               {block.required && <span className="text-rose-500 font-bold">*</span>}
             </label>
@@ -1514,13 +1529,13 @@ function renderCanvasBlock(block: FormBlock, theme: FormTheme, isMobile = false)
           {/* SMS / Phone Input with Country selector (Screenshot 5) */}
           <div className="flex items-center rounded-lg border border-slate-300 bg-white overflow-hidden shadow-2xs">
             {/* Country flag dropdown */}
-            <div className="flex items-center gap-1.5 px-3 py-2 border-r border-slate-200 bg-slate-50/70 shrink-0">
-              <span className="text-lg">🇵🇪</span>
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 border-r border-slate-200 bg-slate-50/70 shrink-0">
+              <span className="text-base">🇵🇪</span>
               <ChevronDown className="size-3 text-slate-500" />
             </div>
 
             {/* Country code */}
-            <span className="px-2.5 text-xs text-slate-600 font-medium border-r border-slate-200 bg-slate-50/30">
+            <span className="px-2 text-xs text-slate-600 font-medium border-r border-slate-200 bg-slate-50/30">
               +51
             </span>
 
@@ -1529,34 +1544,34 @@ function renderCanvasBlock(block: FormBlock, theme: FormTheme, isMobile = false)
               type="tel"
               placeholder={showPlaceholder ? block.options?.placeholder || "SMS" : ""}
               disabled
-              className="flex-1 px-3 py-2 text-xs sm:text-sm text-slate-800 bg-transparent placeholder:text-slate-400 focus:outline-hidden disabled:bg-transparent"
+              className="flex-1 px-3 py-1.5 text-xs sm:text-sm text-slate-800 bg-transparent placeholder:text-slate-400 focus:outline-hidden disabled:bg-transparent"
             />
 
             {/* Helper question mark circle icon */}
-            <div className="px-3 text-cyan-600">
-              <HelpCircle className="size-4" />
+            <div className="px-2.5 text-cyan-600">
+              <HelpCircle className="size-3.5" />
             </div>
           </div>
 
           {showHelpText && block.options?.helpText && (
-            <p className="text-[11px] text-slate-500 mt-1">{block.options.helpText}</p>
+            <p className="text-[11px] text-slate-500 mt-0.5">{block.options.helpText}</p>
           )}
         </div>
       )
 
     case "radio":
       return (
-        <div className="space-y-2 text-left">
+        <div className="space-y-1.5 text-left">
           {showLabel && (
-            <label className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-1">
+            <label className="text-xs sm:text-sm font-semibold text-slate-900 flex items-center gap-1">
               {block.label}
               {block.required && <span className="text-rose-500 font-bold">*</span>}
             </label>
           )}
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             {(block.options?.choices || ["Opción 1", "Opción 2"]).map((choice, i) => (
-              <label key={i} className="flex items-center gap-2.5 text-xs text-slate-700">
-                <input type="radio" name={block.key} disabled className="size-4 accent-primary" />
+              <label key={i} className="flex items-center gap-2 text-xs text-slate-700">
+                <input type="radio" name={block.key} disabled className="size-3.5 accent-primary" />
                 <span>{choice}</span>
               </label>
             ))}
@@ -1568,8 +1583,8 @@ function renderCanvasBlock(block: FormBlock, theme: FormTheme, isMobile = false)
     case "terms":
     case "privacy":
       return (
-        <label className="flex items-start gap-2.5 text-xs text-slate-700 text-left cursor-pointer">
-          <input type="checkbox" disabled className="size-4 mt-0.5 rounded accent-primary shrink-0" />
+        <label className="flex items-start gap-2 text-xs text-slate-700 text-left cursor-pointer py-0.5">
+          <input type="checkbox" disabled className="size-3.5 mt-0.5 rounded accent-primary shrink-0" />
           <span className="leading-snug">
             {block.label}
             {block.required && <span className="text-rose-500 ml-0.5 font-bold">*</span>}
@@ -1579,17 +1594,17 @@ function renderCanvasBlock(block: FormBlock, theme: FormTheme, isMobile = false)
 
     case "multiple":
       return (
-        <div className="space-y-2 text-left">
+        <div className="space-y-1.5 text-left">
           {showLabel && (
-            <label className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-1">
+            <label className="text-xs sm:text-sm font-semibold text-slate-900 flex items-center gap-1">
               {block.label}
               {block.required && <span className="text-rose-500 font-bold">*</span>}
             </label>
           )}
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             {(block.options?.choices || ["Opción A", "Opción B"]).map((choice, i) => (
-              <label key={i} className="flex items-center gap-2.5 text-xs text-slate-700">
-                <input type="checkbox" disabled className="size-4 rounded accent-primary" />
+              <label key={i} className="flex items-center gap-2 text-xs text-slate-700">
+                <input type="checkbox" disabled className="size-3.5 rounded accent-primary" />
                 <span>{choice}</span>
               </label>
             ))}
@@ -1599,9 +1614,9 @@ function renderCanvasBlock(block: FormBlock, theme: FormTheme, isMobile = false)
 
     case "captcha":
       return (
-        <div className="p-3 border border-slate-300 rounded-lg bg-slate-50 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <input type="checkbox" disabled className="size-5 rounded" />
+        <div className="p-2.5 border border-slate-300 rounded-lg bg-slate-50 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <input type="checkbox" disabled className="size-4 rounded" />
             <span className="text-xs font-medium text-slate-700">No soy un robot</span>
           </div>
           <div className="text-right text-[10px] text-slate-400">
@@ -1614,9 +1629,9 @@ function renderCanvasBlock(block: FormBlock, theme: FormTheme, isMobile = false)
     default:
       // Text / Email / Standard Input
       return (
-        <div className="space-y-1.5 text-left">
+        <div className="space-y-1 text-left">
           {showLabel && (
-            <label className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-1">
+            <label className="text-xs sm:text-sm font-semibold text-slate-900 flex items-center gap-1">
               {block.label}
               {block.required && <span className="text-rose-500 font-bold">*</span>}
             </label>
@@ -1625,10 +1640,10 @@ function renderCanvasBlock(block: FormBlock, theme: FormTheme, isMobile = false)
             type={block.type === "email" ? "email" : "text"}
             placeholder={showPlaceholder ? block.options?.placeholder || "Escribe aquí..." : ""}
             disabled
-            className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-lg border border-slate-300 bg-white placeholder:text-slate-400 text-slate-800 disabled:bg-white shadow-2xs"
+            className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg border border-slate-300 bg-white placeholder:text-slate-400 text-slate-800 disabled:bg-white shadow-2xs"
           />
           {showHelpText && block.options?.helpText && (
-            <p className="text-[11px] text-slate-500 mt-1">{block.options.helpText}</p>
+            <p className="text-[11px] text-slate-500 mt-0.5">{block.options.helpText}</p>
           )}
         </div>
       )

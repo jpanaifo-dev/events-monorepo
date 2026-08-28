@@ -1488,7 +1488,7 @@ export function EventAgendaSection() {
                   <DataTable
                     columns={listColumns}
                     data={groupedAgenda[dateKey]}
-                    containerClassName="overflow-x-auto border border-border rounded-xl bg-card/10 backdrop-blur-xs"
+                    containerClassName="overflow-x-auto border border-border rounded-xl bg-background"
                     tbodyClassName="divide-y divide-border/50"
                   />
                 </div>
