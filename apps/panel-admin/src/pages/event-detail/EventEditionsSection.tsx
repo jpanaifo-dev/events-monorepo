@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { useParams } from "react-router-dom"
+import { useNavigate, useParams } from "react-router-dom"
 import { z } from "zod"
 import { useEventStore, type Edition } from "@/store/event.store"
 import { toast } from "sonner"
@@ -34,6 +34,7 @@ import { api } from "@/api/client"
 
 export function EventEditionsSection() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const { events, editions, addEdition, updateEdition, deleteEdition } = useEventStore()
 
   const event = events.find((e) => e.id === id)
@@ -72,28 +73,11 @@ export function EventEditionsSection() {
   }
 
   const openCreate = () => {
-    setEditingId(null)
-    setName("")
-    setDescription("")
-    setStartDate("")
-    setEndDate("")
-    setIsCurrent(false)
-    setLocation(event?.venueAddress || "")
-    setModality(event?.eventMode === "ONLINE" ? "virtual" : event?.eventMode === "HYBRID" ? "hibrido" : "presencial")
-    setIsSheetOpen(true)
+    navigate(`/dashboard/events/${id}/editions/new`)
   }
 
   const openEdit = (ed: Edition) => {
-    setEditingId(ed.id)
-    setName(ed.name)
-    setDescription(ed.description)
-    setStartDate(ed.startDate)
-    setEndDate(ed.endDate)
-    setIsSingleDay(!ed.endDate || ed.endDate === ed.startDate)
-    setIsCurrent(ed.isCurrent)
-    setLocation(ed.location || "")
-    setModality(ed.modality || "presencial")
-    setIsSheetOpen(true)
+    navigate(`/dashboard/events/${id}/editions/${ed.id}/edit`)
   }
 
   const closeSheet = () => {

@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/page-header"
 import { Trash2 } from "lucide-react"
 
 import { useSEO } from "@/hooks/use-seo"
+import { LocationPickerMap } from "@/components/location-picker-map"
 
 export function EditEditionPage() {
   const { eventId, editionId } = useParams<{ eventId: string; editionId: string }>()
@@ -35,6 +36,8 @@ export function EditEditionPage() {
   const [status, setStatus] = useState<"active" | "planned">("planned")
   const [location, setLocation] = useState("")
   const [modality, setModality] = useState("presencial")
+  const [latitude, setLatitude] = useState("")
+  const [longitude, setLongitude] = useState("")
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -51,6 +54,8 @@ export function EditEditionPage() {
       setStatus(edition.isCurrent ? "active" : "planned")
       setLocation(edition.location || "")
       setModality(edition.modality || "presencial")
+      setLatitude(edition.latitude?.toString() || "")
+      setLongitude(edition.longitude?.toString() || "")
     } else {
       toast.error("Edición no encontrada.")
       navigate(`/dashboard/events/${eventId}`)
@@ -94,6 +99,8 @@ export function EditEditionPage() {
         isCurrent: status === "active",
         location,
         modality,
+        latitude: latitude ? Number(latitude) : undefined,
+        longitude: longitude ? Number(longitude) : undefined,
       })
 
       toast.success("Edición actualizada exitosamente")
@@ -308,19 +315,24 @@ export function EditEditionPage() {
             <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
               <div className="md:w-1/3 space-y-1">
                 <label htmlFor="ed-location" className="text-sm font-medium text-foreground">
-                  Ubicación o Enlace
+                  {modality === "virtual" ? "Enlace de transmisión" : modality === "hibrido" ? "Ubicación y enlace" : "Ubicación"}
                 </label>
-                <p className="text-xs text-muted-foreground">Lugar físico, ciudad o enlace de transmisión.</p>
+                <p className="text-xs text-muted-foreground">{modality === "virtual" ? "Enlace para conectarse de forma remota." : modality === "hibrido" ? "Indica el lugar físico y el enlace de transmisión." : "Lugar físico donde se realizará esta edición."}</p>
               </div>
               <div className="md:w-2/3 max-w-md w-full">
                 <Input
                   id="ed-location"
                   type="text"
-                  placeholder="Ej. Hotel Savoy o Zoom Link"
+                  placeholder={modality === "virtual" ? "https://..." : modality === "hibrido" ? "Lugar · https://..." : "Ej. Auditorio principal"}
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                   className="bg-background"
                 />
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <Input type="number" step="any" placeholder="Latitud" value={latitude} onChange={(e) => setLatitude(e.target.value)} />
+                  <Input type="number" step="any" placeholder="Longitud" value={longitude} onChange={(e) => setLongitude(e.target.value)} />
+                </div>
+                {modality !== "virtual" && <LocationPickerMap latitude={latitude ? Number(latitude) : undefined} longitude={longitude ? Number(longitude) : undefined} onSelect={({ latitude: lat, longitude: lng }) => { setLatitude(lat.toFixed(6)); setLongitude(lng.toFixed(6)) }} />}
               </div>
             </div>
 

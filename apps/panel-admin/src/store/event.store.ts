@@ -41,6 +41,8 @@ export interface Edition {
   isCurrent: boolean
   location: string
   modality: string
+  latitude?: number
+  longitude?: number
 }
 
 export interface Speaker {
@@ -292,6 +294,8 @@ function mapEdition(row: any): Edition {
     isCurrent: !!row.is_current,
     location: row.location || "",
     modality: row.modality || "",
+    latitude: row.latitude ?? undefined,
+    longitude: row.longitude ?? undefined,
   }
 }
 
@@ -669,6 +673,8 @@ export const useEventStore = create<EventState>((set, get) => ({
         ...(editionData.endDate ? { endDate: editionData.endDate } : {}),
         ...(editionData.modality ? { modality: editionData.modality } : {}),
         ...(editionData.location ? { location: editionData.location } : {}),
+        ...(editionData.latitude !== undefined ? { latitude: editionData.latitude } : {}),
+        ...(editionData.longitude !== undefined ? { longitude: editionData.longitude } : {}),
       })
 
       const newEdition: Edition = {
@@ -706,11 +712,13 @@ export const useEventStore = create<EventState>((set, get) => ({
       if (updates.isCurrent !== undefined) mappedUpdates.is_current = updates.isCurrent
       if (updates.location !== undefined) mappedUpdates.location = updates.location || null
       if (updates.modality !== undefined) mappedUpdates.modality = updates.modality || null
+      if (updates.latitude !== undefined) mappedUpdates.latitude = updates.latitude
+      if (updates.longitude !== undefined) mappedUpdates.longitude = updates.longitude
       mappedUpdates.updated_at = new Date().toISOString()
 
       const currentEdition = get().editions.find((edition) => edition.id === id)
       if (!currentEdition) throw new Error("Edición no encontrada")
-      await api.editions.update(currentEdition.mainEventId, id, { name: updates.name, startDate: updates.startDate, endDate: updates.endDate, modality: updates.modality, location: updates.location })
+      await api.editions.update(currentEdition.mainEventId, id, { name: updates.name, startDate: updates.startDate, endDate: updates.endDate, modality: updates.modality, location: updates.location, latitude: updates.latitude, longitude: updates.longitude })
 
       set((state) => ({
         editions: state.editions.map((ed) => ed.id === id ? { ...ed, ...updates } : ed)
