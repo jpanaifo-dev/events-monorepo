@@ -9,10 +9,8 @@ import {
   HelpCircle,
   AlertCircle,
   Smile,
-  Code2,
   Sparkles,
   Check,
-  CheckCircle2,
   LayoutTemplate,
 } from "lucide-react"
 import { toast } from "sonner"
@@ -20,7 +18,6 @@ import { api } from "@/api/client"
 import { useAuthStore } from "@/store/auth.store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
 import { TemplatePickerModal } from "./TemplatePickerModal"
 
 export function TemplateConfigPage() {

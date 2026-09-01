@@ -9,11 +9,8 @@ import {
   Sparkles,
   Layers,
   ShoppingBag,
-  BookOpen,
   FileText,
-  Check,
 } from "lucide-react"
-import { STARTER_TEMPLATES } from "./starterTemplates"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -36,7 +33,7 @@ export function TemplatePickerModal({
 }: TemplatePickerModalProps) {
   const [activeCategory, setActiveCategory] = useState<"BASIC" | "SAVED" | "READY">("BASIC")
   const [search, setSearch] = useState("")
-  const [previewTemplate, setPreviewTemplate] = useState<any | null>(null)
+  const [, setPreviewTemplate] = useState<any | null>(null)
 
   const starterTemplates = [
     {
@@ -116,8 +113,8 @@ export function TemplatePickerModal({
     activeCategory === "BASIC"
       ? starterTemplates
       : activeCategory === "SAVED"
-      ? savedTemplates
-      : starterTemplates
+        ? savedTemplates
+        : starterTemplates
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -174,11 +171,10 @@ export function TemplatePickerModal({
                   <div className="space-y-1">
                     <button
                       onClick={() => setActiveCategory("SAVED")}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all text-left ${
-                        activeCategory === "SAVED"
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all text-left ${activeCategory === "SAVED"
                           ? "bg-violet-600/10 text-violet-700 dark:text-violet-400 font-bold"
                           : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                      }`}
+                        }`}
                     >
                       <LayoutTemplate className="size-4" />
                       <span>Tus plantillas</span>
@@ -186,11 +182,10 @@ export function TemplatePickerModal({
 
                     <button
                       onClick={() => setActiveCategory("BASIC")}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all text-left ${
-                        activeCategory === "BASIC"
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all text-left ${activeCategory === "BASIC"
                           ? "bg-violet-600/10 text-violet-700 dark:text-violet-400 font-bold"
                           : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                      }`}
+                        }`}
                     >
                       <Layers className="size-4" />
                       <span>Plantillas básicas</span>
@@ -198,11 +193,10 @@ export function TemplatePickerModal({
 
                     <button
                       onClick={() => setActiveCategory("READY")}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all text-left ${
-                        activeCategory === "READY"
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all text-left ${activeCategory === "READY"
                           ? "bg-violet-600/10 text-violet-700 dark:text-violet-400 font-bold"
                           : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                      }`}
+                        }`}
                     >
                       <Sparkles className="size-4" />
                       <span>Listo para usar</span>
@@ -221,8 +215,8 @@ export function TemplatePickerModal({
                 {activeCategory === "BASIC"
                   ? "Todas las plantillas básicas"
                   : activeCategory === "SAVED"
-                  ? "Todas las plantillas guardadas"
-                  : "Plantillas listas para usar"}
+                    ? "Todas las plantillas guardadas"
+                    : "Plantillas listas para usar"}
               </h3>
               <p className="text-xs text-muted-foreground mt-1 max-w-2xl leading-relaxed">
                 Las plantillas básicas te brindan una base flexible para tus emails. Personaliza estas estructuras para diseñar correos que se adapten a tu marca y objetivos.
