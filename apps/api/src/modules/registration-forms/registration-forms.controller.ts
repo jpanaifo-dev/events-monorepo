@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
 import { IsArray, IsBoolean, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
 import { RegistrationFormsService } from './registration-forms.service.js';
+import { Public } from '../../common/public.decorator.js';
 class FormDto { @IsString() @MinLength(2) title!: string; @IsString() @MinLength(2) slug!: string; @IsOptional() @IsString() description?: string; @IsOptional() @IsString() editionId?: string; @IsOptional() @IsIn(['DRAFT','PUBLISHED','PAUSED','ARCHIVED']) status?: string; @IsOptional() @IsArray() fields?: any[]; @IsOptional() @IsBoolean() allowEditionSelection?: boolean; }
 @Controller()
 export class RegistrationFormsController {
@@ -31,12 +32,12 @@ export class RegistrationFormsController {
     return this.forms.remove(id);
   }
 
-  @Get('public/registration-forms/:slug')
+  @Public() @Get('public/registration-forms/:slug')
   publicForm(@Param('slug') slug: string) {
     return this.forms.publicForm(slug);
   }
 
-  @Post('public/registration-forms/:slug/submissions')
+  @Public() @Post('public/registration-forms/:slug/submissions')
   submit(@Param('slug') slug: string, @Body() data: { answers: Record<string, unknown>; editionId?: string }) {
     return this.forms.submit(slug, data.answers || {}, data.editionId);
   }

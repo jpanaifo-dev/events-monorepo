@@ -64,6 +64,13 @@ enum RegistrationSubmissionStatus {
   REJECTED
 }
 
+enum MarketingConsentStatus {
+  SUBSCRIBED
+  UNSUBSCRIBED
+  BOUNCED
+  PENDING_CONFIRMATION
+}
+
 enum EmailTemplateStatus {
   DRAFT
   ACTIVE
@@ -77,10 +84,25 @@ enum TemplateChannel {
   SMS
 }
 
-enum MarketingContactStatus {
-  SUBSCRIBED
-  UNSUBSCRIBED
-  BOUNCED
+enum AutomationStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum AutomationTiming {
+  IMMEDIATE
+  BEFORE_EVENT
+  AFTER_EVENT
+  AFTER_PREVIOUS_STEP
+}
+
+enum DeliveryStatus {
+  QUEUED
+  SENT
+  FAILED
+  SKIPPED
 }
 
 model AuthUser {
@@ -134,6 +156,7 @@ model Profile {
   certifications         Certification[]
   participants           EventParticipant[]
   sessionSpeakers        SessionSpeaker[]
+  marketingContacts      MarketingContact[]
 
   @@map("profiles")
 }
@@ -156,10 +179,53 @@ model Organization {
   emailTemplates EmailTemplate[]
   marketingContacts MarketingContact[]
   marketingSegments MarketingSegment[]
-  marketingCampaigns MarketingCampaign[]
-  marketingAutomations MarketingAutomation[]
+  automations MarketingAutomation[]
+  emailDeliveries EmailDelivery[]
 
   @@map("organizations")
+}
+
+model MarketingContact {
+  id              String                 @id @default(uuid()) @db.Uuid
+  organizationId  String                 @map("organization_id") @db.Uuid
+  profileId       String?                @map("profile_id") @db.Uuid
+  emailFallback   String?                @map("email_fallback")
+  consentStatus   MarketingConsentStatus @default(PENDING_CONFIRMATION) @map("consent_status")
+  consentedAt     DateTime?              @map("consented_at")
+  unsubscribedAt  DateTime?              @map("unsubscribed_at")
+  source          String                 @default("MANUAL")
+  tags            String[]               @default([])
+  createdAt       DateTime               @default(now()) @map("created_at")
+  organization    Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  profile         Profile?               @relation(fields: [profileId], references: [id], onDelete: SetNull)
+  segmentMembers  MarketingSegmentMember[]
+  @@unique([organizationId, profileId])
+  @@index([organizationId, emailFallback])
+  @@map("marketing_contacts")
+}
+
+model MarketingSegment {
+  id              String                   @id @default(uuid()) @db.Uuid
+  organizationId  String                   @map("organization_id") @db.Uuid
+  name            String
+  description     String?
+  type            String                   @default("MANUAL")
+  rules           Json?
+  createdAt       DateTime                 @default(now()) @map("created_at")
+  organization    Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  members         MarketingSegmentMember[]
+  @@unique([organizationId, name])
+  @@map("marketing_segments")
+}
+
+model MarketingSegmentMember {
+  segmentId String @map("segment_id") @db.Uuid
+  contactId String @map("contact_id") @db.Uuid
+  addedAt DateTime @default(now()) @map("added_at")
+  segment MarketingSegment @relation(fields:[segmentId], references:[id], onDelete:Cascade)
+  contact MarketingContact @relation(fields:[contactId], references:[id], onDelete:Cascade)
+  @@id([segmentId, contactId])
+  @@map("marketing_segment_members")
 }
 
 model OrganizationMember {
@@ -240,6 +306,7 @@ model MainEvent {
   setupProgress  EventSetupProgress?
   contacts       EventContact[]
   registrationForms RegistrationForm[]
+  automations MarketingAutomation[]
 
   @@index([organizationId, status])
   @@map("main_events")
@@ -569,71 +636,51 @@ model EmailTemplate {
   @@map("email_templates")
 }
 
-model MarketingContact {
-  id             String                 @id @default(uuid()) @db.Uuid
-  organizationId String                 @map("organization_id") @db.Uuid
-  email          String
-  firstName      String?                @map("first_name")
-  lastName       String?                @map("last_name")
-  phone          String?
-  status         MarketingContactStatus @default(SUBSCRIBED)
-  tags           String[]               @default([])
-  consentedAt    DateTime?              @map("consented_at")
-  createdAt      DateTime               @default(now()) @map("created_at")
-  updatedAt      DateTime               @updatedAt @map("updated_at")
-  organization   Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  segments       MarketingSegmentMember[]
-  @@unique([organizationId, email])
-  @@index([organizationId, status])
-  @@map("marketing_contacts")
-}
-
-model MarketingSegment {
-  id             String                  @id @default(uuid()) @db.Uuid
-  organizationId String                  @map("organization_id") @db.Uuid
-  name           String
-  description    String?
-  createdAt      DateTime                @default(now()) @map("created_at")
-  updatedAt      DateTime                @updatedAt @map("updated_at")
-  organization   Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  members        MarketingSegmentMember[]
-  @@unique([organizationId, name])
-  @@map("marketing_segments")
-}
-
-model MarketingSegmentMember {
-  segmentId String           @map("segment_id") @db.Uuid
-  contactId String           @map("contact_id") @db.Uuid
-  segment   MarketingSegment @relation(fields: [segmentId], references: [id], onDelete: Cascade)
-  contact   MarketingContact @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  @@id([segmentId, contactId])
-  @@map("marketing_segment_members")
-}
-
-model MarketingCampaign {
-  id             String       @id @default(uuid()) @db.Uuid
-  organizationId String       @map("organization_id") @db.Uuid
-  name           String
-  subject        String?
-  status         String       @default("DRAFT")
-  segmentIds     Json         @default("[]") @map("segment_ids")
-  scheduledAt    DateTime?    @map("scheduled_at")
-  createdAt      DateTime     @default(now()) @map("created_at")
-  updatedAt      DateTime     @updatedAt @map("updated_at")
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  @@index([organizationId, status])
-  @@map("marketing_campaigns")
-}
-
 model MarketingAutomation {
-  id             String       @id @default(uuid()) @db.Uuid
-  organizationId String       @map("organization_id") @db.Uuid
-  name           String
-  trigger        String
-  segmentIds     Json         @default("[]") @map("segment_ids")
-  active         Boolean      @default(true)
-  createdAt      DateTime     @default(now()) @map("created_at")
-  updatedAt      DateTime     @updatedAt @map("updated_at")
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  id String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  eventId String? @map("event_id") @db.Uuid
+  name String
+  status AutomationStatus @default(DRAFT)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  organization Organization @relation(fields:[organizationId], references:[id], onDelete:Cascade)
+  event MainEvent? @relation(fields:[eventId], references:[id], onDelete:SetNull)
+  steps MarketingAutomationStep[]
+  @@index([organizationId, status])
   @@map("marketing_automations")
+}
+
+model MarketingAutomationStep {
+  id String @id @default(uuid()) @db.Uuid
+  automationId String @map("automation_id") @db.Uuid
+  position Int
+  timing AutomationTiming
+  offsetHours Int @default(0) @map("offset_hours")
+  templateId String? @map("template_id") @db.Uuid
+  subject String?
+  htmlContent String? @map("html_content") @db.Text
+  conditions Json?
+  automation MarketingAutomation @relation(fields:[automationId], references:[id], onDelete:Cascade)
+  @@unique([automationId, position])
+  @@map("marketing_automation_steps")
+}
+
+model EmailDelivery {
+  id String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  automationId String @map("automation_id") @db.Uuid
+  stepId String @map("step_id") @db.Uuid
+  contactId String? @map("contact_id") @db.Uuid
+  recipientEmail String @map("recipient_email")
+  recipientName String? @map("recipient_name")
+  scheduledAt DateTime @map("scheduled_at")
+  sentAt DateTime? @map("sent_at")
+  status DeliveryStatus @default(QUEUED)
+  providerMessageId String? @map("provider_message_id")
+  error String?
+  organization Organization @relation(fields:[organizationId], references:[id], onDelete:Cascade)
+  @@unique([stepId, recipientEmail])
+  @@index([status, scheduledAt])
+  @@map("email_deliveries")
 }

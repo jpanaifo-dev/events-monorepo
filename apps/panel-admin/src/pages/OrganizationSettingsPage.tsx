@@ -702,8 +702,15 @@ export function OrganizationSettingsPage() {
                 onChange={setLogoUrl}
                 aspectRatio="square"
                 placeholder="Arrastra tu logotipo aquí, o pega un enlace"
-                folder="organizations"
-                identifier={`${slug}-logo`}
+                folder={`organizations/${selectedOrganization.id}/branding/logo`}
+                identifier="logo"
+                onR2UploadComplete={async (publicUrl) => {
+                  await api.organizations.update(selectedOrganization.id, { logoUrl: publicUrl })
+                  const updatedOrganization = { ...selectedOrganization, logoUrl: publicUrl }
+                  selectOrganization(updatedOrganization)
+                  setOrganizations(organizations.map((org) => org.id === selectedOrganization.id ? updatedOrganization : org))
+                  toast.success("Logotipo guardado correctamente")
+                }}
               />
               {errors.logoUrl && (
                 <p className="text-xs text-destructive mt-1.5 font-medium">{errors.logoUrl}</p>
@@ -724,8 +731,15 @@ export function OrganizationSettingsPage() {
                 onChange={setCoverUrl}
                 aspectRatio="banner"
                 placeholder="Arrastra tu banner de portada aquí, o pega un enlace"
-                folder="organizations"
-                identifier={`${slug}-cover`}
+                folder={`organizations/${selectedOrganization.id}/branding/cover`}
+                identifier="cover"
+                onR2UploadComplete={async (publicUrl) => {
+                  await api.organizations.update(selectedOrganization.id, { coverUrl: publicUrl })
+                  const updatedOrganization = { ...selectedOrganization, coverUrl: publicUrl }
+                  selectOrganization(updatedOrganization)
+                  setOrganizations(organizations.map((org) => org.id === selectedOrganization.id ? updatedOrganization : org))
+                  toast.success("Portada guardada correctamente")
+                }}
               />
               {errors.coverUrl && (
                 <p className="text-xs text-destructive mt-1.5 font-medium">{errors.coverUrl}</p>
@@ -746,8 +760,15 @@ export function OrganizationSettingsPage() {
                 onChange={setFaviconUrl}
                 aspectRatio="favicon"
                 placeholder="Arrastra tu favicon aquí, o pega un enlace"
-                folder="organizations"
-                identifier={`${slug}-favicon`}
+                folder={`organizations/${selectedOrganization.id}/branding/favicon`}
+                identifier="favicon"
+                onR2UploadComplete={async (publicUrl) => {
+                  await api.organizations.update(selectedOrganization.id, { faviconUrl: publicUrl })
+                  const updatedOrganization = { ...selectedOrganization, faviconUrl: publicUrl }
+                  selectOrganization(updatedOrganization)
+                  setOrganizations(organizations.map((org) => org.id === selectedOrganization.id ? updatedOrganization : org))
+                  toast.success("Favicon guardado correctamente")
+                }}
               />
               {errors.faviconUrl && (
                 <p className="text-xs text-destructive mt-1.5 font-medium">{errors.faviconUrl}</p>

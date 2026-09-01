@@ -1,6 +1,6 @@
 import { create } from "zustand"
 import { useAuthStore } from "./auth.store"
-import { uploadToR2 } from "@/utils/r2-storage"
+import { uploadOrganizationAsset } from "@/utils/r2-storage"
 import { api } from "@/api/client"
 
 export interface Event {
@@ -542,7 +542,7 @@ export const useEventStore = create<EventState>((set, get) => ({
     try {
       if (coverFile) {
         try {
-          coverUrl = await uploadToR2(coverFile, `events/${id}`, "cover")
+          coverUrl = await uploadOrganizationAsset(coverFile, { organizationId: org.id, type: "events/cover", resourceId: id })
         } catch (uploadErr) {
           console.error("Failed to upload event cover to R2:", uploadErr)
         }
@@ -550,7 +550,7 @@ export const useEventStore = create<EventState>((set, get) => ({
 
       if (logoFile) {
         try {
-          logoUrl = await uploadToR2(logoFile, `events/${id}`, "logo")
+          logoUrl = await uploadOrganizationAsset(logoFile, { organizationId: org.id, type: "events/logo", resourceId: id })
         } catch (uploadErr) {
           console.error("Failed to upload event logo to R2:", uploadErr)
         }
@@ -589,14 +589,20 @@ export const useEventStore = create<EventState>((set, get) => ({
 
       if (coverFile) {
         try {
-          coverUrl = await uploadToR2(coverFile, `events/${id}`, "cover")
+          const event = get().events.find((item) => item.id === id)
+          const organizationId = event?.organizationId || useAuthStore.getState().selectedOrganization?.id
+          if (!organizationId) throw new Error("No se encontró la institución del evento.")
+          coverUrl = await uploadOrganizationAsset(coverFile, { organizationId, type: "events/cover", resourceId: id })
         } catch (err) {
           console.error("Failed to upload cover to R2:", err)
         }
       }
       if (logoFile) {
         try {
-          logoUrl = await uploadToR2(logoFile, `events/${id}`, "logo")
+          const event = get().events.find((item) => item.id === id)
+          const organizationId = event?.organizationId || useAuthStore.getState().selectedOrganization?.id
+          if (!organizationId) throw new Error("No se encontró la institución del evento.")
+          logoUrl = await uploadOrganizationAsset(logoFile, { organizationId, type: "events/logo", resourceId: id })
         } catch (err) {
           console.error("Failed to upload logo to R2:", err)
         }
@@ -759,7 +765,10 @@ export const useEventStore = create<EventState>((set, get) => ({
 
       if (speakerData.avatarFile) {
         try {
-          avatarUrl = await uploadToR2(speakerData.avatarFile, "avatars", profileId)
+          const event = get().events.find((item) => item.id === speakerData.eventId)
+          const organizationId = event?.organizationId || useAuthStore.getState().selectedOrganization?.id
+          if (!organizationId) throw new Error("No se encontró la institución del ponente.")
+          avatarUrl = await uploadOrganizationAsset(speakerData.avatarFile, { organizationId, type: "profiles/avatar", resourceId: profileId })
         } catch (uploadErr) {
           console.error("Failed to upload speaker avatar to R2:", uploadErr)
         }

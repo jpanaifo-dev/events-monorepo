@@ -33,4 +33,3 @@ import { MarketingModule } from './modules/marketing/marketing.module.js';
   controllers: [HealthController],
 })
 export class AppModule {}
-

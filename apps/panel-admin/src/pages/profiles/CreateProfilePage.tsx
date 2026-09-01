@@ -11,7 +11,7 @@ import { useSEO } from "@/hooks/use-seo"
 import { Switch } from "@/components/ui/switch"
 import { api } from "@/api/client"
 import { CheckCircle2, AlertTriangle, Copy, Check } from "lucide-react"
-import { uploadToR2 } from "@/utils/r2-storage"
+import { uploadOrganizationAsset } from "@/utils/r2-storage"
 import { useAuthStore } from "@/store/auth.store"
 
 // Helper to generate a strong random password
@@ -134,7 +134,8 @@ export function CreateProfilePage() {
       // If they selected a file to upload, upload it now
       if (avatarFile) {
         try {
-          const publicUrl = await uploadToR2(avatarFile, "avatars", newProfileId)
+          if (!selectedOrganization?.id) throw new Error("Selecciona una institución antes de subir un avatar.")
+          const publicUrl = await uploadOrganizationAsset(avatarFile, { organizationId: selectedOrganization.id, type: "profiles/avatar", resourceId: newProfileId })
           await updateProfile(newProfileId, { avatarUrl: publicUrl })
         } catch (uploadErr) {
           console.error("Delayed avatar upload failed:", uploadErr)

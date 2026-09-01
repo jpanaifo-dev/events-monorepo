@@ -183,6 +183,8 @@ export const api = {
       apiFetch<any>(`/email-templates/${id}`, { method: "DELETE" }),
     duplicate: (id: string) =>
       apiFetch<any>(`/email-templates/${id}/duplicate`, { method: "POST" }),
+    sendTest: (id: string, email: string) =>
+      apiFetch<any>(`/email-templates/${id}/test`, { method: "POST", body: JSON.stringify({ email }) }),
   },
   marketing: {
     contacts: (organizationId: string, search?: string) => apiFetch<any[]>(`/organizations/${organizationId}/marketing/contacts${search ? `?search=${encodeURIComponent(search)}` : ""}`),
@@ -196,5 +198,10 @@ export const api = {
     sendCampaign: (organizationId: string, id: string) => apiFetch<any>(`/organizations/${organizationId}/marketing/campaigns/${id}/send`, { method: "POST" }),
     automations: (organizationId: string) => apiFetch<any[]>(`/organizations/${organizationId}/marketing/automations`),
     createAutomation: (organizationId: string, data: any) => apiFetch<any>(`/organizations/${organizationId}/marketing/automations`, { method: "POST", body: JSON.stringify(data) }),
+    listAutomations: (organizationId: string) => apiFetch<any[]>(`/organizations/${organizationId}/marketing/automations`),
+    updateAutomation: (id: string, data: any) => apiFetch<any>(`/marketing/automations/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    queueAutomation: (id: string) => apiFetch<{ queued: number }>(`/marketing/automations/${id}/queue`, { method: "POST" }),
+    dispatchDue: (limit = 100) => apiFetch<any>(`/marketing/deliveries/dispatch?limit=${limit}`, { method: "POST" }),
+    analytics: (organizationId: string) => apiFetch<Record<string, number>>(`/organizations/${organizationId}/marketing/analytics`),
   },
 }

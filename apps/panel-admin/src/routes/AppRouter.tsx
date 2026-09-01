@@ -162,7 +162,8 @@ export function AppRouter() {
           <Route path="templates" element={<TemplatesListPage />} />
           <Route path="templates/new" element={<TemplateConfigPage />} />
           <Route path="templates/:templateId/edit" element={<TemplateConfigPage />} />
-          <Route path="marketing" element={<MarketingPage />} />
+          <Route path="marketing" element={<Navigate to="/dashboard/marketing/campaigns" replace />} />
+          <Route path="marketing/:section" element={<MarketingPage />} />
 
           {/* Registered Profiles Catalog */}
           <Route path="profiles" element={<ProfilesPage />} />
