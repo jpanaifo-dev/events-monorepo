@@ -372,6 +372,7 @@ model Edition {
   location     String?
   description  String?
   coverUrl     String?            @map("cover_url")
+  isCurrent    Boolean            @default(false) @map("is_current")
   latitude     Float?
   longitude    Float?
   createdAt    DateTime           @default(now()) @map("created_at")

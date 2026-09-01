@@ -296,7 +296,7 @@ function mapEdition(row: any): Edition {
     coverUrl: row.coverUrl || row.cover_url || "",
     startDate: row.start_date || row.startDate || "",
     endDate: row.end_date || row.endDate || "",
-    isCurrent: !!row.is_current,
+    isCurrent: Boolean(row.isCurrent ?? row.is_current),
     location: row.location || "",
     modality: row.modality || "",
     latitude: row.latitude ?? undefined,
@@ -701,6 +701,7 @@ export const useEventStore = create<EventState>((set, get) => ({
         name: String(editionData.name),
         ...(editionData.description ? { description: editionData.description } : {}),
         ...(editionData.coverUrl ? { coverUrl: editionData.coverUrl } : {}),
+        ...(editionData.isCurrent !== undefined ? { isCurrent: editionData.isCurrent } : {}),
         startDate: editionData.startDate,
         ...(editionData.endDate ? { endDate: editionData.endDate } : {}),
         ...(editionData.modality ? { modality: editionData.modality } : {}),
@@ -750,7 +751,7 @@ export const useEventStore = create<EventState>((set, get) => ({
 
       const currentEdition = get().editions.find((edition) => edition.id === id)
       if (!currentEdition) throw new Error("Edición no encontrada")
-      await api.editions.update(currentEdition.mainEventId, id, { name: updates.name, description: updates.description, coverUrl: updates.coverUrl, startDate: updates.startDate, endDate: updates.endDate, modality: updates.modality, location: updates.location, latitude: updates.latitude, longitude: updates.longitude })
+      await api.editions.update(currentEdition.mainEventId, id, { name: updates.name, description: updates.description, coverUrl: updates.coverUrl, startDate: updates.startDate, endDate: updates.endDate, isCurrent: updates.isCurrent, modality: updates.modality, location: updates.location, latitude: updates.latitude, longitude: updates.longitude })
 
       set((state) => ({
         editions: state.editions.map((ed) => ed.id === id ? { ...ed, ...updates } : ed)

@@ -50,20 +50,6 @@ const featuredEvent = (portal?.featuredEventId
     <div class="tdc-hero-vignette"></div>
 
     <div class="tdc-container tdc-hero-container">
-      <div class="tdc-hero-eyebrow-row">
-        <a class="tdc-organization-mark" href={`/${organization.slug}`} aria-label={`Inicio de ${organization.name}`}>
-          {organization.logoUrl && <img src={organization.logoUrl} alt="" />}
-          <span>
-            <small>Portal institucional</small>
-            {organization.name}
-          </span>
-        </a>
-        <div class="tdc-dots">
-          <span class="tdc-dot active"></span>
-          <span class="tdc-dot"></span>
-        </div>
-      </div>
-
       <div class="tdc-hero-center">
         <div class="tdc-tag-row">
           <span class="tdc-badge-pill outline">Evento destacado</span>
@@ -72,18 +58,17 @@ const featuredEvent = (portal?.featuredEventId
         </div>
 
         <h1 class="tdc-hero-headline">
-          {portal?.heroTitle || (featuredEvent ? featuredEvent.eventName : `Conferencias y Experiencias de ${organization.name}`)}
+          {portal?.heroTitle || `Descubre los próximos eventos de ${organization.name}`}
         </h1>
 
-        <p class="tdc-hero-desc">{portal?.heroDescription || featuredEvent?.description || organization.description || 'Descubre los próximos encuentros, talleres magistrales y actividades presenciales.'}</p>
         {featuredEvent && organization.description && (
           <p class="tdc-hero-organization-copy"><span>{organization.name}</span>{organization.description}</p>
         )}
 
         <div class="tdc-hero-actions">
           {featuredEvent ? (
-            <a href={`/${organization.slug}/events/${featuredEvent.id}`} class="tdc-action-pill">
-              <span>Ver detalles y registro</span>
+            <a href="#eventos" class="tdc-action-pill">
+              <span>Ver eventos </span>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M5 12h14"/>
                 <path d="m12 5 7 7-7 7"/>
@@ -91,7 +76,7 @@ const featuredEvent = (portal?.featuredEventId
             </a>
           ) : (
             <a href="#eventos" class="tdc-action-pill">
-              <span>Explorar eventos</span>
+              <span>Ver eventos </span>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <path d="M5 12h14"/>
                 <path d="m12 5 7 7-7 7"/>
@@ -131,10 +116,10 @@ const featuredEvent = (portal?.featuredEventId
           </p>
           <div class="tdc-split-actions">
             <a href="#eventos" class="tdc-pill-btn primary">
-              <span>Ver eventos →</span>
+              <span>Ver eventos </span>
             </a>
-            <a href="#workshops" class="tdc-pill-btn secondary">
-              <span>Actividades →</span>
+            <a href="#eventos" class="tdc-pill-btn secondary">
+              <span>Actividades </span>
             </a>
           </div>
         </div>
@@ -146,13 +131,13 @@ const featuredEvent = (portal?.featuredEventId
   <!-- 3. WORKSHOPS & SESIONES DESTACADAS (Screenshot 3 style)                  -->
   <!-- ========================================================================= -->
   {events.length > 0 && (
-    <section class="tdc-workshops-section" id="workshops">
+    <section class="tdc-workshops-section" id="eventos">
       <div class="tdc-container">
         <div class="tdc-section-header-row">
           <h2 class="tdc-section-title">Talleres & Conferencias</h2>
           <div class="tdc-nav-arrows">
             <a href="#eventos" class="arrow-btn" title="Ver anteriores">←</a>
-            <a href="#eventos" class="arrow-btn" title="Ver siguientes">→</a>
+            <a href="#eventos" class="arrow-btn" title="Ver siguientes"></a>
           </div>
         </div>
 

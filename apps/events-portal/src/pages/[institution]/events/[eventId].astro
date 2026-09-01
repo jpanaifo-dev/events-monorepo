@@ -1,9 +1,10 @@
 ---
-import PortalLayout from '../../../layouts/PortalLayout.astro';
-import { portalApi } from '../../../lib/api';
+import PortalLayout from "../../../layouts/PortalLayout.astro";
+import { portalApi } from "../../../lib/api";
 
 const { institution, eventId } = Astro.params;
-if (!institution || !eventId) return new Response('No encontrado', { status: 404 });
+if (!institution || !eventId)
+  return new Response("No encontrado", { status: 404 });
 
 let listing;
 let event;
@@ -13,31 +14,58 @@ try {
     portalApi.event(institution, eventId),
   ]);
 } catch {
-  return new Response('Evento no encontrado', { status: 404 });
+  return new Response("Evento no encontrado", { status: 404 });
 }
 
-const date = new Intl.DateTimeFormat('es-PE', {
-  dateStyle: 'full',
-  timeStyle: 'short',
+const date = new Intl.DateTimeFormat("es-PE", {
+  dateStyle: "full",
+  timeStyle: "short",
 });
 
 const activities = event.editions.flatMap((edition) =>
-  edition.activities.map((a) => ({ ...a, editionName: edition.name, location: edition.location }))
+  edition.activities.map((a) => ({
+    ...a,
+    editionName: edition.name,
+    location: edition.location,
+  })),
 );
+const activeEdition =
+  event.editions.find((edition) => edition.isCurrent) || event.editions[0];
+const heroImage = activeEdition?.coverUrl || event.coverUrl;
+const eventDescription =
+  activeEdition?.description || event.details?.content || event.description;
+const speakers =
+  activeEdition?.participants
+    .map((participant) => participant.profile)
+    .filter(Boolean) || [];
 
 const forms = event.registrationForms || [];
-const mainForm = forms.find((form) => form.purpose === 'MAIN');
-const secondaryForms = forms.filter((form) => form.purpose !== 'MAIN');
+const mainForm = forms.find((form) => form.purpose === "MAIN");
+const secondaryForms = forms.filter((form) => form.purpose !== "MAIN");
 ---
 
-<PortalLayout organization={listing.organization} title={`${event.eventName} · ${listing.organization.name}`}>
+<PortalLayout
+  organization={listing.organization}
+  title={`${event.eventName}${activeEdition ? ` · ${activeEdition.name}` : ""} · ${listing.organization.name}`}
+  description={eventDescription || undefined}
+  registrationUrl={mainForm
+    ? `/${institution}/register/${mainForm.slug}`
+    : undefined}
+>
   <article class="event-detail-page">
     <!-- Top Minimalist Back Breadcrumb -->
     <div class="event-breadcrumb-bar">
       <div class="tdc-container">
         <a href={`/${institution}`} class="back-link">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <path d="m15 18-6-6 6-6"/>
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+          >
+            <path d="m15 18-6-6 6-6"></path>
           </svg>
           <span>Volver al portal de {listing.organization.name}</span>
         </a>
@@ -45,51 +73,91 @@ const secondaryForms = forms.filter((form) => form.purpose !== 'MAIN');
     </div>
 
     <!-- Cinematic Hero Section (Screenshot 1 style) -->
-    <header class="event-hero" style={event.coverUrl ? `background-image: url(${event.coverUrl})` : undefined}>
+    <header
+      class="event-hero"
+      style={heroImage ? `background-image: url(${heroImage})` : undefined}
+    >
       <div class="event-hero-vignette"></div>
       <div class="tdc-container event-hero-container">
         <div class="event-hero-eyebrow">
           <span class="eyebrow-org">{listing.organization.name}</span>
           <span class="eyebrow-sep">/</span>
-          <span class="eyebrow-mode">{event.eventMode || 'CONFERENCIA'}</span>
-        </div>
-
-        <div class="event-badges-row">
-          <span class="badge-pill light">{event.eventMode || 'PRESENCIAL'}</span>
-          <span class="badge-pill dark">{date.format(new Date(event.startDate))}</span>
+          <span class="eyebrow-mode"
+            >{activeEdition?.name || event.eventMode || "CONFERENCIA"}</span
+          >
         </div>
 
         <h1 class="event-hero-title">{event.eventName}</h1>
 
         <div class="event-meta-pills">
           <div class="meta-pill">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/>
-              <line x1="16" x2="16" y1="2" y2="6"/>
-              <line x1="8" x2="8" y1="2" y2="6"/>
-              <line x1="3" x2="21" y1="10" y2="10"/>
+            <span
+              >{
+                activeEdition?.modality || event.eventMode || "PRESENCIAL"
+              }</span>
+          </div>
+          <div class="meta-pill">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect>
+              <line x1="16" x2="16" y1="2" y2="6"></line>
+              <line x1="8" x2="8" y1="2" y2="6"></line>
+              <line x1="3" x2="21" y1="10" y2="10"></line>
             </svg>
-            <time>{date.format(new Date(event.startDate))}</time>
+            <time
+              >{
+                date.format(
+                  new Date(activeEdition?.startDate || event.startDate),
+                )
+              }</time
+            >
+          </div>
+          <div
+            class="meta-pill countdown"
+            data-event-date={activeEdition?.startDate || event.startDate}
+          >
+            <span>Faltan</span>
+            <strong>--:--:--</strong>
           </div>
 
-          {event.venueAddress && (
-            <div class="meta-pill">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
-                <circle cx="12" cy="10" r="3"/>
-              </svg>
-              <span>{event.venueAddress}</span>
-            </div>
-          )}
+          {
+            (activeEdition?.location || event.venueAddress) && (
+              <div class="meta-pill">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+                  <circle cx="12" cy="10" r="3" />
+                </svg>
+                <span>{activeEdition?.location || event.venueAddress}</span>
+              </div>
+            )
+          }
         </div>
 
-        {forms.length > 0 && (
-          <div class="event-hero-cta">
-            <a href={`/${institution}/register/${forms[0].slug}`} class="tdc-pill-btn primary large">
-              <span>Inscribirme ahora →</span>
-            </a>
-          </div>
-        )}
+        {
+          mainForm && (
+            <div class="event-hero-cta">
+              <a
+                href={`/${institution}/register/${mainForm.slug}`}
+                class="tdc-pill-btn primary large"
+              >
+                <span>Inscribirme ahora </span>
+              </a>
+            </div>
+          )
+        }
       </div>
     </header>
 
@@ -104,49 +172,101 @@ const secondaryForms = forms.filter((form) => form.purpose !== 'MAIN');
 
           <div class="overview-right">
             <div class="rich-desc">
-              <p>{event.description || event.details?.content || 'Próximamente encontrarás más información sobre este evento.'}</p>
+              <p>
+                {
+                  eventDescription ||
+                    "Próximamente encontrarás más información sobre este evento."
+                }
+              </p>
             </div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Workshops & Activities (Screenshot 3 style) -->
-    {activities.length > 0 && (
-      <section class="event-activities-section" id="agenda">
-        <div class="tdc-container">
-          <div class="activities-header">
-            <div>
-              <span class="section-tag">CRONOGRAMA & HORARIOS</span>
-              <h2 class="activities-title">Agenda y Sesiones</h2>
+    {
+      speakers.length > 0 && (
+        <section class="event-activities-section" id="ponentes">
+          <div class="tdc-container">
+            <div class="activities-header">
+              <>
+                <span class="section-tag">EDICIÓN ACTIVA</span>
+                <h2 class="activities-title">Quienes nos acompañan</h2>
+              </>
+            </div>
+            <div class="activities-grid">
+              {speakers.map((speaker) => (
+                <article class="activity-card speaker-card">
+                  {speaker.avatarUrl && (
+                    <img
+                      src={speaker.avatarUrl}
+                      alt=""
+                      class="speaker-avatar"
+                    />
+                  )}
+                  <h3 class="act-title">
+                    {[speaker.firstName, speaker.lastName]
+                      .filter(Boolean)
+                      .join(" ") || "Ponente"}
+                  </h3>
+                  <p class="act-desc">
+                    {speaker.bio || "Participante de la edición activa."}
+                  </p>
+                </article>
+              ))}
             </div>
           </div>
+        </section>
+      )
+    }
 
-          <div class="activities-grid">
-            {activities.map((act, index) => (
-              <div class="activity-card">
-                <div class="activity-card-header">
-                  <span class="act-badge white">SESIÓN 0{index + 1}</span>
-                  <span class="act-badge dark">
-                    {act.startsAt ? date.format(new Date(act.startsAt)) : 'Por confirmar'}
-                  </span>
-                  {act.location && <span class="act-badge dark">{act.location}</span>}
-                </div>
-
-                <div class="activity-card-body">
-                  <h3 class="act-title">{act.title}</h3>
-                  <p class="act-desc">{act.description || 'Sesión magistral y espacio de debate.'}</p>
-                </div>
-
-                <div class="activity-card-footer">
-                  <span class="edition-label">{act.editionName || event.eventName}</span>
-                </div>
+    <!-- Workshops & Activities (Screenshot 3 style) -->
+    {
+      activities.length > 0 && (
+        <section class="event-activities-section" id="agenda">
+          <div class="tdc-container">
+            <div class="activities-header">
+              <div>
+                <span class="section-tag">CRONOGRAMA & HORARIOS</span>
+                <h2 class="activities-title">Agenda y Sesiones</h2>
               </div>
-            ))}
+            </div>
+
+            <div class="activities-grid">
+              {activities.map((act, index) => (
+                <div class="activity-card">
+                  <div class="activity-card-header">
+                    <span class="act-badge white">SESIÓN 0{index + 1}</span>
+                    <span class="act-badge dark">
+                      {act.startsAt
+                        ? date.format(new Date(act.startsAt))
+                        : "Por confirmar"}
+                    </span>
+                    {act.location && (
+                      <span class="act-badge dark">{act.location}</span>
+                    )}
+                  </div>
+
+                  <div class="activity-card-body">
+                    <h3 class="act-title">{act.title}</h3>
+                    <p class="act-desc">
+                      {act.description ||
+                        "Sesión magistral y espacio de debate."}
+                    </p>
+                  </div>
+
+                  <div class="activity-card-footer">
+                    <span class="edition-label">
+                      {act.editionName || event.eventName}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
-    )}
+        </section>
+      )
+    }
 
     <!-- Registration Forms Section (Screenshot 4 / TDC style) -->
     <section class="event-registration-section" id="inscripciones">
@@ -154,47 +274,121 @@ const secondaryForms = forms.filter((form) => form.purpose !== 'MAIN');
         <div class="reg-section-header">
           <span class="section-tag">ACCESO OFICIAL</span>
           <h2 class="reg-section-title">Inscripciones y Entradas</h2>
-          <p class="reg-section-subtitle">Selecciona el formulario correspondiente para completar tu registro oficial.</p>
+          <p class="reg-section-subtitle">
+            Selecciona el formulario correspondiente para completar tu registro
+            oficial.
+          </p>
         </div>
 
-        {mainForm && (
-          <a href={`/${institution}/register/${mainForm.slug}`} class="main-registration-panel">
-            <div><span class="ticket-badge">REGISTRO PRINCIPAL</span><h3>{mainForm.title}</h3><p>{mainForm.description || 'Completa tu inscripción oficial como participante del evento.'}</p></div>
-            <span class="main-registration-action">Iniciar inscripción →</span>
-          </a>
-        )}
-        {secondaryForms.length > 0 ? (
-          <div class="reg-forms-grid">
-            {secondaryForms.map((f) => (
-              <div class="reg-ticket-card">
-                <div class="ticket-header">
-                  <span class="ticket-badge">FORMULARIO PUBLICADO</span>
-                  <h3 class="ticket-title">{f.title}</h3>
-                  <p class="ticket-desc">{f.description || 'Completa tus datos para confirmar tu asistencia al evento.'}</p>
-                </div>
-
-                <div class="ticket-footer">
-                  <a href={`/${institution}/register/${f.slug}`} class="ticket-btn">
-                    <span>Completar Formulario</span>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                      <path d="M5 12h14"/>
-                      <path d="m12 5 7 7-7 7"/>
-                    </svg>
-                  </a>
-                </div>
+        {
+          mainForm && (
+            <a
+              href={`/${institution}/register/${mainForm.slug}`}
+              class="main-registration-panel"
+            >
+              <div>
+                <>
+                  <span class="ticket-badge">REGISTRO PRINCIPAL</span>
+                  <h3>{mainForm.title}</h3>
+                  <p>
+                    {mainForm.description ||
+                      "Completa tu inscripción oficial como participante del evento."}
+                  </p>
+                </>
               </div>
-            ))}
-          </div>
-        ) : !mainForm && (
-          <div class="empty-reg-box">
-            <h3>Inscripciones próximamente</h3>
-            <p>El formulario de registro para este evento se habilitará en los próximos días.</p>
-          </div>
-        )}
+              <span class="main-registration-action">Iniciar inscripción </span>
+            </a>
+          )
+        }
+        {
+          secondaryForms.length > 0 ? (
+            <div class="reg-forms-grid">
+              {secondaryForms.map((f) => (
+                <div class="reg-ticket-card">
+                  <div class="ticket-header">
+                    <span class="ticket-badge">FORMULARIO PUBLICADO</span>
+                    <h3 class="ticket-title">{f.title}</h3>
+                    <p class="ticket-desc">
+                      {f.description ||
+                        "Completa tus datos para confirmar tu asistencia al evento."}
+                    </p>
+                  </div>
+
+                  <div class="ticket-footer">
+                    <a
+                      href={`/${institution}/register/${f.slug}`}
+                      class="ticket-btn"
+                    >
+                      <span>Completar Formulario</span>
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.5"
+                      >
+                        <path d="M5 12h14" />
+                        <path d="m12 5 7 7-7 7" />
+                      </svg>
+                    </a>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            !mainForm && (
+              <div class="empty-reg-box">
+                <h3>Inscripciones próximamente</h3>
+                <p>
+                  El formulario de registro para este evento se habilitará en
+                  los próximos días.
+                </p>
+              </div>
+            )
+          )
+        }
       </div>
     </section>
+    {
+      mainForm && (
+        <aside class="registration-banner" id="registration-banner">
+          <>
+            <span>Las inscripciones están abiertas.</span>
+            <a href={`/${institution}/register/${mainForm.slug}`}>
+              Inscribirme
+            </a>
+            <button type="button" aria-label="Cerrar" data-close-banner>
+              ×
+            </button>
+          </>
+        </aside>
+      )
+    }
   </article>
 </PortalLayout>
+
+<script>
+  document.querySelectorAll<HTMLElement>(".countdown").forEach((node) => {
+    const target = new Date(node.dataset.eventDate || "").getTime();
+    const output = node.querySelector("strong");
+    const tick = () => {
+      const remaining = Math.max(0, target - Date.now());
+      const hours = Math.floor(remaining / 36e5);
+      const minutes = Math.floor((remaining % 36e5) / 6e4);
+      const seconds = Math.floor((remaining % 6e4) / 1e3);
+      if (output)
+        output.textContent = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    };
+    tick();
+    setInterval(tick, 1000);
+  });
+  document
+    .querySelector("[data-close-banner]")
+    ?.addEventListener("click", () =>
+      document.querySelector("#registration-banner")?.remove(),
+    );
+</script>
 
 <style>
   .event-detail-page {
@@ -236,17 +430,22 @@ const secondaryForms = forms.filter((form) => form.purpose !== 'MAIN');
   .event-hero-vignette {
     position: absolute;
     inset: 0;
-    background: radial-gradient(circle at center, rgba(12, 14, 18, 0.45) 0%, rgba(12, 14, 18, 0.96) 100%),
-                linear-gradient(180deg, rgba(12, 14, 18, 0.7) 0%, #0c0e12 100%);
+    background:
+      radial-gradient(
+        circle at center,
+        rgba(12, 14, 18, 0.45) 0%,
+        rgba(12, 14, 18, 0.96) 100%
+      ),
+      linear-gradient(180deg, rgba(12, 14, 18, 0.7) 0%, #0c0e12 100%);
   }
   .event-hero-container {
     position: relative;
     z-index: 10;
   }
   .event-hero-eyebrow {
-    font-family: 'Outfit', sans-serif;
+    font-family: "Outfit", sans-serif;
     font-size: 0.85rem;
-    font-weight: 700;
+    font-weight: 500;
     color: #94a3b8;
     margin-bottom: 1.25rem;
     display: flex;
@@ -267,7 +466,7 @@ const secondaryForms = forms.filter((form) => form.purpose !== 'MAIN');
     margin-bottom: 1.5rem;
   }
   .badge-pill {
-    font-family: 'Outfit', sans-serif;
+    font-family: "Outfit", sans-serif;
     font-size: 0.72rem;
     font-weight: 600;
     letter-spacing: 0.08em;
@@ -285,7 +484,7 @@ const secondaryForms = forms.filter((form) => form.purpose !== 'MAIN');
   }
 
   .event-hero-title {
-    font-family: 'Outfit', sans-serif;
+    font-family: "Outfit", sans-serif;
     font-size: clamp(2.8rem, 5.5vw, 4.8rem);
     font-weight: 700;
     line-height: 1.05;
@@ -315,6 +514,55 @@ const secondaryForms = forms.filter((form) => form.purpose !== 'MAIN');
     color: #e2e8f0;
     font-weight: 600;
   }
+  .countdown strong {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
+  .speaker-avatar {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-bottom: 1rem;
+  }
+  .registration-banner {
+    position: fixed;
+    z-index: 110;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    background: #20c56b;
+    color: #07150d;
+    font-size: 0.95rem;
+  }
+  .registration-banner a {
+    margin-left: auto;
+    background: #07150d;
+    color: #fff;
+    padding: 0.65rem 1rem;
+    border-radius: 0.5rem;
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .registration-banner button {
+    border: 0;
+    background: transparent;
+    font-size: 1.5rem;
+    cursor: pointer;
+  }
+  @media (max-width: 640px) {
+    .registration-banner {
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+    .registration-banner a {
+      margin-left: 0;
+    }
+  }
 
   .tdc-pill-btn.primary.large {
     padding: 0.9rem 2rem;
@@ -332,7 +580,7 @@ const secondaryForms = forms.filter((form) => form.purpose !== 'MAIN');
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   }
   .section-tag {
-    font-family: 'Outfit', sans-serif;
+    font-family: "Outfit", sans-serif;
     font-size: 0.75rem;
     font-weight: 600;
     letter-spacing: 0.14em;
@@ -346,7 +594,7 @@ const secondaryForms = forms.filter((form) => form.purpose !== 'MAIN');
     gap: 4.5rem;
   }
   .overview-heading {
-    font-family: 'Outfit', sans-serif;
+    font-family: "Outfit", sans-serif;
     font-size: clamp(2.2rem, 3.5vw, 3.2rem);
     font-weight: 700;
     color: #ffffff;
@@ -372,7 +620,7 @@ const secondaryForms = forms.filter((form) => form.purpose !== 'MAIN');
     margin-bottom: 3.5rem;
   }
   .activities-title {
-    font-family: 'Outfit', sans-serif;
+    font-family: "Outfit", sans-serif;
     font-size: 2.2rem;
     font-weight: 600;
     color: #ffffff;
@@ -390,7 +638,9 @@ const secondaryForms = forms.filter((form) => form.purpose !== 'MAIN');
     padding: 1.75rem;
     display: flex;
     flex-direction: column;
-    transition: transform 0.2s, border-color 0.2s;
+    transition:
+      transform 0.2s,
+      border-color 0.2s;
   }
   .activity-card:hover {
     transform: translateY(-3px);
@@ -404,7 +654,7 @@ const secondaryForms = forms.filter((form) => form.purpose !== 'MAIN');
     flex-wrap: wrap;
   }
   .act-badge {
-    font-family: 'Outfit', sans-serif;
+    font-family: "Outfit", sans-serif;
     font-size: 0.68rem;
     font-weight: 600;
     padding: 0.25rem 0.6rem;
@@ -420,7 +670,7 @@ const secondaryForms = forms.filter((form) => form.purpose !== 'MAIN');
     color: #94a3b8;
   }
   .act-title {
-    font-family: 'Outfit', sans-serif;
+    font-family: "Outfit", sans-serif;
     font-size: 1.3rem;
     font-weight: 600;
     color: #ffffff;
@@ -453,7 +703,7 @@ const secondaryForms = forms.filter((form) => form.purpose !== 'MAIN');
     margin-bottom: 3.5rem;
   }
   .reg-section-title {
-    font-family: 'Outfit', sans-serif;
+    font-family: "Outfit", sans-serif;
     font-size: 2.4rem;
     font-weight: 700;
     color: #ffffff;
@@ -469,10 +719,37 @@ const secondaryForms = forms.filter((form) => form.purpose !== 'MAIN');
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: 2rem;
   }
-  .main-registration-panel { display: flex; align-items: center; justify-content: space-between; gap: 2rem; margin-bottom: 2rem; padding: 2rem; border-radius: 16px; background: #ffffff; color: #172033; text-decoration: none; border: 1px solid rgba(255,255,255,.16); }
-  .main-registration-panel h3 { font-family: 'Outfit', sans-serif; font-size: 1.6rem; font-weight: 600; margin: .35rem 0; }
-  .main-registration-panel p { color: #52637a; font-size: .94rem; }
-  .main-registration-action { white-space: nowrap; font-weight: 600; background: #172033; color: #fff; padding: .8rem 1.1rem; border-radius: 10px; }
+  .main-registration-panel {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2rem;
+    margin-bottom: 2rem;
+    padding: 2rem;
+    border-radius: 16px;
+    background: #ffffff;
+    color: #172033;
+    text-decoration: none;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+  }
+  .main-registration-panel h3 {
+    font-family: "Outfit", sans-serif;
+    font-size: 1.6rem;
+    font-weight: 600;
+    margin: 0.35rem 0;
+  }
+  .main-registration-panel p {
+    color: #52637a;
+    font-size: 0.94rem;
+  }
+  .main-registration-action {
+    white-space: nowrap;
+    font-weight: 600;
+    background: #172033;
+    color: #fff;
+    padding: 0.8rem 1.1rem;
+    border-radius: 10px;
+  }
   .reg-ticket-card {
     background: #0c0e12;
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -481,7 +758,9 @@ const secondaryForms = forms.filter((form) => form.purpose !== 'MAIN');
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    transition: transform 0.2s, border-color 0.2s;
+    transition:
+      transform 0.2s,
+      border-color 0.2s;
   }
   .reg-ticket-card:hover {
     transform: translateY(-4px);
@@ -489,7 +768,7 @@ const secondaryForms = forms.filter((form) => form.purpose !== 'MAIN');
   }
   .ticket-badge {
     display: inline-block;
-    font-family: 'Outfit', sans-serif;
+    font-family: "Outfit", sans-serif;
     font-size: 0.68rem;
     font-weight: 600;
     letter-spacing: 0.1em;
@@ -497,7 +776,7 @@ const secondaryForms = forms.filter((form) => form.purpose !== 'MAIN');
     margin-bottom: 0.75rem;
   }
   .ticket-title {
-    font-family: 'Outfit', sans-serif;
+    font-family: "Outfit", sans-serif;
     font-size: 1.4rem;
     font-weight: 600;
     color: #ffffff;
@@ -517,13 +796,15 @@ const secondaryForms = forms.filter((form) => form.purpose !== 'MAIN');
     width: 100%;
     background: #ffffff;
     color: #000000;
-    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-family: "Plus Jakarta Sans", sans-serif;
     font-weight: 600;
     font-size: 0.92rem;
     padding: 0.85rem;
     border-radius: 12px;
     text-decoration: none;
-    transition: background 0.15s, transform 0.15s;
+    transition:
+      background 0.15s,
+      transform 0.15s;
   }
   .ticket-btn:hover {
     background: #e2e8f0;
@@ -560,27 +841,58 @@ const secondaryForms = forms.filter((form) => form.purpose !== 'MAIN');
      contraste oscuro sobre su imagen de portada. */
   :global(html:not(.dark)) .event-detail-page,
   :global(html:not(.dark)) .event-overview-section,
-  :global(html:not(.dark)) .event-registration-section { background: #f8fafc; }
-  :global(html:not(.dark)) .event-breadcrumb-bar { background: #ffffff; border-color: #e2e8f0; }
-  :global(html:not(.dark)) .back-link { color: #52637a; }
-  :global(html:not(.dark)) .back-link:hover { color: #172033; }
-  :global(html:not(.dark)) .event-overview-section { border-color: #e2e8f0; }
-  :global(html:not(.dark)) .event-activities-section { background: #ffffff; border-color: #e2e8f0; }
+  :global(html:not(.dark)) .event-registration-section {
+    background: #f8fafc;
+  }
+  :global(html:not(.dark)) .event-breadcrumb-bar {
+    background: #ffffff;
+    border-color: #e2e8f0;
+  }
+  :global(html:not(.dark)) .back-link {
+    color: #52637a;
+  }
+  :global(html:not(.dark)) .back-link:hover {
+    color: #172033;
+  }
+  :global(html:not(.dark)) .event-overview-section {
+    border-color: #e2e8f0;
+  }
+  :global(html:not(.dark)) .event-activities-section {
+    background: #ffffff;
+    border-color: #e2e8f0;
+  }
   :global(html:not(.dark)) .overview-heading,
   :global(html:not(.dark)) .activities-title,
   :global(html:not(.dark)) .reg-section-title,
   :global(html:not(.dark)) .act-title,
   :global(html:not(.dark)) .ticket-title,
-  :global(html:not(.dark)) .empty-reg-box h3 { color: #172033; }
-  :global(html:not(.dark)) .rich-desc p { color: #42526a; }
+  :global(html:not(.dark)) .empty-reg-box h3 {
+    color: #172033;
+  }
+  :global(html:not(.dark)) .rich-desc p {
+    color: #42526a;
+  }
   :global(html:not(.dark)) .act-desc,
   :global(html:not(.dark)) .reg-section-subtitle,
   :global(html:not(.dark)) .ticket-desc,
-  :global(html:not(.dark)) .empty-reg-box p { color: #52637a; }
+  :global(html:not(.dark)) .empty-reg-box p {
+    color: #52637a;
+  }
   :global(html:not(.dark)) .activity-card,
   :global(html:not(.dark)) .reg-ticket-card,
-  :global(html:not(.dark)) .empty-reg-box { background: #ffffff; border-color: #dce4ee; }
-  :global(html:not(.dark)) .activity-card-footer { border-color: #e2e8f0; color: #64748b; }
-  :global(html:not(.dark)) .act-badge.dark { background: #f1f5f9; color: #52637a; }
-  :global(html:not(.dark)) .main-registration-panel { border-color: #dce4ee; }
+  :global(html:not(.dark)) .empty-reg-box {
+    background: #ffffff;
+    border-color: #dce4ee;
+  }
+  :global(html:not(.dark)) .activity-card-footer {
+    border-color: #e2e8f0;
+    color: #64748b;
+  }
+  :global(html:not(.dark)) .act-badge.dark {
+    background: #f1f5f9;
+    color: #52637a;
+  }
+  :global(html:not(.dark)) .main-registration-panel {
+    border-color: #dce4ee;
+  }
 </style>

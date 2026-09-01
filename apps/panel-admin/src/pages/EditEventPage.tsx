@@ -70,7 +70,7 @@ export function EditEventPage() {
   }, [event, navigate])
 
   // ──────────────────────────────────────────────────────────
-  // Subida directa: archivo → R2 → backend
+  // Subida directa: archivo  R2  backend
   // Se invoca cuando el usuario selecciona/arrastra un archivo
   // ──────────────────────────────────────────────────────────
   const handleCoverFileSelect = async (file: File) => {

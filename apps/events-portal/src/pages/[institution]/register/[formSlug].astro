@@ -119,6 +119,10 @@ try {
             <p id="form-status" class="form-status" role="status"></p>
           </div>
         </form>
+        <div id="registration-success" class="registration-success" hidden>
+          <span class="reg-badge">INSCRIPCIÓN CONFIRMADA</span><h2>Gracias por inscribirte</h2><p>Tu registro fue recibido correctamente. Revisa tu correo para próximas novedades.</p>
+          <div><a href={`/${institution}/events/${form.mainEventId || ''}`}>Volver al detalle del evento</a><a href={`/${institution}`}>Explorar otro evento</a></div>
+        </div>
       </div>
     </div>
   </section>
@@ -218,6 +222,8 @@ try {
       }
 
       form.reset();
+      form.hidden = true;
+      document.querySelector<HTMLElement>('#registration-success')?.removeAttribute('hidden');
       if (status) {
         status.textContent = '¡Inscripción confirmada con éxito! Te hemos enviado los detalles por correo.';
         status.className = 'form-status success';
@@ -266,6 +272,11 @@ try {
     padding: 3rem;
     box-shadow: 0 16px 40px -10px rgba(0, 0, 0, 0.5);
   }
+  .registration-success { text-align: center; padding: 2rem 0; }
+  .registration-success h2 { font-size: 2rem; font-weight: 500; margin: .5rem 0; }
+  .registration-success p { color: #94a3b8; line-height: 1.6; }
+  .registration-success div { display: flex; justify-content: center; flex-wrap: wrap; gap: .75rem; margin-top: 1.5rem; }
+  .registration-success a { border: 1px solid rgba(255,255,255,.2); color: #fff; text-decoration: none; padding: .7rem 1rem; border-radius: .5rem; font-weight: 500; }
   .reg-card-header {
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     padding-bottom: 2rem;

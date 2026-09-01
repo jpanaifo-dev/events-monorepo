@@ -4,37 +4,30 @@ import type { PortalOrganization } from '../lib/api';
 interface Props {
   organization: PortalOrganization;
   title: string;
+  description?: string;
+  registrationUrl?: string;
   venues?: string[];
 }
 
-const { organization, title, venues = [] } = Astro.props;
+const { organization, title, description, registrationUrl, venues = [] } = Astro.props;
 ---
 <!doctype html>
 <html lang="es">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content={organization.description || `Eventos y conferencias oficiales de ${organization.name}`} />
+    <meta name="description" content={description || organization.description || `Eventos y conferencias oficiales de ${organization.name}`} />
     <title>{title}</title>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
   </head>
   <body class="tdc-body">
     <!-- TDC / Stripe Sessions Minimalist Cinematic Header -->
     <header class="tdc-header">
       <div class="tdc-container header-content">
       <div class="header-left">
-        <!-- Minimalist Circular Menu Icon -->
-        <a href={`/${organization.slug}#eventos`} class="tdc-icon-btn" title="Menú de eventos">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
-            <line x1="4" x2="20" y1="12" y2="12"/>
-            <line x1="4" x2="20" y1="6" y2="6"/>
-            <line x1="4" x2="20" y1="18" y2="18"/>
-          </svg>
-        </a>
-
         <!-- Organization Brand -->
         <a href={`/${organization.slug}`} class="tdc-brand-link">
           {organization.logoUrl ? (
@@ -47,28 +40,8 @@ const { organization, title, venues = [] } = Astro.props;
 
       <!-- Center / Right Meta: Local Time & Action Pills -->
       <div class="header-right">
-        <!-- Live Clock Indicator -->
-        <div class="tdc-time-pill" id="live-clock">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"/>
-            <polyline points="12 6 12 12 16 14"/>
-          </svg>
-          <span id="time-display">PET</span>
-        </div>
-
-        <a href={`/${organization.slug}#eventos`} class="tdc-pill-btn secondary">
-          <span>Explorar</span>
-        </a>
-
-        <a href={`/${organization.slug}#eventos`} class="tdc-pill-btn primary">
-          <span>Asistir</span>
-        </a>
-
-        <a href={`/${organization.slug}#eventos`} class="tdc-icon-btn action" title="Ir a eventos">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M5 12h14"/>
-            <path d="m12 5 7 7-7 7"/>
-          </svg>
+        <a href={registrationUrl || `/${organization.slug}#eventos`} class="tdc-pill-btn primary header-cta">
+          <span>{registrationUrl ? 'Separar mi cupo gratis' : 'Ver eventos'}</span>
         </a>
         <button type="button" class="tdc-icon-btn theme-toggle" id="theme-toggle" aria-label="Cambiar tema" title="Cambiar tema">
           <svg class="sun-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
@@ -97,14 +70,17 @@ const { organization, title, venues = [] } = Astro.props;
             <ul>
               <li><a href={`/${organization.slug}#eventos`}>Eventos publicados</a></li>
               <li><a href={`/${organization.slug}#destacado`}>Experiencia destacada</a></li>
-              <li><a href={`/${organization.slug}#workshops`}>Talleres y sesiones</a></li>
+              <li><a href={`/${organization.slug}#eventos`}>Talleres y sesiones</a></li>
             </ul>
           </div>
 
           <div class="footer-meta-pane">
             <h4>Portal Institucional</h4>
-            <span class="portal-badge">ID: {organization.slug}</span>
-            <p class="portal-note">Consumiendo información en vivo y sincronizada de eventos publicados.</p>
+            <p class="portal-note">Recibe próximas actividades y novedades directamente en tu correo.</p>
+            <form class="newsletter-form" aria-label="Suscripción a novedades">
+              <input type="email" placeholder="Tu correo electrónico" disabled />
+              <button type="button" disabled>Próximamente</button>
+            </form>
           </div>
         </div>
 
@@ -129,16 +105,10 @@ const { organization, title, venues = [] } = Astro.props;
         root.classList.toggle('dark', next === 'dark');
         localStorage.setItem('events-portal-theme', next);
       });
-      // Live clock script
-      function updateClock() {
-        const display = document.getElementById('time-display');
-        if (display) {
-          const now = new Date();
-          display.textContent = now.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' }) + ' PET';
-        }
-      }
-      updateClock();
-      setInterval(updateClock, 10000);
+      const header = document.querySelector('.tdc-header');
+      const updateHeader = () => header?.classList.toggle('is-scrolled', window.scrollY > 16);
+      updateHeader();
+      window.addEventListener('scroll', updateHeader, { passive: true });
     </script>
   </body>
 </html>
@@ -178,14 +148,18 @@ const { organization, title, venues = [] } = Astro.props;
     align-items: center;
     justify-content: space-between;
     padding: 0 4vw;
-    background: rgba(255, 255, 255, 0.92);
+    background: transparent;
     backdrop-filter: blur(16px);
-    border-bottom: 1px solid #e4e9f0;
-    position: sticky;
+    border-bottom: 1px solid transparent;
+    position: fixed;
     top: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
     z-index: 100;
   }
-  :global(html.dark) .tdc-header { background: rgba(12, 14, 18, 0.85); border-bottom-color: rgba(255, 255, 255, 0.08); }
+  .tdc-header.is-scrolled { background: rgba(255, 255, 255, 0.96); border-bottom-color: #e4e9f0; box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08); }
+  :global(html.dark) .tdc-header.is-scrolled { background: rgba(12, 14, 18, 0.9); border-bottom-color: rgba(255, 255, 255, 0.08); }
   .header-content { height: 100%; display: flex; align-items: center; justify-content: space-between; }
 
   .header-left {
@@ -290,11 +264,13 @@ const { organization, title, venues = [] } = Astro.props;
     background: #e2e8f0;
     transform: translateY(-1px);
   }
+  .header-cta { white-space: nowrap; }
 
   @media (max-width: 680px) {
-    .tdc-time-pill, .tdc-pill-btn.secondary {
-      display: none;
-    }
+    .tdc-header { height: 64px; padding: 0 1rem; }
+    .tdc-logo { max-width: 140px; }
+    .tdc-brand-text { font-size: .9rem; }
+    .tdc-pill-btn { padding: .48rem .75rem; font-size: .76rem; }
   }
 
   /* ---------------------------------------------------- */
@@ -368,6 +344,11 @@ const { organization, title, venues = [] } = Astro.props;
     color: #64748b;
     line-height: 1.5;
   }
+  .newsletter-form { display: flex; gap: .5rem; max-width: 340px; }
+  .newsletter-form input { min-width: 0; flex: 1; border: 1px solid #d8e0ea; border-radius: 6px; padding: .6rem .7rem; background: transparent; color: inherit; }
+  .newsletter-form button { border: 0; border-radius: 6px; padding: .6rem .7rem; background: #d8e0ea; color: #64748b; cursor: not-allowed; font: inherit; font-size: .78rem; }
+  :global(html.dark) .newsletter-form input { border-color: rgba(255,255,255,.16); }
+  :global(html.dark) .newsletter-form button { background: rgba(255,255,255,.12); color: #94a3b8; }
   .footer-bar {
     display: flex;
     align-items: center;

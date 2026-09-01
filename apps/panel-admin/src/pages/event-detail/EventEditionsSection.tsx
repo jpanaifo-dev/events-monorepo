@@ -46,7 +46,7 @@ export function EventEditionsSection() {
     if (!id) return
     setIsLoadingEditions(true)
     api.editions.list(id)
-      .then((rows) => setRemoteEditions(rows.map((row: any) => ({ id: row.id, mainEventId: row.mainEventId, name: row.name, startDate: row.startDate || "", endDate: row.endDate || "", slug: "", year: row.startDate ? new Date(row.startDate).getFullYear() : new Date().getFullYear(), description: row.description || "", coverUrl: row.coverUrl || "", isCurrent: false, location: row.location || "", modality: row.modality || "" }))))
+      .then((rows) => setRemoteEditions(rows.map((row: any) => ({ id: row.id, mainEventId: row.mainEventId, name: row.name, startDate: row.startDate || "", endDate: row.endDate || "", slug: "", year: row.startDate ? new Date(row.startDate).getFullYear() : new Date().getFullYear(), description: row.description || "", coverUrl: row.coverUrl || "", isCurrent: Boolean(row.isCurrent), location: row.location || "", modality: row.modality || "" }))))
       .catch((error: any) => toast.error(error?.message || "No se pudieron cargar las ediciones."))
       .finally(() => setIsLoadingEditions(false))
   }, [id])
