@@ -11,6 +11,7 @@ import {
   ImageIcon,
   Minus,
   Trash2,
+  Sparkles,
   Palette,
   Save,
   ChevronLeft,
@@ -26,7 +27,6 @@ import {
   Copy,
   Search,
   Plus,
-  GripVertical,
 } from "lucide-react"
 import { toast } from "sonner"
 import { api } from "@/api/client"
@@ -82,6 +82,78 @@ const DEFAULT_THEME: EmailTheme = {
   fontFamily: "Inter, sans-serif",
   maxWidth: 600,
   borderRadius: "8px",
+}
+
+export const AVAILABLE_VARIABLES = [
+  { key: "contact.FIRSTNAME", label: "Nombre", category: "Contacto" },
+  { key: "contact.LASTNAME", label: "Apellido", category: "Contacto" },
+  { key: "contact.EMAIL", label: "Email", category: "Contacto" },
+  { key: "event.NAME", label: "Nombre Evento", category: "Evento" },
+  { key: "event.DATE", label: "Fecha Evento", category: "Evento" },
+  { key: "event.LOCATION", label: "Lugar Evento", category: "Evento" },
+  { key: "registration.CODE", label: "Cód. Registro", category: "Registro" },
+]
+
+export function formatTextWithVariables(raw: string): string {
+  if (!raw) return ""
+  const withLineBreaks = raw.replace(/\n/g, "<br/>")
+  return withLineBreaks.replace(
+    /{{\s*([\w.]+)\s*}}/g,
+    `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 mx-0.5 rounded-md bg-violet-100/90 dark:bg-violet-950/80 text-violet-800 dark:text-violet-300 font-mono text-[0.82em] font-bold border border-violet-300/80 dark:border-violet-700 shadow-2xs select-none align-baseline tracking-normal" title="Variable dinámica: $1"><span class="opacity-60 text-[0.75em] font-mono">{ }</span><span>$1</span></span>`
+  )
+}
+
+function VariableChipsBar({
+  onInsert,
+  currentValue = "",
+}: {
+  onInsert: (varKey: string) => void
+  currentValue?: string
+}) {
+  const detectedVariables = useMemo(() => {
+    const matches = Array.from(currentValue.matchAll(/{{\s*([\w.]+)\s*}}/g))
+    return Array.from(new Set(matches.map((m) => m[1])))
+  }, [currentValue])
+
+  return (
+    <div className="space-y-1.5 pt-1.5">
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] font-semibold text-muted-foreground flex items-center gap-1">
+          <Sparkles className="size-3 text-violet-600 dark:text-violet-400" />
+          Variables disponibles:
+        </span>
+      </div>
+
+      <div className="flex flex-wrap gap-1">
+        {AVAILABLE_VARIABLES.map((v) => (
+          <button
+            key={v.key}
+            type="button"
+            onClick={() => onInsert(v.key)}
+            title={`Insertar {{ ${v.key} }} (${v.label})`}
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold bg-violet-50 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 border border-violet-200/80 dark:border-violet-800/60 hover:bg-violet-100 dark:hover:bg-violet-900/60 hover:border-violet-400 hover:scale-[1.02] active:scale-95 transition-all cursor-pointer shadow-2xs"
+          >
+            <span className="opacity-50 text-[9px]">{"{ }"}</span>
+            <span>{v.key}</span>
+          </button>
+        ))}
+      </div>
+
+      {detectedVariables.length > 0 && (
+        <div className="flex items-center gap-1 pt-0.5 text-[10px] text-muted-foreground flex-wrap">
+          <span className="font-semibold text-slate-600 dark:text-slate-400 text-[10px]">Detectadas:</span>
+          {detectedVariables.map((v) => (
+            <span
+              key={v}
+              className="px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-mono text-[9px] font-bold"
+            >
+              {`{{ ${v} }}`}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export function EmailTemplateBuilderPage() {
@@ -673,7 +745,18 @@ export function EmailTemplateBuilderPage() {
                           updateSelectedBlock({ options: { ...selectedBlock.options, text: e.target.value } })
                         }
                         rows={2}
-                        className="w-full text-xs rounded-xl border border-border bg-background p-2.5 resize-none"
+                        placeholder="Ej. ¡Bienvenido {{ contact.FIRSTNAME }}!"
+                        className="w-full text-xs rounded-xl border border-border bg-background p-2.5 resize-none font-mono"
+                      />
+                      <VariableChipsBar
+                        currentValue={selectedBlock.options?.text || ""}
+                        onInsert={(varKey) => {
+                          const curr = selectedBlock.options?.text || ""
+                          const space = curr.length > 0 && !curr.endsWith(" ") ? " " : ""
+                          updateSelectedBlock({
+                            options: { ...selectedBlock.options, text: `${curr}${space}{{ ${varKey} }} ` },
+                          })
+                        }}
                       />
                     </div>
 
@@ -686,6 +769,16 @@ export function EmailTemplateBuilderPage() {
                         }
                         placeholder="Descripción secundaria..."
                         className="h-9 text-xs"
+                      />
+                      <VariableChipsBar
+                        currentValue={selectedBlock.options?.subtitle || ""}
+                        onInsert={(varKey) => {
+                          const curr = selectedBlock.options?.subtitle || ""
+                          const space = curr.length > 0 && !curr.endsWith(" ") ? " " : ""
+                          updateSelectedBlock({
+                            options: { ...selectedBlock.options, subtitle: `${curr}${space}{{ ${varKey} }} ` },
+                          })
+                        }}
                       />
                     </div>
 
@@ -753,9 +846,20 @@ export function EmailTemplateBuilderPage() {
                           updateSelectedBlock({ options: { ...selectedBlock.options, text: e.target.value } })
                         }
                         rows={6}
+                        placeholder="Escribe tu mensaje aquí..."
                         className="w-full text-xs rounded-xl border border-border bg-background p-3 focus:outline-hidden focus:ring-2 focus:ring-primary resize-none font-mono"
                       />
-                      <p className="text-[10px] text-muted-foreground">Puedes usar tags HTML como <code>&lt;strong&gt;</code>, <code>&lt;a&gt;</code>, <code>&lt;br/&gt;</code> o viñetas <code>•</code>.</p>
+                      <VariableChipsBar
+                        currentValue={selectedBlock.options?.text || ""}
+                        onInsert={(varKey) => {
+                          const curr = selectedBlock.options?.text || ""
+                          const space = curr.length > 0 && !curr.endsWith(" ") ? " " : ""
+                          updateSelectedBlock({
+                            options: { ...selectedBlock.options, text: `${curr}${space}{{ ${varKey} }} ` },
+                          })
+                        }}
+                      />
+                      <p className="text-[10px] text-muted-foreground pt-1">Puedes usar tags HTML como <code>&lt;strong&gt;</code>, <code>&lt;a&gt;</code>, <code>&lt;br/&gt;</code> o viñetas <code>•</code>.</p>
                     </div>
 
                     <div className="space-y-1">
@@ -935,6 +1039,21 @@ export function EmailTemplateBuilderPage() {
                 {selectedBlock.type === "dynamic" && (
                   <div className="space-y-3">
                     <InspectorInput label="Variable" value={selectedBlock.options?.variable || ""} onChange={(variable) => updateSelectedBlock({ options: { ...selectedBlock.options, variable } })} placeholder="contact.FIRSTNAME" />
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-semibold text-muted-foreground">Selección rápida:</label>
+                      <div className="flex flex-wrap gap-1">
+                        {AVAILABLE_VARIABLES.map((v) => (
+                          <button
+                            key={v.key}
+                            type="button"
+                            onClick={() => updateSelectedBlock({ options: { ...selectedBlock.options, variable: v.key } })}
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold transition-all cursor-pointer ${selectedBlock.options?.variable === v.key ? "bg-violet-600 text-white font-bold shadow-2xs" : "bg-violet-50 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 border border-violet-200/80 hover:bg-violet-100"}`}
+                          >
+                            {v.key}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                     <InspectorInput label="Valor alternativo" value={selectedBlock.options?.fallback || ""} onChange={(fallback) => updateSelectedBlock({ options: { ...selectedBlock.options, fallback } })} placeholder="Asistente" />
                     <p className="text-[11px] text-muted-foreground">Se enviará como <code>{`{{ ${selectedBlock.options?.variable || "contact.FIRSTNAME"} }}`}</code>. Usa el valor alternativo cuando no exista información.</p>
                   </div>
@@ -1497,19 +1616,21 @@ function renderEmailCanvasBlock(block: EmailBlock, theme: EmailTheme) {
               color: opt.color || (opt.bgColor ? "#ffffff" : "#0f172a"),
               fontSize: opt.fontSize ? `${opt.fontSize}px` : "24px",
             }}
-            className="font-extrabold tracking-tight whitespace-pre-line"
-          >
-            {opt.text || "Este es el titular."}
-          </h2>
+            className="font-extrabold tracking-tight"
+            dangerouslySetInnerHTML={{
+              __html: formatTextWithVariables(opt.text || "Este es el titular."),
+            }}
+          />
           {opt.subtitle && (
             <p
               style={{
                 color: opt.bgColor ? "rgba(255, 255, 255, 0.85)" : "#64748b",
               }}
               className="text-xs sm:text-sm mt-1.5 leading-relaxed"
-            >
-              {opt.subtitle}
-            </p>
+              dangerouslySetInnerHTML={{
+                __html: formatTextWithVariables(opt.subtitle),
+              }}
+            />
           )}
         </div>
       )
@@ -1525,7 +1646,7 @@ function renderEmailCanvasBlock(block: EmailBlock, theme: EmailTheme) {
           }}
           className="text-xs sm:text-sm leading-relaxed my-1"
           dangerouslySetInnerHTML={{
-            __html: (opt.text || "Contenido del párrafo...").replace(/\n/g, "<br/>"),
+            __html: formatTextWithVariables(opt.text || "Contenido del párrafo..."),
           }}
         />
       )
@@ -1594,9 +1715,10 @@ function renderEmailCanvasBlock(block: EmailBlock, theme: EmailTheme) {
               borderRadius: `${opt.borderRadius ?? (theme.borderRadius === "8px" ? 8 : 6)}px`,
             }}
             className="py-3 px-8 text-xs font-bold uppercase tracking-wider shadow-sm hover:opacity-90 transition-opacity cursor-default"
-          >
-            {opt.text || "Confirmar Asistencia"}
-          </button>
+            dangerouslySetInnerHTML={{
+              __html: formatTextWithVariables(opt.text || "Confirmar Asistencia"),
+            }}
+          />
         </div>
       )
 
