@@ -40,7 +40,6 @@ import {
   AlignRight,
   Bold,
   Italic,
-  Link,
   Smile,
 } from "lucide-react"
 import { toast } from "sonner"
@@ -1494,7 +1493,7 @@ export function EmailTemplateBuilderPage() {
                     )}
 
                     {/* Block Render Output */}
-                    {renderEmailCanvasBlock(block, theme, isSelected, (text) => updateSelectedBlock({ options: { ...block.options, text } }))}
+                    {renderEmailCanvasBlock(block, theme, (text) => updateSelectedBlock({ options: { ...block.options, text } }), () => setSelectedBlockId(block.id))}
                   </div>
                 )
               })
@@ -1561,7 +1560,7 @@ export function EmailTemplateBuilderPage() {
 }
 
 // Render each block on the email preview canvas
-function renderEmailCanvasBlock(block: EmailBlock, theme: EmailTheme, editable = false, onTextCommit?: (text: string) => void) {
+function renderEmailCanvasBlock(block: EmailBlock, theme: EmailTheme, onTextCommit?: (text: string) => void, onTextSelect?: () => void) {
   const opt = block.options || {}
 
   switch (block.type) {
@@ -1632,9 +1631,9 @@ function renderEmailCanvasBlock(block: EmailBlock, theme: EmailTheme, editable =
         >
           <InlineCanvasText
             as="h2"
-            editable={editable}
             value={opt.text || "Este es el titular."}
             onCommit={onTextCommit}
+            onSelect={onTextSelect}
             style={{
               color: opt.color || (opt.bgColor ? "#ffffff" : "#0f172a"),
               fontSize: opt.fontSize ? `${opt.fontSize}px` : "24px",
@@ -1661,9 +1660,9 @@ function renderEmailCanvasBlock(block: EmailBlock, theme: EmailTheme, editable =
       return (
         <InlineCanvasText
           as="div"
-          editable={editable}
           value={opt.text || "Contenido del párrafo..."}
           onCommit={onTextCommit}
+          onSelect={onTextSelect}
           style={{
             textAlign: opt.align || "left",
             color: opt.color || "#334155",
@@ -1836,18 +1835,17 @@ function TextFormattingToolbar({ block, onUpdate }: { block: EmailBlock; onUpdat
       <span className="h-4 w-px bg-border" />
       <button type="button" title="Negrita" onClick={() => onUpdate({ fontWeight: Number(options.fontWeight || 400) >= 600 ? 400 : 600 })} className={`flex size-7 items-center justify-center rounded ${Number(options.fontWeight || 400) >= 600 ? "bg-muted text-foreground" : "hover:bg-muted"}`}><Bold className="size-3.5" /></button>
       <button type="button" title="Cursiva" onClick={() => onUpdate({ fontStyle: options.fontStyle === "italic" ? "normal" : "italic" })} className={`flex size-7 items-center justify-center rounded ${options.fontStyle === "italic" ? "bg-muted text-foreground" : "hover:bg-muted"}`}><Italic className="size-3.5" /></button>
-      <button type="button" title="Usa un bloque Botón para añadir enlaces" className="flex size-7 items-center justify-center rounded hover:bg-muted"><Link className="size-3.5" /></button>
-      <button type="button" title="Añadir variable desde el panel derecho" className="flex size-7 items-center justify-center rounded hover:bg-muted"><Braces className="size-3.5" /></button>
       <button type="button" title="Emoji" className="flex size-7 items-center justify-center rounded hover:bg-muted"><Smile className="size-3.5" /></button>
     </div>
   )
 }
 
-function InlineCanvasText({ as: Tag, editable, value, onCommit, style, className }: { as: "h2" | "div"; editable: boolean; value: string; onCommit?: (value: string) => void; style: CSSProperties; className?: string }) {
-  const [draft, setDraft] = useState(value)
-  useEffect(() => setDraft(value), [value])
-  if (editable) return <textarea autoFocus value={draft} onClick={(event) => event.stopPropagation()} onChange={(event) => setDraft(event.target.value)} onBlur={() => { if (draft !== value) onCommit?.(draft) }} rows={Tag === "h2" ? 1 : 3} style={style} className={`w-full resize-none border-0 bg-transparent p-0 outline-none ring-0 ${className || ""}`} aria-label="Editar contenido" />
-  return <Tag style={style} className={className} dangerouslySetInnerHTML={{ __html: formatTextWithVariables(value) }} />
+function InlineCanvasText({ as: Tag, value, onCommit, onSelect, style, className }: { as: "h2" | "div"; value: string; onCommit?: (value: string) => void; onSelect?: () => void; style: CSSProperties; className?: string }) {
+  const ref = useRef<HTMLElement>(null)
+  useEffect(() => {
+    if (ref.current && document.activeElement !== ref.current && ref.current.textContent !== value) ref.current.textContent = value
+  }, [value])
+  return <Tag ref={ref as any} contentEditable suppressContentEditableWarning spellCheck={false} onMouseDown={onSelect} onBlur={(event) => { const next = event.currentTarget.textContent || ""; if (next !== value) onCommit?.(next) }} style={style} className={`outline-none ${className || ""}`} aria-label="Editar contenido">{value}</Tag>
 }
 
 function InspectorInput({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string }) {
