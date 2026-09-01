@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { IsArray, IsBoolean, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
 import { RegistrationFormsService } from './registration-forms.service.js';
 import { Public } from '../../common/public.decorator.js';
@@ -46,6 +46,11 @@ export class RegistrationFormsController {
   @Public() @Get('public/registration-forms/:slug')
   publicForm(@Param('slug') slug: string) {
     return this.forms.publicForm(slug);
+  }
+
+  @Public() @Get('public/registration-forms/:slug/email-availability')
+  emailAvailability(@Param('slug') slug: string, @Query('email') email = '') {
+    return this.forms.emailAvailability(slug, email);
   }
 
   @Public() @Post('public/registration-forms/:slug/submissions')

@@ -170,6 +170,17 @@ export class RegistrationFormsService {
     return form;
   }
 
+  async emailAvailability(slug: string, rawEmail: string) {
+    const form = await this.publicForm(slug);
+    const email = rawEmail.trim().toLowerCase();
+    if (!email) return { available: false };
+    const existing = await this.prisma.registrationSubmission.findUnique({
+      where: { formId_email: { formId: form.id, email } },
+      select: { id: true },
+    });
+    return { available: !existing };
+  }
+
   async submit(slug: string, answers: Record<string, unknown>, editionId?: string) {
     const form = await this.publicForm(slug);
     const count = await this.prisma.registrationSubmission.count({ where: { formId: form.id } });
@@ -181,16 +192,31 @@ export class RegistrationFormsService {
         throw new BadRequestException(`El campo ${field.label} es obligatorio`);
       }
     }
-    const email = typeof answers.email === 'string' ? answers.email : null;
-    const submission = await this.prisma.registrationSubmission.create({
-      data: {
-        formId: form.id,
-        editionId: editionId || form.editionId || form.defaultEditionId || null,
-        answers: answers as Prisma.InputJsonValue,
-        email,
-        status: form.approvalMode === 'AUTOMATIC' ? 'APPROVED' : 'PENDING',
-      },
-    });
+    const email = typeof answers.email === 'string' ? answers.email.trim().toLowerCase() : null;
+    if (email) {
+      const existing = await this.prisma.registrationSubmission.findUnique({
+        where: { formId_email: { formId: form.id, email } },
+        select: { id: true },
+      });
+      if (existing) throw new BadRequestException('Este correo ya está registrado en este formulario');
+    }
+    let submission;
+    try {
+      submission = await this.prisma.registrationSubmission.create({
+        data: {
+          formId: form.id,
+          editionId: editionId || form.editionId || form.defaultEditionId || null,
+          answers: answers as Prisma.InputJsonValue,
+          email,
+          status: form.approvalMode === 'AUTOMATIC' ? 'APPROVED' : 'PENDING',
+        },
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new BadRequestException('Este correo ya está registrado en este formulario');
+      }
+      throw error;
+    }
     if (form.purpose === 'MAIN') {
       const participantId = await this.registerMainParticipant(form, submission.id, answers, editionId);
       await this.prisma.registrationSubmission.update({ where: { id: submission.id }, data: { participantId } });
@@ -235,8 +261,6 @@ export class RegistrationFormsService {
   private async registerMainParticipant(form: any, submissionId: string, answers: Record<string, unknown>, requestedEditionId?: string) {
     const email = typeof answers.email === 'string' ? answers.email.trim().toLowerCase() : '';
     if (!email) throw new BadRequestException('El correo electrónico es obligatorio');
-    const duplicate = await this.prisma.registrationSubmission.findFirst({ where: { formId: form.id, email, id: { not: submissionId } } });
-    if (duplicate) throw new BadRequestException('Este correo ya cuenta con una inscripción principal');
     const fullName = String(answers.full_name || answers.name || '').trim();
     const firstName = String(answers.first_name || answers.firstName || fullName.split(/\s+/)[0] || 'Participante').trim();
     const lastNameParts = String(answers.last_name || answers.lastName || fullName.split(/\s+/).slice(1).join(' ')).trim().split(/\s+/).filter(Boolean);

@@ -437,6 +437,7 @@ model RegistrationSubmission {
   form            RegistrationForm           @relation(fields: [formId], references: [id], onDelete: Cascade)
   marketingEnrollment MarketingEventEnrollment?
   @@index([formId, status])
+  @@unique([formId, email])
   @@map("registration_submissions")
 }
 
