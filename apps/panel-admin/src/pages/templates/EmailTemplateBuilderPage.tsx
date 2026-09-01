@@ -111,6 +111,7 @@ export const AVAILABLE_VARIABLES = [
   { key: "discount_code", label: "Código de beneficio", category: "Automatización", description: "Código promocional vigente" },
   { key: "unsubscribe_url", label: "Enlace de baja", category: "Automatización", description: "Enlace para cancelar suscripción" },
 ]
+type AvailableVariable = (typeof AVAILABLE_VARIABLES)[number]
 
 export function formatTextWithVariables(raw: string): string {
   if (!raw) return ""
@@ -124,27 +125,29 @@ export function formatTextWithVariables(raw: string): string {
 function VariableChipsBar({
   onInsert,
   currentValue = "",
+  variables,
 }: {
   onInsert: (varKey: string) => void
   currentValue?: string
+  variables: AvailableVariable[]
 }) {
   const detectedVariables = useMemo(() => {
     const matches = Array.from(currentValue.matchAll(/{{\s*([\w.]+)\s*}}/g))
     return Array.from(new Set(matches.map((m) => m[1])))
   }, [currentValue])
 
-  return <VariablePicker onInsert={onInsert} detectedVariables={detectedVariables} />
+  return <VariablePicker onInsert={onInsert} detectedVariables={detectedVariables} variables={variables} />
 }
 
-function VariablePicker({ onInsert, detectedVariables }: { onInsert: (key: string) => void; detectedVariables: string[] }) {
+function VariablePicker({ onInsert, detectedVariables, variables }: { onInsert: (key: string) => void; detectedVariables: string[]; variables: AvailableVariable[] }) {
   const [open, setOpen] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 })
   const [query, setQuery] = useState("")
   const [category, setCategory] = useState<string | null>(null)
   const [customKey, setCustomKey] = useState("")
-  const groups = Array.from(new Set(AVAILABLE_VARIABLES.map((item) => item.category)))
-  const filtered = AVAILABLE_VARIABLES.filter((item) => (!category || item.category === category) && `${item.label} ${item.key} ${item.description}`.toLowerCase().includes(query.toLowerCase()))
+  const groups = Array.from(new Set(variables.map((item) => item.category)))
+  const filtered = variables.filter((item) => (!category || item.category === category) && `${item.label} ${item.key} ${item.description}`.toLowerCase().includes(query.toLowerCase()))
   const choose = (key: string) => { onInsert(key); setOpen(false); setQuery(""); setCategory(null) }
   const toggle = () => { const rect = triggerRef.current?.getBoundingClientRect(); if (rect) setMenuPosition({ top: rect.bottom + 8, left: rect.left }); setOpen((value) => !value) }
   const icons: Record<string, ElementType> = { "Datos de contacto": UserRound, "Datos del evento": CalendarDays, Registro: Ticket, Automatización: Settings2 }
@@ -166,7 +169,7 @@ function VariablePicker({ onInsert, detectedVariables }: { onInsert: (key: strin
             </div>
           </div>
           {!category ? <div className="py-1">
-            {groups.map((group) => { const Icon = icons[group] || Braces; const count = AVAILABLE_VARIABLES.filter((item) => item.category === group && `${item.label} ${item.key}`.toLowerCase().includes(query.toLowerCase())).length; if (query && count === 0) return null; return <button key={group} type="button" onClick={() => setCategory(group)} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-muted/50"><Icon className="size-4 text-muted-foreground" /><span className="flex-1"><span className="block text-sm font-medium">{group}</span><span className="block pt-0.5 text-xs text-muted-foreground">{group === "Datos de contacto" ? "Información de la persona registrada" : group === "Datos del evento" ? "Información del evento asociado" : group === "Registro" ? "Datos únicos de la inscripción" : "Enlaces y código configurados"}</span></span><ChevronRight className="size-4 text-muted-foreground" /></button> })}
+            {groups.map((group) => { const Icon = icons[group] || Braces; const count = variables.filter((item) => item.category === group && `${item.label} ${item.key}`.toLowerCase().includes(query.toLowerCase())).length; if (query && count === 0) return null; return <button key={group} type="button" onClick={() => setCategory(group)} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-muted/50"><Icon className="size-4 text-muted-foreground" /><span className="flex-1"><span className="block text-sm font-medium">{group}</span><span className="block pt-0.5 text-xs text-muted-foreground">{group === "Datos de contacto" ? "Información de la persona registrada" : group === "Datos del evento" ? "Información del evento asociado" : group === "Registro" ? "Datos únicos de la inscripción" : "Enlaces y código configurados"}</span></span><ChevronRight className="size-4 text-muted-foreground" /></button> })}
             <div className="mx-3 my-2 border-t border-border" />
             <div className="px-4 pb-3"><p className="mb-2 text-xs text-muted-foreground">Variable personalizada</p><div className="flex gap-2"><Input value={customKey} onChange={(event) => setCustomKey(event.target.value.replace(/[^a-z0-9_]/gi, "").toLowerCase())} placeholder="ej. sede_evento" className="h-8 text-xs" /><Button type="button" size="sm" variant="outline" className="h-8 text-xs font-medium" disabled={!customKey} onClick={() => choose(`custom.${customKey}`)}>Insertar</Button></div><p className="mt-1.5 text-[11px] text-muted-foreground">Configúrala después en la automatización.</p></div>
           </div> : <div className="py-1">
@@ -213,6 +216,7 @@ export function EmailTemplateBuilderPage() {
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null)
   const [draggedBlockId, setDraggedBlockId] = useState<string | null>(null)
   const [theme, setTheme] = useState<EmailTheme>(DEFAULT_THEME)
+  const [availableVariables, setAvailableVariables] = useState<AvailableVariable[]>(AVAILABLE_VARIABLES)
 
   // Undo / Redo History
   const [history, setHistory] = useState<EmailBlock[][]>([])
@@ -262,6 +266,12 @@ export function EmailTemplateBuilderPage() {
     if (!templateId) return
     loadTemplate()
   }, [templateId])
+
+  useEffect(() => {
+    api.marketing.variables().then((items) => {
+      if (items.length) setAvailableVariables(items as AvailableVariable[])
+    }).catch(() => undefined)
+  }, [])
 
   const loadTemplate = async () => {
     try {
@@ -775,6 +785,7 @@ export function EmailTemplateBuilderPage() {
                       />
                       <VariableChipsBar
                         currentValue={selectedBlock.options?.text || ""}
+                        variables={availableVariables}
                         onInsert={(varKey) => {
                           const curr = selectedBlock.options?.text || ""
                           const space = curr.length > 0 && !curr.endsWith(" ") ? " " : ""
@@ -797,6 +808,7 @@ export function EmailTemplateBuilderPage() {
                       />
                       <VariableChipsBar
                         currentValue={selectedBlock.options?.subtitle || ""}
+                        variables={availableVariables}
                         onInsert={(varKey) => {
                           const curr = selectedBlock.options?.subtitle || ""
                           const space = curr.length > 0 && !curr.endsWith(" ") ? " " : ""
@@ -876,6 +888,7 @@ export function EmailTemplateBuilderPage() {
                       />
                       <VariableChipsBar
                         currentValue={selectedBlock.options?.text || ""}
+                        variables={availableVariables}
                         onInsert={(varKey) => {
                           const curr = selectedBlock.options?.text || ""
                           const space = curr.length > 0 && !curr.endsWith(" ") ? " " : ""
@@ -1064,7 +1077,7 @@ export function EmailTemplateBuilderPage() {
                 {selectedBlock.type === "dynamic" && (
                   <div className="space-y-3">
                     <InspectorInput label="Variable" value={selectedBlock.options?.variable || ""} onChange={(variable) => updateSelectedBlock({ options: { ...selectedBlock.options, variable } })} placeholder="first_name" />
-                    <VariablePicker onInsert={(variable) => updateSelectedBlock({ options: { ...selectedBlock.options, variable } })} detectedVariables={selectedBlock.options?.variable ? [selectedBlock.options.variable] : []} />
+                    <VariablePicker onInsert={(variable) => updateSelectedBlock({ options: { ...selectedBlock.options, variable } })} detectedVariables={selectedBlock.options?.variable ? [selectedBlock.options.variable] : []} variables={availableVariables} />
                     <InspectorInput label="Valor alternativo" value={selectedBlock.options?.fallback || ""} onChange={(fallback) => updateSelectedBlock({ options: { ...selectedBlock.options, fallback } })} placeholder="Asistente" />
                     <p className="text-[11px] text-muted-foreground">Se enviará como <code>{`{{ ${selectedBlock.options?.variable || "first_name"} }}`}</code>. Usa el valor alternativo cuando no exista información.</p>
                   </div>

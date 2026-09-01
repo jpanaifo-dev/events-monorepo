@@ -187,6 +187,7 @@ export const api = {
       apiFetch<any>(`/email-templates/${id}/test`, { method: "POST", body: JSON.stringify({ email }) }),
   },
   marketing: {
+    variables: () => apiFetch<Array<{ key: string; label: string; category: string; description: string }>>("/marketing/variables"),
     contacts: (organizationId: string, search?: string) => apiFetch<any[]>(`/organizations/${organizationId}/marketing/contacts${search ? `?search=${encodeURIComponent(search)}` : ""}`),
     createContact: (organizationId: string, data: any) => apiFetch<any>(`/organizations/${organizationId}/marketing/contacts`, { method: "POST", body: JSON.stringify(data) }),
     removeContact: (organizationId: string, id: string) => apiFetch<any>(`/organizations/${organizationId}/marketing/contacts/${id}`, { method: "DELETE" }),

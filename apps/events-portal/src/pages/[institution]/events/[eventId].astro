@@ -1,0 +1,19 @@
+---
+import PortalLayout from '../../../layouts/PortalLayout.astro';
+import { portalApi } from '../../../lib/api';
+const { institution, eventId } = Astro.params;
+if (!institution || !eventId) return new Response('No encontrado', { status: 404 });
+let listing; let event;
+try { [listing, event] = await Promise.all([portalApi.events(institution), portalApi.event(institution, eventId)]); } catch { return new Response('Evento no encontrado', { status: 404 }); }
+const date = new Intl.DateTimeFormat('es-PE', { dateStyle: 'full', timeStyle: 'short' });
+const form = event.registrationForms[0];
+---
+<PortalLayout organization={listing.organization} title={`${event.eventName} · ${listing.organization.name}`}>
+  <article>
+    <section class="hero" style={event.coverUrl ? `background-image: linear-gradient(90deg, rgba(13,24,40,.76), rgba(13,24,40,.3)), url(${event.coverUrl})` : undefined}><p>{event.eventMode || 'Evento'}</p><h1>{event.eventName}</h1><time>{date.format(new Date(event.startDate))}</time>{event.venueAddress && <span>{event.venueAddress}</span>}{form && <a href={`#registro`} class="cta">Registrarme</a>}</section>
+    <section class="content"><div class="main"><h2>Sobre el evento</h2><p>{event.description || event.details?.content || 'Próximamente encontrarás más información.'}</p>{event.editions.flatMap((edition) => edition.activities).length > 0 && <><h2>Agenda</h2><div class="agenda">{event.editions.flatMap((edition) => edition.activities).map((activity) => <div><time>{activity.startsAt ? date.format(new Date(activity.startsAt)) : 'Por confirmar'}</time><h3>{activity.title}</h3><p>{activity.description}</p></div>)}</div></>}</div>{form && <aside id="registro"><p>Inscripciones</p><h2>{form.title}</h2><span>{form.description || 'Completa tu registro para participar.'}</span><a class="cta" href={`/${institution}/register/${form.slug}`}>Registrarme</a></aside>}</section>
+  </article>
+</PortalLayout>
+<style>
+  .hero { min-height: 430px; padding: 7rem 12vw; display: grid; align-content: center; gap: .8rem; color: white; background: #1c385e center/cover; } .hero p { margin: 0; color: #b3d2ff; font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; } h1 { margin: 0; max-width: 800px; font-size: clamp(2.3rem, 5vw, 4.8rem); font-weight: 500; letter-spacing: -.045em; } .hero time,.hero span { color: #e0eaff; } .cta { display: inline-flex; width: fit-content; margin-top: 1rem; border-radius: 7px; padding: .75rem 1rem; color: white; background: #2766ac; text-decoration: none; font-size: .9rem; } .content { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 4rem; max-width: 1080px; margin: 0 auto; padding: 5rem 6vw; } .main h2, aside h2 { font-size: 1.4rem; font-weight: 500; letter-spacing: -.025em; } .main > p { color: #4e5d71; line-height: 1.8; white-space: pre-line; } .agenda > div { padding: 1rem 0; border-top: 1px solid #e5e9f0; } .agenda time, .agenda p { color: #64748b; font-size: .85rem; } .agenda h3 { margin: .3rem 0; font-size: 1rem; font-weight: 500; } aside { height: fit-content; padding: 1.5rem; border: 1px solid #e3e8ef; border-radius: 12px; } aside p { margin: 0; color: #3970ae; font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; } aside span { color: #617086; font-size: .9rem; line-height: 1.5; } aside .cta { display: flex; justify-content: center; } @media (max-width: 760px) { .content { grid-template-columns: 1fr; gap: 2rem; } }
+</style>

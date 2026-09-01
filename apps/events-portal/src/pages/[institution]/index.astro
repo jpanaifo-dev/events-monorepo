@@ -1,0 +1,21 @@
+---
+import PortalLayout from '../../layouts/PortalLayout.astro';
+import { portalApi } from '../../lib/api';
+const { institution } = Astro.params;
+if (!institution) return Astro.redirect('/');
+let data;
+try { data = await portalApi.events(institution); } catch { return new Response('Institución no encontrada', { status: 404 }); }
+const date = new Intl.DateTimeFormat('es-PE', { dateStyle: 'long', timeStyle: 'short' });
+---
+<PortalLayout organization={data.organization} title={`Eventos · ${data.organization.name}`}>
+  <section class="hero" style={data.organization.coverUrl ? `background-image: linear-gradient(90deg, rgba(14,25,42,.76), rgba(14,25,42,.38)), url(${data.organization.coverUrl})` : undefined}>
+    <p>Portal institucional</p><h1>{data.organization.name}</h1><span>{data.organization.description || 'Encuentra actividades, congresos y experiencias disponibles.'}</span>
+  </section>
+  <section id="eventos" class="events"><div class="heading"><p>Próximamente</p><h2>Eventos publicados</h2></div>
+    {data.events.length ? <div class="grid">{data.events.map((event) => <a class="event-card" href={`/${data.organization.slug}/events/${event.id}`}><div class="cover" style={event.coverUrl ? `background-image:url(${event.coverUrl})` : undefined}></div><div class="card-body"><span class="mode">{event.eventMode || 'Evento'}</span><h3>{event.eventName}</h3><p>{event.description || 'Conoce todos los detalles y agenda.'}</p><time>{date.format(new Date(event.startDate))}</time></div></a>)}</div> : <p class="empty">Aún no hay eventos publicados.</p>}
+  </section>
+</PortalLayout>
+
+<style>
+  .hero { min-height: 360px; padding: 6rem 12vw; display: grid; align-content: center; gap: .75rem; color: white; background: #1c385e center/cover; } .hero p,.heading p,.mode { margin: 0; color: #9cc7ff; font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; } h1 { margin: 0; max-width: 760px; font-size: clamp(2.2rem, 5vw, 4.5rem); font-weight: 500; letter-spacing: -.045em; } .hero span { max-width: 580px; color: #e0eaff; line-height: 1.65; } .events { max-width: 1150px; margin: 0 auto; padding: 5rem 6vw; } .heading h2 { margin: .35rem 0 2rem; font-size: 2rem; font-weight: 500; letter-spacing: -.03em; } .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.25rem; } .event-card { overflow: hidden; border: 1px solid #e5e9f0; border-radius: 12px; color: inherit; text-decoration: none; background: white; transition: border-color .18s, transform .18s; } .event-card:hover { border-color: #a9bddb; transform: translateY(-2px); } .cover { height: 160px; background: #e8eef7 center/cover; } .card-body { padding: 1.25rem; } .card-body h3 { margin: .65rem 0; font-size: 1.1rem; font-weight: 500; } .card-body p { min-height: 2.6rem; color: #607087; font-size: .88rem; line-height: 1.5; } time { color: #315d94; font-size: .82rem; } .empty { color: #6a7689; }
+</style>

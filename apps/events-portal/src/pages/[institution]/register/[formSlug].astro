@@ -1,0 +1,29 @@
+---
+import PortalLayout from '../../../layouts/PortalLayout.astro';
+import { portalApi } from '../../../lib/api';
+const { institution, formSlug } = Astro.params;
+if (!institution || !formSlug) return new Response('Formulario no encontrado', { status: 404 });
+let listing: Awaited<ReturnType<typeof portalApi.events>>; let form: any;
+try {
+  [listing, form] = await Promise.all([
+    portalApi.events(institution),
+    fetch(`${portalApi.apiUrl}/public/registration-forms/${encodeURIComponent(formSlug)}`).then((response) => response.ok ? response.json() : Promise.reject()),
+  ]);
+} catch { return new Response('Formulario no disponible', { status: 404 }); }
+---
+<PortalLayout organization={listing.organization} title={`${form.title} · ${listing.organization.name}`}>
+  <section class="wrap"><a href={`/${institution}`} class="back">← Volver a eventos</a><div class="form-card"><p>Inscripción</p><h1>{form.title}</h1>{form.description && <span>{form.description}</span>}<form id="registration-form" data-api={portalApi.apiUrl} data-slug={form.slug}>{form.fields.map((field: any) => <label>{field.label}{field.required && <b> *</b>}{field.type === 'textarea' ? <textarea name={field.key} required={field.required} /> : field.type === 'select' ? <select name={field.key} required={field.required}><option value="">Selecciona una opción</option>{Array.isArray(field.options) && field.options.map((option: string) => <option value={option}>{option}</option>)}</select> : <input name={field.key} type={field.type === 'email' ? 'email' : field.type === 'phone' ? 'tel' : 'text'} required={field.required} />}</label>)}<button type="submit">Enviar inscripción</button><p id="form-status" role="status"></p></form></div></section>
+</PortalLayout>
+<script>
+  const form = document.querySelector('#registration-form');
+  const status = document.querySelector('#form-status');
+  form?.addEventListener('submit', async (event) => {
+    event.preventDefault(); const values = Object.fromEntries(new FormData(form).entries()); const button = form.querySelector('button'); button.disabled = true; status.textContent = 'Enviando…';
+    try { const response = await fetch(`${form.dataset.api}/public/registration-forms/${form.dataset.slug}/submissions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ answers: values }) }); if (!response.ok) throw new Error((await response.json()).message || 'No se pudo enviar el registro'); form.reset(); status.textContent = 'Tu inscripción fue enviada correctamente.'; }
+    catch (error) { status.textContent = error instanceof Error ? error.message : 'No se pudo enviar el registro.'; }
+    finally { button.disabled = false; }
+  });
+</script>
+<style>
+  .wrap { max-width: 720px; margin: 0 auto; padding: 4rem 6vw; } .back { color: #426a9d; font-size: .9rem; text-decoration: none; } .form-card { margin-top: 1.5rem; padding: 2rem; border: 1px solid #e3e8ef; border-radius: 12px; background: #fff; } .form-card > p { margin: 0; color: #3970ae; font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; } h1 { margin: .5rem 0; font-size: 2rem; font-weight: 500; letter-spacing: -.03em; } .form-card > span { color: #607087; line-height: 1.6; } form { display: grid; gap: 1rem; margin-top: 2rem; } label { display: grid; gap: .45rem; color: #334155; font-size: .9rem; } b { color: #b24a4a; font-weight: 500; } input, textarea, select { width: 100%; border: 1px solid #d9e0ea; border-radius: 7px; padding: .7rem .75rem; font: inherit; } textarea { min-height: 110px; resize: vertical; } button { justify-self: start; border: 0; border-radius: 7px; padding: .75rem 1rem; color: white; background: #2766ac; font: inherit; cursor: pointer; } button:disabled { opacity: .6; } #form-status { min-height: 1.3rem; color: #476380; font-size: .88rem; }
+</style>
