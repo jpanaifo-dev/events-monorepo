@@ -1,10 +1,11 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service.js';
+import { AutomationService } from '../marketing/automation.service.js';
 
 @Injectable()
 export class RegistrationFormsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly automations: AutomationService) {}
 
   list(eventId: string) {
     return this.prisma.registrationForm.findMany({
@@ -140,7 +141,7 @@ export class RegistrationFormsService {
       }
     }
     const email = typeof answers.email === 'string' ? answers.email : null;
-    return this.prisma.registrationSubmission.create({
+    const submission = await this.prisma.registrationSubmission.create({
       data: {
         formId: form.id,
         editionId: editionId || form.editionId || form.defaultEditionId || null,
@@ -149,5 +150,8 @@ export class RegistrationFormsService {
         status: form.approvalMode === 'AUTOMATIC' ? 'APPROVED' : 'PENDING',
       },
     });
+    const firstName = [answers.first_name, answers.firstName, answers.name, answers.nombres].find((value) => typeof value === 'string') as string | undefined;
+    await this.automations.enrollRegistration({ eventId: form.mainEventId, submissionId: submission.id, email, firstName, registeredAt: submission.submittedAt });
+    return submission;
   }
 }

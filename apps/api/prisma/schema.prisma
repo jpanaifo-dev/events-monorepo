@@ -179,8 +179,10 @@ model Organization {
   emailTemplates EmailTemplate[]
   marketingContacts MarketingContact[]
   marketingSegments MarketingSegment[]
+  marketingCampaigns MarketingCampaign[]
   automations MarketingAutomation[]
   emailDeliveries EmailDelivery[]
+  marketingEnrollments MarketingEventEnrollment[]
 
   @@map("organizations")
 }
@@ -199,7 +201,9 @@ model MarketingContact {
   organization    Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   profile         Profile?               @relation(fields: [profileId], references: [id], onDelete: SetNull)
   segmentMembers  MarketingSegmentMember[]
+  enrollments     MarketingEventEnrollment[]
   @@unique([organizationId, profileId])
+  @@unique([organizationId, emailFallback])
   @@index([organizationId, emailFallback])
   @@map("marketing_contacts")
 }
@@ -307,6 +311,7 @@ model MainEvent {
   contacts       EventContact[]
   registrationForms RegistrationForm[]
   automations MarketingAutomation[]
+  marketingEnrollments MarketingEventEnrollment[]
 
   @@index([organizationId, status])
   @@map("main_events")
@@ -428,6 +433,7 @@ model RegistrationSubmission {
   submittedAt     DateTime                   @default(now()) @map("submitted_at")
   reviewedAt      DateTime?                  @map("reviewed_at")
   form            RegistrationForm           @relation(fields: [formId], references: [id], onDelete: Cascade)
+  marketingEnrollment MarketingEventEnrollment?
   @@index([formId, status])
   @@map("registration_submissions")
 }
@@ -642,13 +648,55 @@ model MarketingAutomation {
   eventId String? @map("event_id") @db.Uuid
   name String
   status AutomationStatus @default(DRAFT)
+  settings Json?
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   organization Organization @relation(fields:[organizationId], references:[id], onDelete:Cascade)
   event MainEvent? @relation(fields:[eventId], references:[id], onDelete:SetNull)
   steps MarketingAutomationStep[]
+  enrollments MarketingEventEnrollment[]
   @@index([organizationId, status])
   @@map("marketing_automations")
+}
+
+// Campañas puntuales: se conserva para envíos manuales y para no perder datos previos.
+model MarketingCampaign {
+  id String @id @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  name String
+  subject String?
+  status String @default("DRAFT")
+  segmentIds Json @default("[]") @map("segment_ids")
+  scheduledAt DateTime? @map("scheduled_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  organization Organization @relation(fields:[organizationId], references:[id], onDelete:Cascade)
+  @@index([organizationId, status])
+  @@map("marketing_campaigns")
+}
+
+model MarketingEventEnrollment {
+  id String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  eventId String @map("event_id") @db.Uuid
+  automationId String @map("automation_id") @db.Uuid
+  contactId String @map("contact_id") @db.Uuid
+  submissionId String? @unique @map("submission_id") @db.Uuid
+  firstName String? @map("first_name")
+  registeredAt DateTime @default(now()) @map("registered_at")
+  attendanceStatus String @default("REGISTERED") @map("attendance_status")
+  purchaseStatus String @default("NONE") @map("purchase_status")
+  benefitUsedAt DateTime? @map("benefit_used_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  organization Organization @relation(fields:[organizationId], references:[id], onDelete:Cascade)
+  event MainEvent @relation(fields:[eventId], references:[id], onDelete:Cascade)
+  automation MarketingAutomation @relation(fields:[automationId], references:[id], onDelete:Cascade)
+  contact MarketingContact @relation(fields:[contactId], references:[id], onDelete:Cascade)
+  submission RegistrationSubmission? @relation(fields:[submissionId], references:[id], onDelete:SetNull)
+  @@unique([automationId, contactId])
+  @@index([eventId, attendanceStatus, purchaseStatus])
+  @@map("marketing_event_enrollments")
 }
 
 model MarketingAutomationStep {
@@ -679,6 +727,7 @@ model EmailDelivery {
   status DeliveryStatus @default(QUEUED)
   providerMessageId String? @map("provider_message_id")
   error String?
+  context Json?
   organization Organization @relation(fields:[organizationId], references:[id], onDelete:Cascade)
   @@unique([stepId, recipientEmail])
   @@index([status, scheduledAt])

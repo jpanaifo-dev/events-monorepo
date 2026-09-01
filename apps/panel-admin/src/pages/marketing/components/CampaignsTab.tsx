@@ -12,7 +12,6 @@ import {
   Calendar,
   CheckCircle2,
   Clock,
-  Sparkles,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -143,9 +142,7 @@ export function CampaignsTab({
       {/* Campaigns List (Matches Reference Image 1) */}
       {filteredCampaigns.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-border bg-card/40 p-12 text-center space-y-4 max-w-lg mx-auto my-6">
-          <div className="size-14 rounded-2xl bg-violet-500/10 text-violet-600 dark:text-violet-400 flex items-center justify-center mx-auto">
-            <Sparkles className="size-7" />
-          </div>
+          <img src="/svg/empty_marketing.svg" alt="Sin campañas de email" className="w-44 h-36 object-contain mx-auto" />
           <div>
             <h3 className="font-bold text-foreground text-base">No hay campañas que coincidan</h3>
             <p className="text-xs text-muted-foreground mt-1">

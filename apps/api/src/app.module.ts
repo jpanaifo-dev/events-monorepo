@@ -13,6 +13,7 @@ import { MailModule } from './modules/mail/mail.module.js';
 import { RegistrationFormsModule } from './modules/registration-forms/registration-forms.module.js';
 import { EmailTemplatesModule } from './modules/email-templates/email-templates.module.js';
 import { MarketingModule } from './modules/marketing/marketing.module.js';
+import { PublicEventsModule } from './modules/public-events/public-events.module.js';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { MarketingModule } from './modules/marketing/marketing.module.js';
     RegistrationFormsModule,
     EmailTemplatesModule,
     MarketingModule,
+    PublicEventsModule,
   ],
   controllers: [HealthController],
 })
