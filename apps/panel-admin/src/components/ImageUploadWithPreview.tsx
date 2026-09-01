@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react"
 import { Upload, Trash2, Link2, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
-import { uploadToR2, deleteFromR2 } from "@/utils/r2-storage"
+import { uploadOrganizationAsset, uploadToR2, deleteFromR2, type OrganizationAssetTarget } from "@/utils/r2-storage"
 
 interface ImageUploadWithPreviewProps {
   value: string
@@ -12,6 +12,7 @@ interface ImageUploadWithPreviewProps {
   placeholder?: string
   folder?: string
   identifier?: string
+  assetTarget?: OrganizationAssetTarget
   onFileSelect?: (file: File) => void
   /** Llamado SOLO cuando el archivo se subió exitosamente a R2 (modo edición directa).
    *  Recibe la URL pública de R2. Úsalo para persistir en BD automáticamente. */
@@ -26,6 +27,7 @@ export function ImageUploadWithPreview({
   placeholder = "Arrastra y suelta una imagen aquí, o pega un enlace abajo",
   folder = "general",
   identifier = "file",
+  assetTarget,
   onFileSelect,
   onR2UploadComplete
 }: ImageUploadWithPreviewProps) {
@@ -86,7 +88,7 @@ export function ImageUploadWithPreview({
 
       // Upload to Cloudflare R2
       try {
-        const publicUrl = await uploadToR2(file, folder, identifier)
+        const publicUrl = assetTarget ? await uploadOrganizationAsset(file, assetTarget) : await uploadToR2(file, folder, identifier)
         // 1. Actualizar URL en el estado del padre
         onChange(publicUrl)
         // 2. Si hay callback de auto-guardado en BD, invocarlo (modo edición)

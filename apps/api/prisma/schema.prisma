@@ -370,6 +370,8 @@ model Edition {
   endDate      DateTime?          @map("end_date")
   modality     String?
   location     String?
+  description  String?
+  coverUrl     String?            @map("cover_url")
   latitude     Float?
   longitude    Float?
   createdAt    DateTime           @default(now()) @map("created_at")

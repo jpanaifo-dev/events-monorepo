@@ -11,6 +11,7 @@ import { Trash2 } from "lucide-react"
 
 import { useSEO } from "@/hooks/use-seo"
 import { LocationPickerMap } from "@/components/location-picker-map"
+import { ImageUploadWithPreview } from "@/components/ImageUploadWithPreview"
 
 const toDateInputValue = (value: string) => value ? value.slice(0, 10) : ""
 
@@ -113,8 +114,8 @@ export function EditEditionPage() {
         isCurrent: status === "active",
         location,
         modality,
-        latitude: latitude ? Number(latitude) : undefined,
-        longitude: longitude ? Number(longitude) : undefined,
+        latitude: modality === "virtual" ? null : (latitude ? Number(latitude) : undefined),
+        longitude: modality === "virtual" ? null : (longitude ? Number(longitude) : undefined),
       })
 
       toast.success("Edición actualizada exitosamente")
@@ -237,13 +238,13 @@ export function EditEditionPage() {
                 <p className="text-xs text-muted-foreground">Enlace de la imagen específica de esta edición.</p>
               </div>
               <div className="md:w-2/3 max-w-md w-full">
-                <Input
-                  id="ed-cover"
-                  type="url"
-                  placeholder="https://ejemplo.com/edicion-cover.jpg"
+                <ImageUploadWithPreview
                   value={coverUrl}
-                  onChange={(e) => setCoverUrl(e.target.value)}
-                  className="bg-background"
+                  onChange={setCoverUrl}
+                  label=""
+                  aspectRatio="banner"
+                  assetTarget={selectedOrganization?.id ? { organizationId: selectedOrganization.id, type: "editions/cover", resourceId: editionId } : undefined}
+                  placeholder="Arrastra una portada o pega una URL"
                 />
               </div>
             </div>
@@ -317,7 +318,14 @@ export function EditEditionPage() {
                 <select
                   id="ed-modality"
                   value={modality}
-                  onChange={(e) => setModality(e.target.value)}
+                  onChange={(e) => {
+                    const nextModality = e.target.value
+                    setModality(nextModality)
+                    if (nextModality === "virtual") {
+                      setLatitude("")
+                      setLongitude("")
+                    }
+                  }}
                   className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs outline-none focus-visible:ring-1 focus-visible:ring-ring text-foreground"
                 >
                   <option value="presencial">Presencial</option>
@@ -344,10 +352,10 @@ export function EditEditionPage() {
                   onChange={(e) => setLocation(e.target.value)}
                   className="bg-background"
                 />
-                <div className="mt-3 grid grid-cols-2 gap-3">
+                {modality !== "virtual" && <div className="mt-3 grid grid-cols-2 gap-3">
                   <Input type="number" step="any" placeholder="Latitud" value={latitude} onChange={(e) => setLatitude(e.target.value)} />
                   <Input type="number" step="any" placeholder="Longitud" value={longitude} onChange={(e) => setLongitude(e.target.value)} />
-                </div>
+                </div>}
                 {modality !== "virtual" && <LocationPickerMap latitude={latitude ? Number(latitude) : undefined} longitude={longitude ? Number(longitude) : undefined} onSelect={({ latitude: lat, longitude: lng }) => { setLatitude(lat.toFixed(6)); setLongitude(lng.toFixed(6)) }} />}
               </div>
             </div>

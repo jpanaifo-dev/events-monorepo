@@ -41,8 +41,8 @@ export interface Edition {
   isCurrent: boolean
   location: string
   modality: string
-  latitude?: number
-  longitude?: number
+  latitude?: number | null
+  longitude?: number | null
 }
 
 export interface Speaker {
@@ -266,7 +266,7 @@ function mapMainEvent(row: any): Event {
     slug: row.slug,
     name: row.name || row.eventName,
     shortDescription: row.short_description || row.description || "",
-    about: row.about || null,
+    about: row.about || row.details?.content || null,
     logoUrl: row.logo_url || row.logoUrl || "",
     coverUrl: row.cover_url || row.coverUrl || "",
     brandColors: row.brand_colors || { primary: "#000000", secondary: "#ffffff" },
@@ -293,7 +293,7 @@ function mapEdition(row: any): Edition {
     year: row.year || new Date().getFullYear(),
     name: typeof row.name === "string" ? row.name : (row.name?.es || row.name?.en || "Edición"),
     description: typeof row.description === "string" ? row.description : (row.description?.es || row.description?.en || ""),
-    coverUrl: row.cover_url || "",
+    coverUrl: row.coverUrl || row.cover_url || "",
     startDate: row.start_date || row.startDate || "",
     endDate: row.end_date || row.endDate || "",
     isCurrent: !!row.is_current,
@@ -648,7 +648,7 @@ export const useEventStore = create<EventState>((set, get) => ({
       mappedUpdates.updated_at = new Date().toISOString()
 
       if (Object.keys(mappedUpdates).length > 1) {
-        await api.events.update(id, { eventName: mappedUpdates.name, description: mappedUpdates.description, status: mappedUpdates.status, coverUrl, logoUrl, contactEmail: restUpdates.contactEmail, eventMode: restUpdates.eventMode, venueAddress: restUpdates.venueAddress, latitude: restUpdates.latitude, longitude: restUpdates.longitude })
+        await api.events.update(id, { eventName: mappedUpdates.name, description: restUpdates.shortDescription, detailContent: typeof restUpdates.about === "string" ? restUpdates.about : restUpdates.about?.es, status: mappedUpdates.status, coverUrl, logoUrl, contactEmail: restUpdates.contactEmail, eventMode: restUpdates.eventMode, venueAddress: restUpdates.venueAddress, latitude: restUpdates.latitude, longitude: restUpdates.longitude })
       }
 
       set((state) => ({
@@ -699,6 +699,8 @@ export const useEventStore = create<EventState>((set, get) => ({
 
       const createdEdition = await api.editions.create(editionData.mainEventId, {
         name: String(editionData.name),
+        ...(editionData.description ? { description: editionData.description } : {}),
+        ...(editionData.coverUrl ? { coverUrl: editionData.coverUrl } : {}),
         startDate: editionData.startDate,
         ...(editionData.endDate ? { endDate: editionData.endDate } : {}),
         ...(editionData.modality ? { modality: editionData.modality } : {}),
@@ -748,7 +750,7 @@ export const useEventStore = create<EventState>((set, get) => ({
 
       const currentEdition = get().editions.find((edition) => edition.id === id)
       if (!currentEdition) throw new Error("Edición no encontrada")
-      await api.editions.update(currentEdition.mainEventId, id, { name: updates.name, startDate: updates.startDate, endDate: updates.endDate, modality: updates.modality, location: updates.location, latitude: updates.latitude, longitude: updates.longitude })
+      await api.editions.update(currentEdition.mainEventId, id, { name: updates.name, description: updates.description, coverUrl: updates.coverUrl, startDate: updates.startDate, endDate: updates.endDate, modality: updates.modality, location: updates.location, latitude: updates.latitude, longitude: updates.longitude })
 
       set((state) => ({
         editions: state.editions.map((ed) => ed.id === id ? { ...ed, ...updates } : ed)

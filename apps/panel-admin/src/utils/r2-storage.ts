@@ -7,6 +7,7 @@ export type OrganizationAssetType =
   | "branding/favicon"
   | "events/cover"
   | "events/logo"
+  | "editions/cover"
   | "events/media"
   | "profiles/avatar"
   | "certificates/background"

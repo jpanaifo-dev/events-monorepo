@@ -20,6 +20,7 @@ import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { EmptyState } from "@/components/ui/empty-state"
 import {
   Dialog,
   DialogContent,
@@ -251,24 +252,35 @@ export function EventFormsSection() {
           ))}
         </div>
       ) : filteredForms.length === 0 ? (
-        <div className="rounded-2xl border-2 border-dashed border-border/80 bg-card/40 p-12 text-center max-w-xl mx-auto space-y-4 my-6">
-          <div className="size-16 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto">
-            <Sparkles className="size-8" />
-          </div>
-          <div>
-            <h3 className="text-lg font-bold text-foreground">No tienes formularios creados</h3>
-            <p className="text-sm text-muted-foreground mt-1 max-w-sm mx-auto">
-              Crea tu primer formulario de registro con nuestro diseñador visual para empezar a captar asistentes.
-            </p>
-          </div>
-          <Button
-            onClick={() => setOpenModal(true)}
-            className="rounded-xl font-semibold bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-primary dark:text-primary-foreground"
-          >
-            <Plus className="mr-2 size-4" />
-            Crear primer formulario
-          </Button>
-        </div>
+        <EmptyState
+          imageSrc="/svg/empty_form.svg"
+          imageAlt="Sin formularios"
+          title={search ? "No se encontraron formularios" : "No tienes formularios creados"}
+          description={
+            search
+              ? `No encontramos ningún formulario que coincida con "${search}". Intenta con otra búsqueda.`
+              : "Crea tu primer formulario de registro con nuestro diseñador visual para empezar a captar asistentes."
+          }
+          action={
+            search ? (
+              <Button
+                variant="outline"
+                onClick={() => setSearch("")}
+                className="rounded-xl font-medium"
+              >
+                Limpiar búsqueda
+              </Button>
+            ) : (
+              <Button
+                onClick={() => setOpenModal(true)}
+                className="rounded-xl font-semibold bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-primary dark:text-primary-foreground"
+              >
+                <Plus className="mr-2 size-4" />
+                Crear primer formulario
+              </Button>
+            )
+          }
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredForms.map((form) => {
