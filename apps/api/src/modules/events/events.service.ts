@@ -9,8 +9,12 @@ export class EventsService {
   async get(id: string) { const event = await this.prisma.mainEvent.findUnique({ where: { id }, include: { editions: { include: { activities: true, participants: true, tickets: true } }, details: true, thematicLines: true } }); if (!event) throw new NotFoundException('Evento no encontrado'); return event; }
   create(data: Record<string, any>) { return this.prisma.mainEvent.create({ data: { eventName: data.eventName, startDate: new Date(data.startDate), organizationId: data.organizationId, description: data.description, coverUrl: data.coverUrl, logoUrl: data.logoUrl, contactEmail: data.contactEmail, status: (data.status ? String(data.status).toUpperCase() : 'DRAFT') as EventStatus } }); }
   update(id: string, data: Record<string, unknown>) {
-    const input: Record<string, unknown> = {};
-    for (const key of ['eventName', 'description', 'coverUrl', 'logoUrl', 'organizationId', 'eventMode', 'contactEmail', 'venueAddress', 'latitude', 'longitude']) if (data[key] !== undefined) input[key] = data[key];
+    const input: any = {};
+    for (const key of ['eventName', 'description', 'coverUrl', 'logoUrl', 'organizationId', 'contactEmail', 'venueAddress', 'latitude', 'longitude']) if (data[key] !== undefined) input[key] = data[key];
+    if (data.eventMode !== undefined) {
+      const mode = String(data.eventMode).trim().toUpperCase();
+      input.eventMode = ['PHYSICAL', 'ONLINE', 'HYBRID'].includes(mode) ? mode : null;
+    }
     if (data.status !== undefined) input.status = String(data.status).toUpperCase();
     if (typeof data.startDate === 'string') input.startDate = new Date(data.startDate);
     if (typeof data.endDate === 'string') input.endDate = new Date(data.endDate);

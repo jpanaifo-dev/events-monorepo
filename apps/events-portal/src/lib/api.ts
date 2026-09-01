@@ -12,6 +12,6 @@ async function request<T>(path: string): Promise<T> {
 
 export const portalApi = {
   events: (slug: string) => request<{ organization: PortalOrganization; events: PortalEvent[] }>(`/public/organizations/${encodeURIComponent(slug)}/events`),
-  event: (slug: string, id: string) => request<PortalEvent & { details?: { content?: string | null; faqs?: unknown; sponsors?: unknown } | null; editions: Array<{ id: string; name: string; startDate?: string | null; endDate?: string | null; modality?: string | null; location?: string | null; activities: Array<{ id: string; title: string; description?: string | null; startsAt?: string | null; endsAt?: string | null }> }>; registrationForms: Array<{ title: string; description?: string | null; slug: string }> }>(`/public/organizations/${encodeURIComponent(slug)}/events/${encodeURIComponent(id)}`),
+  event: (slug: string, id: string) => request<PortalEvent & { details?: { content?: string | null; faqs?: unknown; sponsors?: unknown } | null; editions: Array<{ id: string; name: string; startDate?: string | null; endDate?: string | null; modality?: string | null; location?: string | null; activities: Array<{ id: string; title: string; description?: string | null; startsAt?: string | null; endsAt?: string | null }> }>; registrationForms: Array<{ title: string; description?: string | null; slug: string; purpose?: string | null; opensAt?: string | null; closesAt?: string | null }> }>(`/public/organizations/${encodeURIComponent(slug)}/events/${encodeURIComponent(id)}`),
   apiUrl,
 };

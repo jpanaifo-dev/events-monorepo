@@ -26,6 +26,8 @@ const activities = event.editions.flatMap((edition) =>
 );
 
 const forms = event.registrationForms || [];
+const mainForm = forms.find((form) => form.purpose === 'MAIN');
+const secondaryForms = forms.filter((form) => form.purpose !== 'MAIN');
 ---
 
 <PortalLayout organization={listing.organization} title={`${event.eventName} · ${listing.organization.name}`}>
@@ -155,9 +157,15 @@ const forms = event.registrationForms || [];
           <p class="reg-section-subtitle">Selecciona el formulario correspondiente para completar tu registro oficial.</p>
         </div>
 
-        {forms.length > 0 ? (
+        {mainForm && (
+          <a href={`/${institution}/register/${mainForm.slug}`} class="main-registration-panel">
+            <div><span class="ticket-badge">REGISTRO PRINCIPAL</span><h3>{mainForm.title}</h3><p>{mainForm.description || 'Completa tu inscripción oficial como participante del evento.'}</p></div>
+            <span class="main-registration-action">Iniciar inscripción →</span>
+          </a>
+        )}
+        {secondaryForms.length > 0 ? (
           <div class="reg-forms-grid">
-            {forms.map((f) => (
+            {secondaryForms.map((f) => (
               <div class="reg-ticket-card">
                 <div class="ticket-header">
                   <span class="ticket-badge">FORMULARIO PUBLICADO</span>
@@ -177,7 +185,7 @@ const forms = event.registrationForms || [];
               </div>
             ))}
           </div>
-        ) : (
+        ) : !mainForm && (
           <div class="empty-reg-box">
             <h3>Inscripciones próximamente</h3>
             <p>El formulario de registro para este evento se habilitará en los próximos días.</p>
@@ -461,6 +469,10 @@ const forms = event.registrationForms || [];
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: 2rem;
   }
+  .main-registration-panel { display: flex; align-items: center; justify-content: space-between; gap: 2rem; margin-bottom: 2rem; padding: 2rem; border-radius: 16px; background: #ffffff; color: #172033; text-decoration: none; border: 1px solid rgba(255,255,255,.16); }
+  .main-registration-panel h3 { font-family: 'Outfit', sans-serif; font-size: 1.6rem; font-weight: 600; margin: .35rem 0; }
+  .main-registration-panel p { color: #52637a; font-size: .94rem; }
+  .main-registration-action { white-space: nowrap; font-weight: 600; background: #172033; color: #fff; padding: .8rem 1.1rem; border-radius: 10px; }
   .reg-ticket-card {
     background: #0c0e12;
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -570,4 +582,5 @@ const forms = event.registrationForms || [];
   :global(html:not(.dark)) .empty-reg-box { background: #ffffff; border-color: #dce4ee; }
   :global(html:not(.dark)) .activity-card-footer { border-color: #e2e8f0; color: #64748b; }
   :global(html:not(.dark)) .act-badge.dark { background: #f1f5f9; color: #52637a; }
+  :global(html:not(.dark)) .main-registration-panel { border-color: #dce4ee; }
 </style>

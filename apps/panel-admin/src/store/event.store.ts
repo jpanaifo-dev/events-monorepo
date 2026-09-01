@@ -107,6 +107,10 @@ export interface Attendee {
   identityDocumentNumber?: string | null
   roleId?: string
   source?: "PARTICIPANT" | "FORM"
+  sourceFormTitle?: string
+  sourceFormPurpose?: string
+  sourceFormId?: string
+  submissionId?: string
 }
 
 export interface ParticipantRole {
@@ -441,25 +445,6 @@ export const useEventStore = create<EventState>((set, get) => ({
           }))
         }
 
-        const submissions = (await Promise.all(mainEventIds.map((eventId) => api.registrationForms.submissions(eventId)))).flat()
-        submissions.forEach((submission: any) => {
-          const answers = submission.answers && typeof submission.answers === "object" ? submission.answers : {}
-          const firstName = answers.first_name || answers.firstName || answers.name || answers.nombres || ""
-          const lastName = answers.last_name || answers.lastName || answers.apellidos || ""
-          const fullName = `${firstName} ${lastName}`.trim() || submission.email || "Participante"
-          formattedAttendees.push({
-            id: `form:${submission.id}`,
-            eventId: submission.form?.mainEventId || "",
-            editionId: submission.editionId || submission.form?.editionId || null,
-            fullName,
-            email: submission.email || answers.email || "",
-            ticketType: submission.status === "APPROVED" ? "Registro aprobado" : "Registro por revisar",
-            registrationDate: submission.submittedAt ? submission.submittedAt.split("T")[0] : new Date().toISOString().split("T")[0],
-            checkedIn: false,
-            avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fullName)}`,
-            source: "FORM",
-          })
-        })
       }
 
       // Fetch participant roles to match role_id without postgrest join constraint issues
@@ -524,6 +509,13 @@ export const useEventStore = create<EventState>((set, get) => ({
             }
           })
         }
+
+        const submissions = (await Promise.all(mainEventIds.map((eventId) => api.registrationForms.submissions(eventId)))).flat()
+        submissions.forEach((submission: any) => {
+          const answers = submission.answers && typeof submission.answers === "object" ? submission.answers : {}
+          const fullName = String(answers.full_name || answers.name || submission.email || "Participante")
+          formattedAttendees.push({ id: `form:${submission.id}`, eventId: submission.form?.mainEventId || "", editionId: submission.editionId || submission.form?.editionId || null, fullName, email: submission.email || answers.email || "", ticketType: "Inscripción", registrationDate: submission.submittedAt?.split("T")[0] || "", checkedIn: false, source: "FORM", sourceFormTitle: submission.form?.title || "Formulario", sourceFormPurpose: submission.form?.purpose || "PARTICIPANT", sourceFormId: submission.formId, submissionId: submission.id })
+        })
       }
 
       // Fetch thematic lines

@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState, useMemo, useRef } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import {
   ArrowLeft,
@@ -111,12 +111,19 @@ export function EventFormBuilderPage() {
   // Undo / Redo History Stack
   const [history, setHistory] = useState<FormBlock[][]>([])
   const [historyIndex, setHistoryIndex] = useState<number>(-1)
+  const historyRef = useRef<FormBlock[][]>([])
+  const historyIndexRef = useRef(-1)
+  const [draggedKey, setDraggedKey] = useState<string | null>(null)
 
   // Settings Modal (Step 1 Configuration Modal)
   const [openSettingsModal, setOpenSettingsModal] = useState(false)
   const [formTitle, setFormTitle] = useState("")
   const [formSlug, setFormSlug] = useState("")
   const [formStatus, setFormStatus] = useState("DRAFT")
+  const [formPurpose, setFormPurpose] = useState("PARTICIPANT")
+  const [opensAt, setOpensAt] = useState("")
+  const [closesAt, setClosesAt] = useState("")
+  const [maxSubmissions, setMaxSubmissions] = useState("")
 
   // Load Form Data
   useEffect(() => {
@@ -144,6 +151,10 @@ export function EventFormBuilderPage() {
         setFormTitle(data.title || "")
         setFormSlug(data.slug || "")
         setFormStatus(data.status || "DRAFT")
+        setFormPurpose(data.purpose || "PARTICIPANT")
+        setOpensAt(data.opensAt ? new Date(data.opensAt).toISOString().slice(0, 16) : "")
+        setClosesAt(data.closesAt ? new Date(data.closesAt).toISOString().slice(0, 16) : "")
+        setMaxSubmissions(data.maxSubmissions ? String(data.maxSubmissions) : "")
 
         if (data.fields && data.fields.length > 0) {
           const loadedBlocks: FormBlock[] = data.fields.map((f: any) => ({
@@ -154,6 +165,8 @@ export function EventFormBuilderPage() {
             options: f.options || {},
           }))
           setBlocks(loadedBlocks)
+          historyRef.current = [loadedBlocks]
+          historyIndexRef.current = 0
           setHistory([loadedBlocks])
           setHistoryIndex(0)
         } else {
@@ -190,6 +203,8 @@ export function EventFormBuilderPage() {
             },
           ]
           setBlocks(initialBlocks)
+          historyRef.current = [initialBlocks]
+          historyIndexRef.current = 0
           setHistory([initialBlocks])
           setHistoryIndex(0)
         }
@@ -205,27 +220,45 @@ export function EventFormBuilderPage() {
 
   // Push new state into history stack for Undo/Redo
   const updateBlocksWithHistory = (newBlocks: FormBlock[]) => {
-    setBlocks(newBlocks)
-    const newHistory = history.slice(0, historyIndex + 1)
-    newHistory.push(newBlocks)
+    const snapshot = newBlocks.map((block) => ({ ...block, options: block.options ? { ...block.options } : undefined }))
+    const newHistory = historyRef.current.slice(0, historyIndexRef.current + 1)
+    newHistory.push(snapshot)
+    historyRef.current = newHistory
+    historyIndexRef.current = newHistory.length - 1
+    setBlocks(snapshot)
     setHistory(newHistory)
     setHistoryIndex(newHistory.length - 1)
   }
 
   const handleUndo = () => {
-    if (historyIndex > 0) {
-      const prev = history[historyIndex - 1]
-      setHistoryIndex(historyIndex - 1)
+    if (historyIndexRef.current > 0) {
+      const nextIndex = historyIndexRef.current - 1
+      const prev = historyRef.current[nextIndex]
+      historyIndexRef.current = nextIndex
+      setHistoryIndex(nextIndex)
       setBlocks(prev)
     }
   }
 
   const handleRedo = () => {
-    if (historyIndex < history.length - 1) {
-      const next = history[historyIndex + 1]
-      setHistoryIndex(historyIndex + 1)
+    if (historyIndexRef.current < historyRef.current.length - 1) {
+      const nextIndex = historyIndexRef.current + 1
+      const next = historyRef.current[nextIndex]
+      historyIndexRef.current = nextIndex
+      setHistoryIndex(nextIndex)
       setBlocks(next)
     }
+  }
+
+  const moveBlock = (fromKey: string, toKey: string) => {
+    if (fromKey === toKey) return
+    const from = blocks.findIndex((block) => block.key === fromKey)
+    const to = blocks.findIndex((block) => block.key === toKey)
+    if (from < 0 || to < 0) return
+    const reordered = [...blocks]
+    const [moved] = reordered.splice(from, 1)
+    reordered.splice(to, 0, moved)
+    updateBlocksWithHistory(reordered)
   }
 
   const handleReset = () => {
@@ -473,6 +506,10 @@ export function EventFormBuilderPage() {
         title: formTitle,
         slug: formSlug,
         status: finalStatus,
+        purpose: formPurpose,
+        opensAt: opensAt || null,
+        closesAt: closesAt || null,
+        maxSubmissions: maxSubmissions ? Number(maxSubmissions) : null,
         fields: blocks.map((b) => ({
           key: b.key,
           label: b.label,
@@ -998,7 +1035,7 @@ export function EventFormBuilderPage() {
                     </h4>
                     <div className="space-y-1.5">
                       <button
-                        onClick={() => addBlock("header", "Título")}
+                        draggable onDragStart={(event) => { event.dataTransfer.effectAllowed = "copy"; event.dataTransfer.setData("application/x-new-form-block", JSON.stringify({ type: "header", label: "Título" })) }} onClick={() => addBlock("header", "Título")}
                         className="w-full flex items-center justify-between p-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 hover:border-violet-500/50 hover:bg-violet-50/30 dark:hover:bg-violet-950/20 transition-all text-left group bg-white dark:bg-zinc-900"
                       >
                         <span className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200">
@@ -1009,7 +1046,7 @@ export function EventFormBuilderPage() {
                       </button>
 
                       <button
-                        onClick={() => addBlock("paragraph", "Texto")}
+                        draggable onDragStart={(event) => { event.dataTransfer.effectAllowed = "copy"; event.dataTransfer.setData("application/x-new-form-block", JSON.stringify({ type: "paragraph", label: "Texto" })) }} onClick={() => addBlock("paragraph", "Texto")}
                         className="w-full flex items-center justify-between p-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 hover:border-violet-500/50 hover:bg-violet-50/30 dark:hover:bg-violet-950/20 transition-all text-left group bg-white dark:bg-zinc-900"
                       >
                         <span className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200">
@@ -1020,7 +1057,7 @@ export function EventFormBuilderPage() {
                       </button>
 
                       <button
-                        onClick={() => addBlock("image", "Imagen")}
+                        draggable onDragStart={(event) => { event.dataTransfer.effectAllowed = "copy"; event.dataTransfer.setData("application/x-new-form-block", JSON.stringify({ type: "image", label: "Imagen" })) }} onClick={() => addBlock("image", "Imagen")}
                         className="w-full flex items-center justify-between p-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 hover:border-violet-500/50 hover:bg-violet-50/30 dark:hover:bg-violet-950/20 transition-all text-left group bg-white dark:bg-zinc-900"
                       >
                         <span className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200">
@@ -1031,7 +1068,7 @@ export function EventFormBuilderPage() {
                       </button>
 
                       <button
-                        onClick={() => addBlock("divider", "Divisor")}
+                        draggable onDragStart={(event) => { event.dataTransfer.effectAllowed = "copy"; event.dataTransfer.setData("application/x-new-form-block", JSON.stringify({ type: "divider", label: "Divisor" })) }} onClick={() => addBlock("divider", "Divisor")}
                         className="w-full flex items-center justify-between p-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 hover:border-violet-500/50 hover:bg-violet-50/30 dark:hover:bg-violet-950/20 transition-all text-left group bg-white dark:bg-zinc-900"
                       >
                         <span className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200">
@@ -1050,7 +1087,7 @@ export function EventFormBuilderPage() {
                     </h4>
                     <div className="space-y-1.5">
                       <button
-                        onClick={() => addBlock("text", "Atributo")}
+                        draggable onDragStart={(event) => { event.dataTransfer.effectAllowed = "copy"; event.dataTransfer.setData("application/x-new-form-block", JSON.stringify({ type: "text", label: "Atributo" })) }} onClick={() => addBlock("text", "Atributo")}
                         className="w-full flex items-center justify-between p-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 hover:border-violet-500/50 hover:bg-violet-50/30 dark:hover:bg-violet-950/20 transition-all text-left group bg-white dark:bg-zinc-900"
                       >
                         <span className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200">
@@ -1061,7 +1098,7 @@ export function EventFormBuilderPage() {
                       </button>
 
                       <button
-                        onClick={() => addBlock("radio", "Elección única")}
+                        draggable onDragStart={(event) => { event.dataTransfer.effectAllowed = "copy"; event.dataTransfer.setData("application/x-new-form-block", JSON.stringify({ type: "radio", label: "Elección única" })) }} onClick={() => addBlock("radio", "Elección única")}
                         className="w-full flex items-center justify-between p-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 hover:border-violet-500/50 hover:bg-violet-50/30 dark:hover:bg-violet-950/20 transition-all text-left group bg-white dark:bg-zinc-900"
                       >
                         <span className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200">
@@ -1072,7 +1109,7 @@ export function EventFormBuilderPage() {
                       </button>
 
                       <button
-                        onClick={() => addBlock("checkbox", "Casilla de verificación")}
+                        draggable onDragStart={(event) => { event.dataTransfer.effectAllowed = "copy"; event.dataTransfer.setData("application/x-new-form-block", JSON.stringify({ type: "checkbox", label: "Casilla de verificación" })) }} onClick={() => addBlock("checkbox", "Casilla de verificación")}
                         className="w-full flex items-center justify-between p-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 hover:border-violet-500/50 hover:bg-violet-50/30 dark:hover:bg-violet-950/20 transition-all text-left group bg-white dark:bg-zinc-900"
                       >
                         <span className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200">
@@ -1083,7 +1120,7 @@ export function EventFormBuilderPage() {
                       </button>
 
                       <button
-                        onClick={() => addBlock("multiple", "Opción múltiple")}
+                        draggable onDragStart={(event) => { event.dataTransfer.effectAllowed = "copy"; event.dataTransfer.setData("application/x-new-form-block", JSON.stringify({ type: "multiple", label: "Opción múltiple" })) }} onClick={() => addBlock("multiple", "Opción múltiple")}
                         className="w-full flex items-center justify-between p-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 hover:border-violet-500/50 hover:bg-violet-50/30 dark:hover:bg-violet-950/20 transition-all text-left group bg-white dark:bg-zinc-900"
                       >
                         <span className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200">
@@ -1094,7 +1131,7 @@ export function EventFormBuilderPage() {
                       </button>
 
                       <button
-                        onClick={() => addBlock("phone", "SMS")}
+                        draggable onDragStart={(event) => { event.dataTransfer.effectAllowed = "copy"; event.dataTransfer.setData("application/x-new-form-block", JSON.stringify({ type: "phone", label: "SMS" })) }} onClick={() => addBlock("phone", "SMS")}
                         className="w-full flex items-center justify-between p-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 hover:border-violet-500/50 hover:bg-violet-50/30 dark:hover:bg-violet-950/20 transition-all text-left group bg-white dark:bg-zinc-900"
                       >
                         <span className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200">
@@ -1113,7 +1150,7 @@ export function EventFormBuilderPage() {
                     </h4>
                     <div className="space-y-1.5">
                       <button
-                        onClick={() => addBlock("terms", "Confirmación de Términos")}
+                        draggable onDragStart={(event) => { event.dataTransfer.effectAllowed = "copy"; event.dataTransfer.setData("application/x-new-form-block", JSON.stringify({ type: "terms", label: "Confirmación de Términos" })) }} onClick={() => addBlock("terms", "Confirmación de Términos")}
                         className="w-full flex items-center justify-between p-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 hover:border-violet-500/50 hover:bg-violet-50/30 dark:hover:bg-violet-950/20 transition-all text-left group bg-white dark:bg-zinc-900"
                       >
                         <span className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200">
@@ -1124,7 +1161,7 @@ export function EventFormBuilderPage() {
                       </button>
 
                       <button
-                        onClick={() => addBlock("privacy", "Declaración de Privacidad")}
+                        draggable onDragStart={(event) => { event.dataTransfer.effectAllowed = "copy"; event.dataTransfer.setData("application/x-new-form-block", JSON.stringify({ type: "privacy", label: "Declaración de Privacidad" })) }} onClick={() => addBlock("privacy", "Declaración de Privacidad")}
                         className="w-full flex items-center justify-between p-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 hover:border-violet-500/50 hover:bg-violet-50/30 dark:hover:bg-violet-950/20 transition-all text-left group bg-white dark:bg-zinc-900"
                       >
                         <span className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200">
@@ -1135,7 +1172,7 @@ export function EventFormBuilderPage() {
                       </button>
 
                       <button
-                        onClick={() => addBlock("captcha", "Captcha")}
+                        draggable onDragStart={(event) => { event.dataTransfer.effectAllowed = "copy"; event.dataTransfer.setData("application/x-new-form-block", JSON.stringify({ type: "captcha", label: "Captcha" })) }} onClick={() => addBlock("captcha", "Captcha")}
                         className="w-full flex items-center justify-between p-2.5 rounded-xl border border-slate-200 dark:border-zinc-800 hover:border-violet-500/50 hover:bg-violet-50/30 dark:hover:bg-violet-950/20 transition-all text-left group bg-white dark:bg-zinc-900"
                       >
                         <span className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200">
@@ -1263,6 +1300,12 @@ export function EventFormBuilderPage() {
                 borderRadius: theme.borderRadius,
               }}
               onClick={(e) => e.stopPropagation()}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => {
+                event.preventDefault()
+                const payload = event.dataTransfer.getData("application/x-new-form-block")
+                if (payload) { const { type, label } = JSON.parse(payload); addBlock(type, label) }
+              }}
             >
               {blocks.length === 0 ? (
                 <div className="p-6 text-center border-2 border-dashed border-slate-200 rounded-xl text-slate-400 text-xs">
@@ -1274,11 +1317,16 @@ export function EventFormBuilderPage() {
                   return (
                     <div
                       key={block.key}
+                      draggable
+                      onDragStart={(event) => { event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("application/x-form-block", block.key); setDraggedKey(block.key) }}
+                      onDragOver={(event) => event.preventDefault()}
+                      onDrop={(event) => { event.preventDefault(); const key = event.dataTransfer.getData("application/x-form-block"); if (key) moveBlock(key, block.key); setDraggedKey(null) }}
+                      onDragEnd={() => setDraggedKey(null)}
                       onClick={(e) => {
                         e.stopPropagation()
                         setSelectedBlockKey(block.key)
                       }}
-                      className={`relative group rounded-xl py-1.5 px-3 transition-all cursor-pointer ${isSelected
+                      className={`relative group rounded-xl py-1.5 px-3 transition-all cursor-pointer ${draggedKey === block.key ? "opacity-40 " : ""}${isSelected
                         ? "border-2 border-cyan-500 bg-cyan-50/10 shadow-xs"
                         : "border-2 border-transparent hover:border-slate-200"
                         }`}
@@ -1337,17 +1385,28 @@ export function EventFormBuilderPage() {
                   backgroundColor: theme.cardBgColor,
                   fontFamily: theme.fontFamily,
                 }}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => {
+                  event.preventDefault()
+                  const payload = event.dataTransfer.getData("application/x-new-form-block")
+                  if (payload) { const { type, label } = JSON.parse(payload); addBlock(type, label) }
+                }}
               >
                 {blocks.map((block) => {
                   const isSelected = selectedBlockKey === block.key
                   return (
                     <div
                       key={block.key}
+                      draggable
+                      onDragStart={(event) => { event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("application/x-form-block", block.key); setDraggedKey(block.key) }}
+                      onDragOver={(event) => event.preventDefault()}
+                      onDrop={(event) => { event.preventDefault(); const key = event.dataTransfer.getData("application/x-form-block"); if (key) moveBlock(key, block.key); setDraggedKey(null) }}
+                      onDragEnd={() => setDraggedKey(null)}
                       onClick={(e) => {
                         e.stopPropagation()
                         setSelectedBlockKey(block.key)
                       }}
-                      className={`relative group rounded-lg py-1 px-2 transition-all cursor-pointer ${isSelected
+                      className={`relative group rounded-lg py-1 px-2 transition-all cursor-pointer ${draggedKey === block.key ? "opacity-40 " : ""}${isSelected
                         ? "border-2 border-cyan-500 bg-cyan-50/10"
                         : "border-2 border-transparent hover:border-slate-200"
                         }`}
@@ -1411,6 +1470,18 @@ export function EventFormBuilderPage() {
                 placeholder="Nombre del formulario"
                 className="h-10 rounded-xl"
               />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">Finalidad</label>
+                <select value={formPurpose} onChange={(e) => setFormPurpose(e.target.value)} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-xs text-foreground">
+                  <option value="MAIN">Registro principal</option><option value="PARTICIPANT">Participantes</option><option value="WAITLIST">Lista de espera</option><option value="OTHER">Otro</option>
+                </select>
+              </div>
+              <div className="space-y-1.5"><label className="text-xs font-semibold text-foreground">Cupo máximo</label><Input type="number" min="1" value={maxSubmissions} onChange={(e) => setMaxSubmissions(e.target.value)} placeholder="Sin límite" className="h-10 rounded-xl" /></div>
+              <div className="space-y-1.5"><label className="text-xs font-semibold text-foreground">Abre el</label><Input type="datetime-local" value={opensAt} onChange={(e) => setOpensAt(e.target.value)} className="h-10 rounded-xl" /></div>
+              <div className="space-y-1.5"><label className="text-xs font-semibold text-foreground">Cierra el</label><Input type="datetime-local" value={closesAt} onChange={(e) => setClosesAt(e.target.value)} className="h-10 rounded-xl" /></div>
             </div>
 
             <div className="space-y-1.5">

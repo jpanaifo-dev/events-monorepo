@@ -395,6 +395,7 @@ model RegistrationForm {
   closesAt              DateTime?                  @map("closes_at")
   maxSubmissions        Int?                       @map("max_submissions")
   approvalMode          String                     @default("MANUAL") @map("approval_mode")
+  purpose               String                     @default("PARTICIPANT")
   allowEditionSelection Boolean                    @default(false) @map("allow_edition_selection")
   defaultEditionId      String?                    @map("default_edition_id") @db.Uuid
   createdAt             DateTime                   @default(now()) @map("created_at")

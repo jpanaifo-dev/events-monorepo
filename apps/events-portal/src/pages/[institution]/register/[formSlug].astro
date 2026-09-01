@@ -71,8 +71,8 @@ try {
                   <select id={field.key} name={field.key} required={field.required} class="form-input select">
                     <option value="">Selecciona una opción</option>
                     {Array.isArray(field.options) &&
-                      field.options.map((option: string) => (
-                        <option value={option}>{option}</option>
+                      field.options.map((option: string | { label: string; value: string }) => (
+                        <option value={typeof option === 'string' ? option : option.value}>{typeof option === 'string' ? option : option.label}</option>
                       ))}
                   </select>
                 ) : field.type === 'radio' ? (
