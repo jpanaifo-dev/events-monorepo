@@ -39,6 +39,8 @@ import {
   EventAttendeeFormPage,
   EventSpeakersImportPage,
   EventCertificatesSection,
+  EventFormsSection,
+  EventFormBuilderPage,
 } from "@/pages/event-detail"
 import { GlobalCertificatesPage } from "@/pages/GlobalCertificatesPage"
 import {
@@ -53,6 +55,15 @@ import {
   ProfileManageAccountSection,
 } from "@/pages/profiles"
 import { VerifyCertificatePage } from "@/pages/VerifyCertificatePage"
+import { AdminLayout } from "@/layouts/AdminLayout"
+import { AdminPage } from "@/pages/AdminPage"
+import { EventSetupPage } from "@/pages/EventSetupPage"
+import {
+  TemplatesListPage,
+  TemplateConfigPage,
+  EmailTemplateBuilderPage,
+} from "@/pages/templates"
+import { MarketingPage } from "@/pages/marketing"
 
 function HashHandler() {
   const navigate = useNavigate()
@@ -88,6 +99,15 @@ export function AppRouter() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/validar/:code" element={<VerifyCertificatePage />} />
+
+        <Route path="/admin" element={<AuthGuard allowedRoles={["SUPER_ADMIN", "SAAS_ADMIN"]} requireSelectedOrganization={false}><AdminLayout /></AuthGuard>}>
+          <Route index element={<AdminPage />} />
+          <Route path="organizations" element={<AdminPage />} />
+          <Route path="users" element={<AdminPage />} />
+          <Route path="plans" element={<AdminPage />} />
+          <Route path="payments" element={<AdminPage />} />
+          <Route path="settings" element={<AdminPage />} />
+        </Route>
 
         {/* Dashboard Routes requiring Authentication but NO Selected Organization yet */}
         <Route
@@ -138,6 +158,13 @@ export function AppRouter() {
           {/* Events Catalog */}
           <Route path="events" element={<EventsPage />} />
 
+          {/* Email Marketing Templates */}
+          <Route path="templates" element={<TemplatesListPage />} />
+          <Route path="templates/new" element={<TemplateConfigPage />} />
+          <Route path="templates/:templateId/edit" element={<TemplateConfigPage />} />
+          <Route path="marketing" element={<Navigate to="/dashboard/marketing/campaigns" replace />} />
+          <Route path="marketing/:section" element={<MarketingPage />} />
+
           {/* Registered Profiles Catalog */}
           <Route path="profiles" element={<ProfilesPage />} />
           <Route path="profiles/new" element={<CreateProfilePage />} />
@@ -175,6 +202,14 @@ export function AppRouter() {
           }
         />
         <Route
+          path="/dashboard/events/:id/setup"
+          element={
+            <AuthGuard requireSelectedOrganization={true}>
+              <EventSetupPage />
+            </AuthGuard>
+          }
+        />
+        <Route
           path="/dashboard/events/:eventId/editions/new"
           element={
             <AuthGuard requireSelectedOrganization={true}>
@@ -206,6 +241,22 @@ export function AppRouter() {
             </AuthGuard>
           }
         />
+        <Route
+          path="/dashboard/events/:id/forms/:formId"
+          element={
+            <AuthGuard requireSelectedOrganization={true}>
+              <EventFormBuilderPage />
+            </AuthGuard>
+          }
+        />
+        <Route
+          path="/dashboard/templates/:templateId/builder"
+          element={
+            <AuthGuard requireSelectedOrganization={true}>
+              <EmailTemplateBuilderPage />
+            </AuthGuard>
+          }
+        />
 
         {/* Event Detail - Standalone (no admin layout) */}
         <Route
@@ -230,6 +281,7 @@ export function AppRouter() {
           <Route path="thematic-lines" element={<EventThematicLinesSection />} />
           <Route path="tickets" element={<EventTicketsSection />} />
           <Route path="certificates" element={<EventCertificatesSection />} />
+          <Route path="forms" element={<EventFormsSection />} />
         </Route>
 
         {/* Profiles Detail - Standalone (no admin layout) */}
@@ -243,7 +295,7 @@ export function AppRouter() {
         >
           <Route index element={<Navigate to="info" replace />} />
           <Route path="info" element={<ProfileManageInfoSection />} />
-          <Route path="account" element={<ProfileManageAccountSection />} />
+          <Route path="account" element={<AuthGuard allowedRoles={["SUPER_ADMIN", "SAAS_ADMIN"]} requireSelectedOrganization={false}><ProfileManageAccountSection /></AuthGuard>} />
           <Route path="experience" element={<ProfileManageExperienceSection />} />
           <Route path="education" element={<ProfileManageEducationSection />} />
           <Route path="certifications" element={<ProfileManageCertificationsSection />} />

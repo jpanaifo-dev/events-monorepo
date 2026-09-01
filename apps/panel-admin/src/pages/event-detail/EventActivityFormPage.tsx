@@ -4,7 +4,7 @@ import { z } from "zod"
 import { useEventStore } from "@/store/event.store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { supabase } from "@/utils/supabase"
+import { api } from "@/api/client"
 import {
   Select,
   SelectTrigger,
@@ -70,26 +70,7 @@ export function EventActivityFormPage() {
       }
       setIsLoadingSessions(true)
       try {
-        const { data: pivots, error: pivotErr } = await supabase
-          .from("session_speakers")
-          .select("session_id")
-          .eq("participant_id", speakerId)
-
-        if (!pivotErr && pivots && pivots.length > 0) {
-          const sessionIds = pivots.map((p) => p.session_id)
-          const { data: sessions, error: sessionsErr } = await supabase
-            .from("event_sessions")
-            .select("*")
-            .in("id", sessionIds)
-
-          if (!sessionsErr && sessions) {
-            setSpeakerSessions(sessions)
-          } else {
-            setSpeakerSessions([])
-          }
-        } else {
-          setSpeakerSessions([])
-        }
+        setSpeakerSessions(await api.content.participantSessions(speakerId))
       } catch (err) {
         console.error("Error loading speaker sessions:", err)
         setSpeakerSessions([])
@@ -200,14 +181,8 @@ export function EventActivityFormPage() {
     async function loadBranches() {
       if (!event?.organizationId) return
       try {
-        const { data, error } = await supabase
-          .from("organization_branches")
-          .select("*")
-          .eq("organization_id", event.organizationId)
-          .eq("is_active", true)
-        if (!error && data) {
-          setBranches(data)
-        }
+        const data = await api.organizations.branches(event.organizationId)
+        setBranches((data || []).filter((branch: any) => branch.isActive !== false))
       } catch (err) {
         console.error("Error loading branches:", err)
       }

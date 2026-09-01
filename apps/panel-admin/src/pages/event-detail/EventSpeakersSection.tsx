@@ -145,7 +145,7 @@ export function EventSpeakersSection() {
       queryClient.invalidateQueries({ queryKey: ["speakers", id] })
       toast.success("Ponente eliminado con éxito.")
     } catch (error: any) {
-      toast.error("Error al eliminar al ponente.")
+      toast.error(error?.message || "No se pudo eliminar al ponente.")
     }
   }
 
@@ -649,7 +649,7 @@ export function EventSpeakersSection() {
 
 function SpeakersSkeleton() {
   return (
-    <div className="border border-border rounded-xl bg-card/10 backdrop-blur-xs p-6 space-y-4 shadow-xs">
+    <div className="border border-border rounded-xl bg-background p-6 space-y-4 shadow-xs">
       <div className="space-y-3">
         {/* Table Header Skeleton */}
         <div className="flex gap-4 border-b border-border pb-3">

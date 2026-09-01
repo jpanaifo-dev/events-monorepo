@@ -2,8 +2,7 @@ import React, { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { z } from "zod"
 import { useAuthStore } from "@/store/auth.store"
-import { supabase } from "@/utils/supabase"
-import { OrganizationMemberRole } from "@/types/auth.types"
+import { api } from "@/api/client"
 import { ThemeSwitch } from "@/components/ui/theme-switch"
 import { ZynqroLogo } from "@/components/zynqro-logo"
 import { Button } from "@/components/ui/button"
@@ -111,13 +110,7 @@ export function CreateOrganizationPage() {
     setSlugStatus("checking")
     const timer = setTimeout(async () => {
       try {
-        const { data, error } = await supabase
-          .from("organizations")
-          .select("id")
-          .eq("slug", slug)
-          .maybeSingle()
-
-        if (error) throw error
+        const data = (await api.organizations.list()).find((org: any) => org.slug === slug)
 
         if (data) {
           setSlugStatus("taken")
@@ -134,7 +127,6 @@ export function CreateOrganizationPage() {
   }, [slug])
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
     logout()
     navigate("/login", { replace: true })
   }
@@ -196,35 +188,11 @@ export function CreateOrganizationPage() {
       if (!user?.id) throw new Error("Sesión de usuario no válida.")
 
       // 1. Insert new organization row into database
-      const { data: orgData, error: insertError } = await supabase
-        .from("organizations")
-        .insert([{
-          organization_name: name,
-          organization_type: type,
-          organization_email: currentEmails,
-          slug,
-          description: description || null,
-          logo_url: logoUrl || null,
-          cover_image_url: coverUrl || null,
-          favicon_url: faviconUrl || null,
-          status: "active",
-          validation_status: "pending"
-        }])
-        .select()
-        .single()
-
-      if (insertError) throw insertError
+      const orgData = await api.organizations.create({ name, slug, description: description || undefined, organizationType: type, emails: currentEmails, logoUrl: logoUrl || undefined, coverUrl: coverUrl || undefined, faviconUrl: faviconUrl || undefined })
 
       // Assign the creator as Owner of the organization in organization_members
       try {
-        const { error: memberError } = await supabase
-          .from("organization_members")
-          .insert({
-            organization_id: orgData.id,
-            profile_id: user.id,
-            role: OrganizationMemberRole.OWNER,
-            is_active: true
-          })
+        const memberError = await api.organizations.addMember(orgData.id, { profileId: user.id, role: "OWNER" }).then(() => null).catch((error) => error)
 
         if (memberError) {
           if (memberError.code === "P0001" || memberError.message.includes("does not exist")) {
@@ -233,7 +201,7 @@ export function CreateOrganizationPage() {
             const defaultMember = [
               {
                 id: "fallback-member-id",
-                role: OrganizationMemberRole.OWNER,
+                role: "OWNER",
                 is_active: true,
                 profile_id: user.id,
                 profile: {
@@ -258,14 +226,14 @@ export function CreateOrganizationPage() {
       // Format organization for Zustand store selection
       const formattedOrg = {
         id: orgData.id,
-        name: orgData.organization_name,
+        name: orgData.name || orgData.organization_name || name,
         slug: orgData.slug,
         description: orgData.description || "",
-        isActive: orgData.status === "active",
-        type: orgData.organization_type,
-        logoUrl: orgData.logo_url || "",
-        coverUrl: orgData.cover_image_url || "",
-        faviconUrl: orgData.favicon_url || "",
+        isActive: orgData.isActive !== false,
+        type: orgData.organizationType || orgData.organization_type || type,
+        logoUrl: orgData.logoUrl || orgData.logo_url || "",
+        coverUrl: orgData.coverUrl || orgData.cover_image_url || "",
+        faviconUrl: orgData.faviconUrl || orgData.favicon_url || "",
         plan: "Free Plan",
         projectsCount: 0
       }

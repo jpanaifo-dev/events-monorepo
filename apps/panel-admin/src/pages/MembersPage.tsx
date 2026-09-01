@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { z } from "zod"
 import { useAuthStore } from "@/store/auth.store"
-import { supabase } from "@/utils/supabase"
+import { api } from "@/api/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
@@ -11,6 +11,12 @@ import { Search, X, UserPlus } from "lucide-react"
 import { OrganizationMemberRole } from "@/types/auth.types"
 
 import { useSEO } from "@/hooks/use-seo"
+import { getRoleLabel } from "@/lib/role-labels"
+
+function isCurrentMember(member: any, accountId?: string) {
+  if (!accountId) return false
+  return member.accountId === accountId || member.account_id === accountId || member.profile?.authUserId === accountId || member.profile?.auth_user_id === accountId || member.profileId === accountId || member.profile_id === accountId
+}
 
 export function MembersPage() {
   const navigate = useNavigate()
@@ -26,12 +32,12 @@ export function MembersPage() {
   const [members, setMembers] = useState<any[]>([])
   const [isLoadingList, setIsLoadingList] = useState(true)
   const [filterText, setFilterText] = useState("")
-  const [isDemoMode, setIsDemoMode] = useState(false)
+  const [isDemoMode] = useState(false)
 
   // Invite modal states
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false)
   const [inviteEmail, setInviteEmail] = useState("")
-  const [inviteRole, setInviteRole] = useState<OrganizationMemberRole>(OrganizationMemberRole.DEVELOPER)
+  const [inviteRole, setInviteRole] = useState<OrganizationMemberRole>(OrganizationMemberRole.EDITOR)
   const [isInviting, setIsInviting] = useState(false)
 
   // Search profiles modal states (inside invite modal)
@@ -51,7 +57,7 @@ export function MembersPage() {
         if (stored) {
           list = JSON.parse(stored)
         }
-        if (user && !list.some((m: any) => m.profile_id === user.id)) {
+        if (user && !list.some((m: any) => isCurrentMember(m, user.id))) {
           list = [
             {
               id: "fallback-member-id",
@@ -86,26 +92,8 @@ export function MembersPage() {
         return
       }
 
-      // Supabase Query
-      let queryBuilder = supabase
-        .from("organization_members")
-        .select(`
-          id,
-          role,
-          is_active,
-          profile_id,
-          profile:profiles (
-            id,
-            first_name,
-            last_name,
-            email,
-            avatar_url
-          )
-        `)
-        .eq("organization_id", selectedOrganization.id)
-
-      const { data, error } = await queryBuilder
-
+      const data = await api.organizations.members(selectedOrganization.id)
+      /* Legacy demo fallback kept for local-only data:
       if (error) {
         if (error.code === "P0001" || error.message.includes("does not exist")) {
           setIsDemoMode(true)
@@ -139,13 +127,13 @@ export function MembersPage() {
           return
         }
         throw error
-      }
+      } */
 
       // Filter locally or from profiles
       let list: any[] = data || []
 
       // Ensure the current user is added as Owner if not present in the list
-      if (user && !list.some((m: any) => m.profile_id === user.id)) {
+      if (user && !list.some((m: any) => isCurrentMember(m, user.id))) {
         list = [
           {
             id: `owner-fallback-${user.id}`,
@@ -201,13 +189,7 @@ export function MembersPage() {
     }
     setIsSearchingProfiles(true)
     try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, first_name, last_name, email, avatar_url")
-        .or(`first_name.ilike.%${val}%,last_name.ilike.%${val}%,email.ilike.%${val}%`)
-        .limit(8)
-
-      if (error) throw error
+      const data = (await api.profiles.list()).filter((profile: any) => `${profile.firstName || ""} ${profile.lastName || ""} ${profile.email || ""}`.toLowerCase().includes(val.toLowerCase())).slice(0, 8)
       setSearchResults(data || [])
     } catch (e) {
       console.error("Error searching profiles:", e)
@@ -243,20 +225,8 @@ export function MembersPage() {
 
     setIsInviting(true)
     try {
-      // 1. Search profile by email
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("id, first_name, last_name, email, avatar_url")
-        .eq("email", inviteEmail.trim())
-        .maybeSingle()
-
-      if (profileError) throw profileError
-
-      if (!profileData) {
-        toast.error("No se encontró ningún usuario registrado con ese correo.")
-        setIsInviting(false)
-        return
-      }
+      // La API resuelve cuentas existentes o crea una cuenta temporal y envía la invitación.
+      const profileData = (await api.profiles.list()).find((profile: any) => profile.email === inviteEmail.trim())
 
       // If demo mode is active, simulate insert using localStorage
       if (isDemoMode) {
@@ -305,22 +275,7 @@ export function MembersPage() {
         return
       }
 
-      // 2. Insert into organization_members
-      const { error: insertError } = await supabase
-        .from("organization_members")
-        .insert({
-          organization_id: selectedOrganization.id,
-          profile_id: profileData.id,
-          role: inviteRole,
-          is_active: true
-        })
-
-      if (insertError) {
-        if (insertError.message?.includes("unique_organization_profile") || insertError.code === "23505") {
-          throw new Error("El usuario ya es miembro de esta organización.")
-        }
-        throw insertError
-      }
+      await api.organizations.inviteMember(selectedOrganization.id, { email: inviteEmail.trim(), role: inviteRole })
 
       toast.success(`Invitación enviada con éxito a ${inviteEmail}`)
       setIsInviteModalOpen(false)
@@ -339,7 +294,7 @@ export function MembersPage() {
 
     // Check if they are trying to remove themselves
     const member = members.find(m => m.id === memberId)
-    if (member && member.profile_id === user?.id) {
+    if (member && isCurrentMember(member, user?.id)) {
       toast.error("No puedes eliminarte a ti mismo de la organización.")
       return
     }
@@ -362,10 +317,7 @@ export function MembersPage() {
         return
       }
 
-      const { error } = await supabase
-        .from("organization_members")
-        .delete()
-        .eq("id", memberId)
+      const error = await api.organizations.removeMember(memberId).then(() => null).catch((err) => err)
 
       if (error) throw error
 
@@ -451,11 +403,11 @@ export function MembersPage() {
                     </div>
                     <div className="grid leading-tight min-w-0">
                       <span className="font-semibold text-foreground truncate">
-                        {[member.profile?.first_name, member.profile?.last_name].filter(Boolean).join(" ") || member.profile?.email.split("@")[0]}
+                        {[member.profile?.first_name ?? member.profile?.firstName, member.profile?.last_name ?? member.profile?.lastName].filter(Boolean).join(" ") || member.profile?.email?.split("@")[0] || "Sin nombre"}
                       </span>
                       <div className="flex items-center gap-1.5 min-w-0">
                         <span className="text-xs text-muted-foreground truncate">{member.profile?.email}</span>
-                        {member.profile_id === user?.id && (
+                        {isCurrentMember(member, user?.id) && (
                           <span className="text-[8px] font-bold tracking-wider uppercase px-1 rounded bg-muted text-muted-foreground select-none shrink-0 font-sans">
                             TÚ
                           </span>
@@ -473,9 +425,9 @@ export function MembersPage() {
                   {/* Right Details */}
                   <div className="flex items-center justify-end gap-4">
                     <span className="text-xs font-semibold px-2 py-0.5 rounded bg-muted border border-border text-foreground capitalize select-none">
-                      {member.role || "Developer"}
+                      {getRoleLabel(member.role)}
                     </span>
-                    {member.profile_id === user?.id ? (
+                    {isCurrentMember(member, user?.id) ? (
                       <button
                         type="button"
                         disabled
@@ -544,18 +496,23 @@ export function MembersPage() {
                   {[
                     {
                       value: OrganizationMemberRole.OWNER,
-                      label: "Owner (Dueño)",
-                      desc: "Acceso total, incluyendo la eliminación de la organización e invitación de otros administradores."
+                      label: "Propietario",
+                      desc: "Control total de la institución y de sus miembros."
                     },
                     {
-                      value: OrganizationMemberRole.ADMINISTRATOR,
-                      label: "Administrator (Administrador)",
-                      desc: "Administra miembros, sedes y configuración del proyecto. No puede eliminar dueños o la organización."
+                      value: OrganizationMemberRole.ADMIN,
+                      label: "Administrador institucional",
+                      desc: "Gestiona miembros, sedes y configuración institucional."
                     },
                     {
-                      value: OrganizationMemberRole.DEVELOPER,
-                      label: "Developer (Desarrollador)",
-                      desc: "Administra el contenido del proyecto (eventos, actividades). No puede cambiar la configuración comercial."
+                      value: OrganizationMemberRole.EDITOR,
+                      label: "Editor de contenidos",
+                      desc: "Gestiona eventos, actividades y contenido; no modifica miembros ni facturación."
+                    },
+                    {
+                      value: OrganizationMemberRole.MEMBER,
+                      label: "Miembro",
+                      desc: "Acceso de consulta a los recursos autorizados de la institución."
                     }
                   ].map((roleOpt) => (
                     <label

@@ -4,11 +4,13 @@ import { useAdminProfilesStore } from "@/store/admin-profiles.store"
 import { ThemeSwitch } from "@/components/ui/theme-switch"
 import { ZynqroLogo } from "@/components/zynqro-logo"
 import { PageHeader } from "@/components/page-header"
+import { useAuthStore } from "@/store/auth.store"
 
 export function ProfileManageLayout() {
   const { profileId } = useParams<{ profileId: string }>()
   const navigate = useNavigate()
   const { profiles, loadAllProfiles, loadProfileDetails } = useAdminProfilesStore()
+  const currentUser = useAuthStore((state) => state.user)
 
   useEffect(() => {
     if (profiles.length === 0) {
@@ -24,9 +26,10 @@ export function ProfileManageLayout() {
 
   const targetProfile = profiles.find((p) => p.id === profileId)
 
+  const isGlobalAdmin = ["SUPER_ADMIN", "SAAS_ADMIN"].includes(currentUser?.role || "")
   const navItems = [
     { to: "info", label: "Datos Generales" },
-    { to: "account", label: "Cuenta" },
+    ...(isGlobalAdmin ? [{ to: "account", label: "Cuenta" }] : []),
     { to: "experience", label: "Experiencia Profesional" },
     { to: "education", label: "Estudios" },
     { to: "certifications", label: "Certificaciones" },

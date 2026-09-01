@@ -1,6 +1,5 @@
 import { useNavigate } from "react-router-dom"
 import { useAuthStore } from "@/store/auth.store"
-import { supabase } from "@/utils/supabase"
 import {
   Avatar,
   AvatarFallback,
@@ -37,7 +36,8 @@ export function NavUser({
   const { logout } = useAuthStore()
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
+    localStorage.removeItem("events-api-access-token")
+    localStorage.removeItem("events-api-refresh-token")
     logout()
     navigate("/login", { replace: true })
   }

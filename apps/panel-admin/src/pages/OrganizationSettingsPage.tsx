@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { z } from "zod"
 import { useAuthStore } from "@/store/auth.store"
-import { supabase } from "@/utils/supabase"
+import { api } from "@/api/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
@@ -35,6 +35,12 @@ const organizationSchema = z.object({
 type OrganizationInput = z.infer<typeof organizationSchema>
 
 import { useSEO } from "@/hooks/use-seo"
+import { getRoleLabel } from "@/lib/role-labels"
+
+function isCurrentMember(member: any, accountId?: string) {
+  if (!accountId) return false
+  return member.accountId === accountId || member.account_id === accountId || member.profile?.authUserId === accountId || member.profile?.auth_user_id === accountId || member.profileId === accountId || member.profile_id === accountId
+}
 
 export function OrganizationSettingsPage() {
   const navigate = useNavigate()
@@ -124,22 +130,16 @@ export function OrganizationSettingsPage() {
       }
       setIsLoading(true)
       try {
-        const { data, error } = await supabase
-          .from("organizations")
-          .select("*")
-          .eq("id", selectedOrganization.id)
-          .single()
-
-        if (error) throw error
+        const data = await api.organizations.get(selectedOrganization.id)
 
         if (data) {
-          setName(data.organization_name || "")
-          setType(data.organization_type || "")
+          setName(data.name || "")
+          setType(data.organizationType || "")
           let loadedEmails: string[] = []
-          if (Array.isArray(data.organization_email)) {
-            loadedEmails = data.organization_email.filter(Boolean)
-          } else if (typeof data.organization_email === "string") {
-            loadedEmails = data.organization_email.split(",").map((e: string) => e.trim()).filter(Boolean)
+          if (Array.isArray(data.emails)) {
+            loadedEmails = data.emails.filter(Boolean)
+          } else if (typeof data.email === "string") {
+            loadedEmails = data.email.split(",").map((e: string) => e.trim()).filter(Boolean)
           }
           setEmails(loadedEmails)
           setSlug(data.slug || "")
@@ -153,53 +153,26 @@ export function OrganizationSettingsPage() {
           setContactPhones(loadedPhones)
           setDocumentNumber(data.document_number || "")
           setBrand(data.brand || "")
-          setLogoUrl(data.logo_url || "")
-          setCoverUrl(data.cover_image_url || "")
-          setFaviconUrl(data.favicon_url || "")
-          setPrimaryColor(data.primary_color || "")
-          setStatus(data.status || "active")
+          setLogoUrl(data.logoUrl || "")
+          setCoverUrl(data.coverUrl || "")
+          setFaviconUrl(data.faviconUrl || "")
+          setPrimaryColor(data.primaryColor || "")
+          setStatus(data.isActive === false ? "inactive" : "active")
         }
 
         // Fetch branches for this organization
-        const { data: branchesData, error: branchesError } = await supabase
-          .from("organization_branches")
-          .select("*")
-          .eq("organization_id", selectedOrganization.id)
-          .order("is_main", { ascending: false })
-          .order("created_at", { ascending: true })
-
-        if (!branchesError) {
-          setBranches(branchesData || [])
-        }
+        setBranches(await api.organizations.branches(selectedOrganization.id))
 
         // Fetch members for this organization
         try {
-          const { data: membersData, error: membersError } = await supabase
-            .from("organization_members")
-            .select(`
-              id,
-              role,
-              is_active,
-              profile_id,
-              profile:profiles (
-                id,
-                first_name,
-                last_name,
-                email,
-                avatar_url
-              )
-            `)
-            .eq("organization_id", selectedOrganization.id)
-
-          if (membersError) {
-            if (membersError.code === "P0001" || membersError.message.includes("does not exist")) {
-              setIsMembersDbError(true)
-            }
-            throw membersError
+          const membersData = await api.organizations.members(selectedOrganization.id)
+          const uniqueMembers = new Map<string, any>()
+          for (const member of membersData || []) {
+            const key = member.profile?.authUserId ?? member.profile?.auth_user_id ?? member.profileId ?? member.profile_id ?? member.id
+            if (!uniqueMembers.has(key)) uniqueMembers.set(key, member)
           }
-
-          let list: any[] = membersData || []
-          if (user && !list.some((m: any) => m.profile_id === user.id)) {
+          let list = [...uniqueMembers.values()]
+          if (user && !list.some((m: any) => isCurrentMember(m, user.id))) {
             list = [
               {
                 id: `owner-fallback-${user.id}`,
@@ -227,7 +200,7 @@ export function OrganizationSettingsPage() {
             const stored = localStorage.getItem(storedKey)
             if (stored) {
               let list = JSON.parse(stored)
-              if (!list.some((m: any) => m.profile_id === user.id)) {
+              if (!list.some((m: any) => isCurrentMember(m, user.id))) {
                 list = [
                   {
                     id: "fallback-member-id",
@@ -289,14 +262,7 @@ export function OrganizationSettingsPage() {
     setSlugStatus("checking")
     const timer = setTimeout(async () => {
       try {
-        const { data, error } = await supabase
-          .from("organizations")
-          .select("id")
-          .eq("slug", slug)
-          .neq("id", selectedOrganization.id)
-          .maybeSingle()
-
-        if (error) throw error
+        const data = (await api.organizations.list()).find((org: any) => org.slug === slug && org.id !== selectedOrganization.id)
 
         if (data) {
           setSlugStatus("taken")
@@ -384,26 +350,7 @@ export function OrganizationSettingsPage() {
     }
 
     try {
-      const { error } = await supabase
-        .from("organizations")
-        .update({
-          organization_name: name,
-          organization_type: type,
-          organization_email: currentEmails,
-          slug,
-          description: description || null,
-          contact_phone: currentPhones,
-          document_number: documentNumber || null,
-          brand: brand || null,
-          logo_url: logoUrl || null,
-          cover_image_url: coverUrl || null,
-          favicon_url: faviconUrl || null,
-          primary_color: primaryColor || null,
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", selectedOrganization.id)
-
-      if (error) throw error
+      await api.organizations.update(selectedOrganization.id, { name, organizationType: type, emails: currentEmails, slug, description: description || null, contactPhones: currentPhones, documentNumber: documentNumber || null, brand: brand || null, logoUrl: logoUrl || null, coverUrl: coverUrl || null, faviconUrl: faviconUrl || null, primaryColor: primaryColor || null })
 
       // Update auth store
       const updatedOrg = {
@@ -436,15 +383,7 @@ export function OrganizationSettingsPage() {
     if (!selectedOrganization?.id) return
     setIsUpdatingVisibility(true)
     try {
-      const { error } = await supabase
-        .from("organizations")
-        .update({
-          status: newStatus,
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", selectedOrganization.id)
-
-      if (error) throw error
+      await api.organizations.update(selectedOrganization.id, { isActive: newStatus === "active" })
 
       setStatus(newStatus)
 
@@ -498,40 +437,7 @@ export function OrganizationSettingsPage() {
         }
       }
 
-      // 2. Delete organization branches
-      const { error: branchesError } = await supabase
-        .from("organization_branches")
-        .delete()
-        .eq("organization_id", orgId)
-      if (branchesError) throw branchesError
-
-      // 3. Delete events
-      const { data: eventsData } = await supabase
-        .from("events")
-        .select("id")
-        .eq("organization_id", orgId)
-
-      const eventIds = (eventsData || []).map(e => e.id)
-      if (eventIds.length > 0) {
-        // Delete event details
-        await supabase
-          .from("event_details")
-          .delete()
-          .in("event_id", eventIds)
-      }
-
-      const { error: eventsError } = await supabase
-        .from("events")
-        .delete()
-        .eq("organization_id", orgId)
-      if (eventsError) throw eventsError
-
-      // 4. Delete the organization itself
-      const { error: orgError } = await supabase
-        .from("organizations")
-        .delete()
-        .eq("id", orgId)
-      if (orgError) throw orgError
+      await api.organizations.remove(orgId)
 
       // 5. Update auth store
       const updatedList = organizations.filter((org) => org.id !== orgId)
@@ -796,8 +702,15 @@ export function OrganizationSettingsPage() {
                 onChange={setLogoUrl}
                 aspectRatio="square"
                 placeholder="Arrastra tu logotipo aquí, o pega un enlace"
-                folder="organizations"
-                identifier={`${slug}-logo`}
+                folder={`organizations/${selectedOrganization.id}/branding/logo`}
+                identifier="logo"
+                onR2UploadComplete={async (publicUrl) => {
+                  await api.organizations.update(selectedOrganization.id, { logoUrl: publicUrl })
+                  const updatedOrganization = { ...selectedOrganization, logoUrl: publicUrl }
+                  selectOrganization(updatedOrganization)
+                  setOrganizations(organizations.map((org) => org.id === selectedOrganization.id ? updatedOrganization : org))
+                  toast.success("Logotipo guardado correctamente")
+                }}
               />
               {errors.logoUrl && (
                 <p className="text-xs text-destructive mt-1.5 font-medium">{errors.logoUrl}</p>
@@ -818,8 +731,15 @@ export function OrganizationSettingsPage() {
                 onChange={setCoverUrl}
                 aspectRatio="banner"
                 placeholder="Arrastra tu banner de portada aquí, o pega un enlace"
-                folder="organizations"
-                identifier={`${slug}-cover`}
+                folder={`organizations/${selectedOrganization.id}/branding/cover`}
+                identifier="cover"
+                onR2UploadComplete={async (publicUrl) => {
+                  await api.organizations.update(selectedOrganization.id, { coverUrl: publicUrl })
+                  const updatedOrganization = { ...selectedOrganization, coverUrl: publicUrl }
+                  selectOrganization(updatedOrganization)
+                  setOrganizations(organizations.map((org) => org.id === selectedOrganization.id ? updatedOrganization : org))
+                  toast.success("Portada guardada correctamente")
+                }}
               />
               {errors.coverUrl && (
                 <p className="text-xs text-destructive mt-1.5 font-medium">{errors.coverUrl}</p>
@@ -840,8 +760,15 @@ export function OrganizationSettingsPage() {
                 onChange={setFaviconUrl}
                 aspectRatio="favicon"
                 placeholder="Arrastra tu favicon aquí, o pega un enlace"
-                folder="organizations"
-                identifier={`${slug}-favicon`}
+                folder={`organizations/${selectedOrganization.id}/branding/favicon`}
+                identifier="favicon"
+                onR2UploadComplete={async (publicUrl) => {
+                  await api.organizations.update(selectedOrganization.id, { faviconUrl: publicUrl })
+                  const updatedOrganization = { ...selectedOrganization, faviconUrl: publicUrl }
+                  selectOrganization(updatedOrganization)
+                  setOrganizations(organizations.map((org) => org.id === selectedOrganization.id ? updatedOrganization : org))
+                  toast.success("Favicon guardado correctamente")
+                }}
               />
               {errors.faviconUrl && (
                 <p className="text-xs text-destructive mt-1.5 font-medium">{errors.faviconUrl}</p>
@@ -1041,7 +968,7 @@ export function OrganizationSettingsPage() {
               Tabla de miembros no configurada (Modo Demo Activo)
             </div>
             <p>
-              Para persistir miembros reales, debes crear la tabla correspondiente en tu base de datos Supabase. Hemos activado un modo demostración local para que puedas visualizar la interfaz.
+              Los miembros se gestionan mediante el backend de la plataforma.
             </p>
           </div>
         )}
@@ -1099,7 +1026,7 @@ export function OrganizationSettingsPage() {
                         </span>
                         <div className="flex items-center gap-1.5 min-w-0">
                           <span className="text-xs text-muted-foreground truncate">{member.profile?.email}</span>
-                          {member.profile_id === user?.id && (
+                          {isCurrentMember(member, user?.id) && (
                             <span className="text-[8px] font-bold tracking-wider uppercase px-1 rounded bg-muted text-muted-foreground select-none shrink-0 font-sans">
                               TÚ
                             </span>
@@ -1111,7 +1038,7 @@ export function OrganizationSettingsPage() {
                     {/* Right details: Role */}
                     <div className="text-right text-muted-foreground text-xs font-normal">
                       <span className="text-xs font-semibold px-2 py-0.5 rounded bg-muted border border-border text-foreground capitalize select-none">
-                        {member.role || "Developer"}
+                        {getRoleLabel(member.role)}
                       </span>
                     </div>
                   </div>

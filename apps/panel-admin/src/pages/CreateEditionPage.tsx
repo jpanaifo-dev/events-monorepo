@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import { PageHeader } from "@/components/page-header"
+import { LocationPickerMap } from "@/components/location-picker-map"
 
 import { useSEO } from "@/hooks/use-seo"
+
 
 export function CreateEditionPage() {
   const { eventId } = useParams<{ eventId: string }>()
@@ -29,9 +31,12 @@ export function CreateEditionPage() {
   const [coverUrl, setCoverUrl] = useState("")
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
+  const [isSingleDay, setIsSingleDay] = useState(false)
   const [status, setStatus] = useState<"active" | "planned">("planned")
   const [location, setLocation] = useState("")
   const [modality, setModality] = useState("presencial")
+  const [latitude, setLatitude] = useState("")
+  const [longitude, setLongitude] = useState("")
 
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -39,7 +44,10 @@ export function CreateEditionPage() {
     name: z.string().trim().min(1, "El nombre de la edición es obligatorio."),
     coverUrl: z.string().trim().url("El enlace de portada no es válido.").or(z.literal("")).optional(),
     startDate: z.string().min(1, "La fecha de inicio es requerida."),
-    endDate: z.string().min(1, "La fecha de fin es requerida."),
+    endDate: z.string(),
+  }).refine((data) => /^\d{4}-\d{2}-\d{2}$/.test(data.startDate), { message: "Selecciona una fecha de inicio válida.", path: ["startDate"] }).refine((data) => isSingleDay || data.endDate.length > 0, {
+    message: "La fecha de fin es requerida para una edición de varios días.",
+    path: ["endDate"],
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -65,15 +73,17 @@ export function CreateEditionPage() {
         name: name.trim(),
         description: description.trim(),
         coverUrl: coverUrl.trim() || "",
-        startDate: startDate || "",
-        endDate: endDate || "",
+        startDate,
+        endDate: isSingleDay ? "" : endDate,
         isCurrent: status === "active",
         location,
         modality,
+        latitude: latitude ? Number(latitude) : undefined,
+        longitude: longitude ? Number(longitude) : undefined,
       })
 
       toast.success("Edición creada exitosamente")
-      navigate(`/dashboard/events/${eventId}`)
+      navigate(`/dashboard/events/${eventId}/editions`)
     } catch (err: any) {
       console.error(err)
       toast.error("Error al crear la edición. Inténtalo de nuevo.")
@@ -105,7 +115,7 @@ export function CreateEditionPage() {
             title="Crear una Nueva Edición"
             description={`Añade una edición anual, periódica o especial vinculada a ${event.name}.`}
             showBackButton
-            onBackClick={() => navigate(`/dashboard/events/${eventId}`)}
+            onBackClick={() => navigate(`/dashboard/events/${eventId}/editions`)}
           />
         </div>
 
@@ -181,33 +191,50 @@ export function CreateEditionPage() {
                 <p className="text-xs text-muted-foreground">Cuándo se llevará a cabo esta edición.</p>
               </div>
               <div className="md:w-2/3 max-w-md w-full">
-                <div className="grid grid-cols-2 gap-4">
+                <label className="mb-4 flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-muted/30 p-3 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={isSingleDay}
+                    onChange={(e) => {
+                      setIsSingleDay(e.target.checked)
+                      if (e.target.checked) setEndDate("")
+                    }}
+                    className="mt-0.5 size-4 accent-primary"
+                  />
+                  <span>
+                    <span className="block font-medium text-foreground">Edición de un solo día</span>
+                    <span className="block text-xs text-muted-foreground">Solo se registrará la fecha de inicio.</span>
+                  </span>
+                </label>
+                <div className={`grid gap-4 ${isSingleDay ? "grid-cols-1" : "grid-cols-2"}`}>
                   <div className="space-y-1.5">
                     <label htmlFor="ed-start" className="text-[10px] font-bold uppercase text-muted-foreground">
-                      Fecha Inicio
+                      Fecha Inicio (dd/mm/aaaa)
                     </label>
                     <Input
                       id="ed-start"
                       type="date"
+                      lang="es-PE"
                       required
                       value={startDate}
                       onChange={(e) => setStartDate(e.target.value)}
                       className="bg-background"
                     />
                   </div>
-                  <div className="space-y-1.5">
+                  {!isSingleDay && <div className="space-y-1.5">
                     <label htmlFor="ed-end" className="text-[10px] font-bold uppercase text-muted-foreground">
-                      Fecha Fin
+                      Fecha Fin (dd/mm/aaaa)
                     </label>
                     <Input
                       id="ed-end"
                       type="date"
+                      lang="es-PE"
                       required
                       value={endDate}
                       onChange={(e) => setEndDate(e.target.value)}
                       className="bg-background"
                     />
-                  </div>
+                  </div>}
                 </div>
               </div>
             </div>
@@ -238,19 +265,24 @@ export function CreateEditionPage() {
             <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
               <div className="md:w-1/3 space-y-1">
                 <label htmlFor="ed-location" className="text-sm font-medium text-foreground">
-                  Ubicación o Enlace
+                  {modality === "virtual" ? "Enlace de transmisión" : modality === "hibrido" ? "Ubicación y enlace" : "Ubicación"}
                 </label>
-                <p className="text-xs text-muted-foreground">Lugar físico, ciudad o enlace de transmisión.</p>
+                <p className="text-xs text-muted-foreground">{modality === "virtual" ? "Enlace para conectarse de forma remota." : modality === "hibrido" ? "Indica el lugar físico y el enlace de transmisión." : "Lugar físico donde se realizará esta edición."}</p>
               </div>
               <div className="md:w-2/3 max-w-md w-full">
                 <Input
                   id="ed-location"
                   type="text"
-                  placeholder="Ej. Hotel Savoy o Zoom Link"
+                  placeholder={modality === "virtual" ? "https://..." : modality === "hibrido" ? "Lugar · https://..." : "Ej. Auditorio principal"}
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                   className="bg-background"
                 />
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <Input type="number" step="any" placeholder="Latitud" value={latitude} onChange={(e) => setLatitude(e.target.value)} />
+                  <Input type="number" step="any" placeholder="Longitud" value={longitude} onChange={(e) => setLongitude(e.target.value)} />
+                </div>
+                {modality !== "virtual" && <LocationPickerMap latitude={latitude ? Number(latitude) : undefined} longitude={longitude ? Number(longitude) : undefined} onSelect={({ latitude: lat, longitude: lng }) => { setLatitude(lat.toFixed(6)); setLongitude(lng.toFixed(6)) }} />}
               </div>
             </div>
 
@@ -277,12 +309,12 @@ export function CreateEditionPage() {
           </div>
 
           {/* Form Action Footer */}
-          <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-border bg-background/80 px-8 py-4 backdrop-blur-md">
+          <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 px-4 py-4 backdrop-blur-md sm:px-8">
             <div className="max-w-4xl mx-auto flex justify-end gap-3 w-full">
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => navigate(`/dashboard/events/${eventId}`)}
+                onClick={() => navigate(`/dashboard/events/${eventId}/editions`)}
                 disabled={isSubmitting}
                 className="cursor-pointer"
               >

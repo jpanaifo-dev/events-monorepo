@@ -1,0 +1,619 @@
+import { useState, useEffect } from "react"
+import { useLocation, useNavigate } from "react-router-dom"
+import { useAuthStore } from "@/store/auth.store"
+import { api } from "@/api/client"
+import { toast } from "sonner"
+import {
+  Mail,
+  Zap,
+  Users,
+  Layers,
+  Plus,
+} from "lucide-react"
+import { Button } from "@/components/ui/button"
+import type { Campaign, Automation, Contact, Segment } from "./types"
+import { CampaignsTab } from "./components/CampaignsTab"
+import { CampaignReportView } from "./components/CampaignReportView"
+import { CampaignSetupBuilder } from "./components/CampaignSetupBuilder"
+import { CreateCampaignModal } from "./components/CreateCampaignModal"
+import { CreateEmailCampaignModal } from "./components/CreateEmailCampaignModal"
+import { AutomationsTab } from "./components/AutomationsTab"
+import { ContactsTab } from "./components/ContactsTab"
+import { SegmentsTab } from "./components/SegmentsTab"
+
+type MainTab = "campaigns" | "automations" | "contacts" | "segments"
+
+export function MarketingPage() {
+  const { selectedOrganization } = useAuthStore()
+  const organizationId = selectedOrganization?.id
+
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const routeTab = pathname.split("/").pop()
+  const activeTab: MainTab = (["campaigns", "automations", "contacts", "segments"].includes(routeTab || "") ? routeTab : "campaigns") as MainTab
+  const setActiveTab = (tab: MainTab) => navigate(`/dashboard/marketing/${tab}`)
+  const [viewMode, setViewMode] = useState<"list" | "report" | "setup">("list")
+  const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null)
+
+  // Modals
+  const [openCreateTypeModal, setOpenCreateTypeModal] = useState(false)
+  const [openCreateEmailModal, setOpenCreateEmailModal] = useState(false)
+
+  // Seed Initial State (Matching reference images with real-looking demo data)
+  const [campaigns, setCampaigns] = useState<Campaign[]>([
+    {
+      id: "camp-1",
+      campaignNumber: 15,
+      name: "AMPLIACION DE FECHA",
+      subject: "CONIAP",
+      previewText: "Últimos días para postular tu resumen al congreso",
+      senderName: "IIAP",
+      senderEmail: "daylersan@gmail.com",
+      replyTo: "daylersan@gmail.com",
+      status: "SENT",
+      createdAt: "2024-09-19T10:00:00.000Z",
+      sentAt: "2024-09-19T20:38:00.000Z",
+      channel: "EMAIL",
+      segmentIds: ["seg-1"],
+      segmentNames: ["Participantes CONIAP 2024"],
+      recipientCount: 88,
+      stats: {
+        delivered: 88,
+        deliveredRate: 97.78,
+        opens: 55,
+        openRate: 62.5,
+        clicks: 12,
+        clickRate: 13.64,
+        unsubscribes: 0,
+        unsubscribeRate: 0,
+      },
+    },
+    {
+      id: "camp-2",
+      campaignNumber: 13,
+      name: "AYUDAR A SUBIR RESUMEN_copy",
+      subject: "Guía paso a paso para cargar tu abstract",
+      previewText: "Revisa el tutorial antes de la fecha de cierre",
+      senderName: "IIAP",
+      senderEmail: "daylersan@gmail.com",
+      replyTo: "daylersan@gmail.com",
+      status: "SENT",
+      createdAt: "2024-08-30T09:00:00.000Z",
+      sentAt: "2024-08-30T14:11:00.000Z",
+      channel: "EMAIL",
+      segmentIds: ["seg-1"],
+      segmentNames: ["Participantes CONIAP 2024"],
+      recipientCount: 112,
+      stats: {
+        delivered: 110,
+        deliveredRate: 98.21,
+        opens: 72,
+        openRate: 65.45,
+        clicks: 28,
+        clickRate: 25.45,
+        unsubscribes: 1,
+        unsubscribeRate: 0.9,
+      },
+    },
+    {
+      id: "camp-3",
+      campaignNumber: 16,
+      name: "webinar",
+      subject: "Invitación al Webinar Pre-Congreso",
+      previewText: "Conoce a los ponentes principales este jueves",
+      senderName: selectedOrganization?.name || "IIAP",
+      senderEmail: "daylersan@gmail.com",
+      replyTo: "daylersan@gmail.com",
+      status: "DRAFT",
+      createdAt: "2024-10-01T15:30:00.000Z",
+      channel: "EMAIL",
+      segmentIds: ["seg-1"],
+      segmentNames: ["Participantes CONIAP 2024"],
+      recipientCount: 88,
+    },
+  ])
+
+  const [automations, setAutomations] = useState<Automation[]>([
+    {
+      id: "auto-1",
+      name: "Confirmación y Bienvenida CONIAP 2024",
+      trigger: "REGISTRATION",
+      channel: "EMAIL",
+      active: true,
+      segmentIds: ["seg-1"],
+      createdAt: "2024-08-01T00:00:00.000Z",
+      sentCount: 234,
+      description: "Envío inmediato del ticket digital y credenciales tras registro",
+    },
+    {
+      id: "auto-2",
+      name: "Recordatorio 24 horas antes del inicio",
+      trigger: "EVENT_REMINDER",
+      channel: "EMAIL",
+      active: true,
+      segmentIds: ["seg-1"],
+      createdAt: "2024-08-15T00:00:00.000Z",
+      sentCount: 180,
+      description: "Alerta con enlace Zoom y ubicación del auditorio",
+    },
+    {
+      id: "auto-3",
+      name: "Entrega de Certificados Oficiales",
+      trigger: "CERTIFICATE_ISSUED",
+      channel: "EMAIL",
+      active: true,
+      segmentIds: ["seg-1"],
+      createdAt: "2024-09-01T00:00:00.000Z",
+      sentCount: 88,
+      description: "Envío del PDF y código QR de verificación al aprobar",
+    },
+  ])
+
+  const [contacts, setContacts] = useState<Contact[]>([
+    {
+      id: "con-1",
+      email: "maria.torres@unap.edu.pe",
+      firstName: "María",
+      lastName: "Torres",
+      phone: "+51 965 123 456",
+      status: "SUBSCRIBED",
+      tags: ["CONIAP 2024", "Docente"],
+      createdAt: "2024-08-10T12:00:00.000Z",
+    },
+    {
+      id: "con-2",
+      email: "carlos.mendoza@iiap.gob.pe",
+      firstName: "Carlos",
+      lastName: "Mendoza",
+      phone: "+51 987 654 321",
+      status: "SUBSCRIBED",
+      tags: ["CONIAP 2024", "Ponente"],
+      createdAt: "2024-08-12T14:30:00.000Z",
+    },
+    {
+      id: "con-3",
+      email: "lucia.valdez@gmail.com",
+      firstName: "Lucía",
+      lastName: "Valdez",
+      phone: "+51 999 888 777",
+      status: "SUBSCRIBED",
+      tags: ["Estudiante"],
+      createdAt: "2024-08-15T09:20:00.000Z",
+    },
+    {
+      id: "con-4",
+      email: "juan.perez@concytec.gob.pe",
+      firstName: "Juan",
+      lastName: "Pérez",
+      phone: "+51 944 332 211",
+      status: "SUBSCRIBED",
+      tags: ["Investigador"],
+      createdAt: "2024-08-20T16:40:00.000Z",
+    },
+    {
+      id: "con-5",
+      email: "daylersan@gmail.com",
+      firstName: "Dayler",
+      lastName: "San",
+      phone: "+51 955 444 333",
+      status: "SUBSCRIBED",
+      tags: ["Admin", "Organizador"],
+      createdAt: "2024-08-01T08:00:00.000Z",
+    },
+  ])
+
+  const [segments, setSegments] = useState<Segment[]>([
+    {
+      id: "seg-1",
+      name: "Participantes CONIAP 2024",
+      description: "Todos los inscritos y asistentes confirmados",
+      createdAt: "2024-08-01T00:00:00.000Z",
+      _count: { members: 88 },
+    },
+    {
+      id: "seg-2",
+      name: "Ponentes y Expositores",
+      description: "Speakers con ponencias aprobadas",
+      createdAt: "2024-08-05T00:00:00.000Z",
+      _count: { members: 24 },
+    },
+    {
+      id: "seg-3",
+      name: "Estudiantes y Becarios",
+      description: "Alumnos de pregrado y posgrado",
+      createdAt: "2024-08-10T00:00:00.000Z",
+      _count: { members: 142 },
+    },
+  ])
+
+  // Load from API if available
+  const loadData = async () => {
+    if (!organizationId) return
+    // Nunca conservar datos de demostración: la API es la única fuente de verdad.
+    setCampaigns([])
+    setAutomations([])
+    setContacts([])
+    setSegments([])
+    try {
+      const [cRes, sRes, caRes, aRes] = await Promise.allSettled([
+        api.marketing.contacts(organizationId),
+        api.marketing.segments(organizationId),
+        api.marketing.campaigns(organizationId),
+        api.marketing.automations(organizationId),
+      ])
+
+      if (cRes.status === "fulfilled" && Array.isArray(cRes.value)) {
+        setContacts(cRes.value)
+      }
+      if (sRes.status === "fulfilled" && Array.isArray(sRes.value)) {
+        setSegments(sRes.value)
+      }
+      if (caRes.status === "fulfilled" && Array.isArray(caRes.value)) {
+        // Merge API campaigns with rich stats
+        setCampaigns((prev) => {
+          if (caRes.value.length === 0) return []
+          const apiMap = new Map(caRes.value.map((x: any) => [x.id, x]))
+          const merged = prev.map((p) => (apiMap.has(p.id) ? { ...p, ...apiMap.get(p.id) } : p))
+          caRes.value.forEach((x: any) => {
+            if (!merged.some((m) => m.id === x.id)) {
+              merged.push({
+                id: x.id,
+                campaignNumber: merged.length + 1,
+                name: x.name,
+                subject: x.subject || "",
+                senderName: selectedOrganization?.name || "IIAP",
+                senderEmail: "daylersan@gmail.com",
+                status: x.status || "DRAFT",
+                createdAt: x.createdAt || new Date().toISOString(),
+                channel: "EMAIL",
+                segmentIds: x.segmentIds || [],
+                recipientCount: 88,
+              })
+            }
+          })
+          return merged
+        })
+      }
+      if (aRes.status === "fulfilled" && Array.isArray(aRes.value)) {
+        setAutomations((prev) => {
+          if (aRes.value.length === 0) return []
+          const merged = [...prev]
+          aRes.value.forEach((x: any) => {
+            if (!merged.some((m) => m.id === x.id)) {
+              merged.push({
+                id: x.id,
+                name: x.name,
+                trigger: x.trigger || "REGISTRATION",
+                channel: "EMAIL",
+                active: x.active ?? true,
+                segmentIds: x.segmentIds || [],
+                createdAt: x.createdAt || new Date().toISOString(),
+                sentCount: 0,
+              })
+            }
+          })
+          return merged
+        })
+      }
+    } catch {
+      // Keep existing demo seed
+    }
+  }
+
+  useEffect(() => {
+    void loadData()
+  }, [organizationId])
+
+  // Handlers
+  const handleOpenReport = (campaign: Campaign) => {
+    setSelectedCampaign(campaign)
+    setViewMode("report")
+  }
+
+  const handleOpenSetupBuilder = (campaign: Campaign) => {
+    setSelectedCampaign(campaign)
+    setViewMode("setup")
+  }
+
+  const handleCreateEmailCampaign = (data: { name: string; type: "regular" | "ab"; tags: string[]; folder?: string }) => {
+    const newCamp: Campaign = {
+      id: `camp-${Date.now()}`,
+      campaignNumber: campaigns.length + 1,
+      name: data.name,
+      subject: "",
+      senderName: selectedOrganization?.name || "IIAP",
+      senderEmail: "daylersan@gmail.com",
+      replyTo: "daylersan@gmail.com",
+      status: "DRAFT",
+      createdAt: new Date().toISOString(),
+      channel: "EMAIL",
+      segmentIds: ["seg-1"],
+      segmentNames: ["Participantes CONIAP 2024"],
+      recipientCount: 88,
+      tags: data.tags,
+    }
+
+    setCampaigns([newCamp, ...campaigns])
+    setSelectedCampaign(newCamp)
+    setViewMode("setup")
+    toast.success(`Campaña "${data.name}" creada. Configura los pasos a continuación.`)
+
+    // Save to API if possible
+    if (organizationId) {
+      void api.marketing
+        .createCampaign(organizationId, {
+          name: data.name,
+          subject: "",
+          segmentIds: ["seg-1"],
+        })
+        .catch(() => { })
+    }
+  }
+
+  const handleSaveCampaign = (updated: Campaign) => {
+    setCampaigns(campaigns.map((c) => (c.id === updated.id ? updated : c)))
+  }
+
+  const handleLaunchCampaign = (launched: Campaign, _scheduledAt?: string) => {
+    setCampaigns(campaigns.map((c) => (c.id === launched.id ? launched : c)))
+    setViewMode("list")
+  }
+
+  const handleDuplicateCampaign = (campaign: Campaign) => {
+    const dup: Campaign = {
+      ...campaign,
+      id: `camp-${Date.now()}`,
+      campaignNumber: campaigns.length + 1,
+      name: `${campaign.name}_copy`,
+      status: "DRAFT",
+      sentAt: undefined,
+      createdAt: new Date().toISOString(),
+    }
+    setCampaigns([dup, ...campaigns])
+    toast.success(`Campaña duplicada como "${dup.name}"`)
+  }
+
+  const handleDeleteCampaign = (id: string) => {
+    setCampaigns(campaigns.filter((c) => c.id !== id))
+    toast.success("Campaña eliminada")
+  }
+
+  const handleCreateAutomation = (data: any) => {
+    const newAuto: Automation = {
+      id: `auto-${Date.now()}`,
+      name: data.name,
+      trigger: data.trigger || "REGISTRATION",
+      channel: data.channel || "EMAIL",
+      active: true,
+      segmentIds: data.segmentIds || ["seg-1"],
+      createdAt: new Date().toISOString(),
+      sentCount: 0,
+      description: data.description,
+    }
+    setAutomations([newAuto, ...automations])
+    if (organizationId) {
+      void api.marketing
+        .createAutomation(organizationId, {
+          name: data.name,
+          trigger: data.trigger,
+          segmentIds: data.segmentIds || [],
+        })
+        .catch(() => { })
+    }
+  }
+
+  const handleAddContact = (data: { email: string; firstName?: string; lastName?: string; tags?: string[] }) => {
+    const newContact: Contact = {
+      id: `con-${Date.now()}`,
+      email: data.email,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      status: "SUBSCRIBED",
+      tags: data.tags || ["Manual"],
+      createdAt: new Date().toISOString(),
+    }
+    setContacts([newContact, ...contacts])
+    if (organizationId) {
+      void api.marketing.createContact(organizationId, data).catch(() => { })
+    }
+  }
+
+  const handleDeleteContact = (id: string) => {
+    setContacts(contacts.filter((c) => c.id !== id))
+    toast.success("Contacto eliminado")
+    if (organizationId) {
+      void api.marketing.removeContact(organizationId, id).catch(() => { })
+    }
+  }
+
+  const handleCreateSegment = (data: { name: string; description?: string }) => {
+    const newSeg: Segment = {
+      id: `seg-${Date.now()}`,
+      name: data.name,
+      description: data.description,
+      createdAt: new Date().toISOString(),
+      _count: { members: 0 },
+    }
+    setSegments([...segments, newSeg])
+    if (organizationId) {
+      void api.marketing.createSegment(organizationId, data).catch(() => { })
+    }
+  }
+
+  const handleDeleteSegment = (id: string) => {
+    setSegments(segments.filter((s) => s.id !== id))
+    toast.success("Segmento eliminado")
+    if (organizationId) {
+      void api.marketing.removeSegment(organizationId, id).catch(() => { })
+    }
+  }
+
+  return (
+    <div className="container mx-auto space-y-6">
+      {/* 1. REPORT VIEW (Matches Reference Image 2) */}
+      {viewMode === "report" && selectedCampaign && (
+        <CampaignReportView
+          campaign={selectedCampaign}
+          onBack={() => {
+            setSelectedCampaign(null)
+            setViewMode("list")
+          }}
+        />
+      )}
+
+      {/* 2. SETUP CHECKLIST WORKFLOW (Matches Reference Image 5) */}
+      {viewMode === "setup" && selectedCampaign && (
+        <CampaignSetupBuilder
+          campaign={selectedCampaign}
+          segments={segments}
+          onBack={() => {
+            setSelectedCampaign(null)
+            setViewMode("list")
+          }}
+          onSaveCampaign={handleSaveCampaign}
+          onLaunchCampaign={handleLaunchCampaign}
+        />
+      )}
+
+      {/* 3. MAIN DASHBOARD MARKETING HUB (Matches Reference Image 1, 3, 4) */}
+      {viewMode === "list" && (
+        <div className="space-y-6">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-foreground">
+                Marketing
+              </h1>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Gestiona contactos, campañas multicanal, automatizaciones inteligentes y analíticas de entrega.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              <Button
+                onClick={() => setOpenCreateTypeModal(true)}
+                className="rounded-xl h-10 px-5 font-semibold bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-primary dark:text-primary-foreground text-xs shadow-sm flex items-center gap-2"
+              >
+                <Plus className="size-4" />
+                <span>Crear campaña</span>
+              </Button>
+            </div>
+          </div>
+
+          {/* Navigation Sub-Tabs */}
+          <div className="flex items-center gap-8 border-b border-border/80 text-sm font-semibold overflow-x-auto">
+            <button
+              onClick={() => setActiveTab("campaigns")}
+              className={`pb-3 border-b-2 transition-all flex items-center gap-2 shrink-0 ${activeTab === "campaigns"
+                ? "border-violet-600 text-violet-600 dark:text-violet-400 font-bold"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+            >
+              <Mail className="size-4" />
+              <span>Campañas</span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-400">
+                {campaigns.length}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("automations")}
+              className={`pb-3 border-b-2 transition-all flex items-center gap-2 shrink-0 ${activeTab === "automations"
+                ? "border-violet-600 text-violet-600 dark:text-violet-400 font-bold"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+            >
+              <Zap className="size-4 text-amber-500" />
+              <span>Automatizaciones</span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                {automations.length}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("contacts")}
+              className={`pb-3 border-b-2 transition-all flex items-center gap-2 shrink-0 ${activeTab === "contacts"
+                ? "border-violet-600 text-violet-600 dark:text-violet-400 font-bold"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+            >
+              <Users className="size-4" />
+              <span>Contactos</span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
+                {contacts.length}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("segments")}
+              className={`pb-3 border-b-2 transition-all flex items-center gap-2 shrink-0 ${activeTab === "segments"
+                ? "border-violet-600 text-violet-600 dark:text-violet-400 font-bold"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+            >
+              <Layers className="size-4" />
+              <span>Segmentos</span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
+                {segments.length}
+              </span>
+            </button>
+          </div>
+
+          {/* Active Tab View */}
+          {activeTab === "campaigns" && (
+            <CampaignsTab
+              campaigns={campaigns}
+              onOpenCreateCampaign={() => setOpenCreateTypeModal(true)}
+              onOpenReport={handleOpenReport}
+              onOpenSetupBuilder={handleOpenSetupBuilder}
+              onDuplicateCampaign={handleDuplicateCampaign}
+              onDeleteCampaign={handleDeleteCampaign}
+            />
+          )}
+
+          {activeTab === "automations" && (
+            <AutomationsTab
+              automations={automations}
+              segments={segments}
+              onCreateAutomation={handleCreateAutomation}
+            />
+          )}
+
+          {activeTab === "contacts" && (
+            <ContactsTab
+              contacts={contacts}
+              onAddContact={handleAddContact}
+              onDeleteContact={handleDeleteContact}
+            />
+          )}
+
+          {activeTab === "segments" && (
+            <SegmentsTab
+              segments={segments}
+              onCreateSegment={handleCreateSegment}
+              onDeleteSegment={handleDeleteSegment}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Modal 1: Crear una campaña (Channels + AI Guided Prompt) - Matches Reference Image 3 */}
+      <CreateCampaignModal
+        open={openCreateTypeModal}
+        onOpenChange={setOpenCreateTypeModal}
+        onSelectStandardEmail={() => setOpenCreateEmailModal(true)}
+        onSelectAutomation={(config) => {
+          handleCreateAutomation(config)
+          setActiveTab("automations")
+        }}
+      />
+
+      {/* Modal 2: Crear una campaña de e-mail (Form with Name, Tags, Folders) - Matches Reference Image 4 */}
+      <CreateEmailCampaignModal
+        open={openCreateEmailModal}
+        onOpenChange={setOpenCreateEmailModal}
+        onCreate={handleCreateEmailCampaign}
+      />
+    </div>
+  )
+}
