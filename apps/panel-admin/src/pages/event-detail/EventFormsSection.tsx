@@ -40,7 +40,7 @@ import {
 export function EventFormsSection() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { editions } = useEventStore()
+  const { editions, events } = useEventStore()
 
   const [forms, setForms] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -63,6 +63,7 @@ export function EventFormsSection() {
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
   const eventEditions = editions.filter((edition) => edition.mainEventId === id)
+  const eventName = events.find((event) => event.id === id)?.name
 
   const loadForms = async () => {
     if (!id) return
@@ -171,6 +172,11 @@ export function EventFormsSection() {
     } catch (error: any) {
       toast.error(error?.message || "No se pudo eliminar el formulario.")
     }
+  }
+
+  const handlePurposeChange = (nextPurpose: typeof purpose) => {
+    setPurpose(nextPurpose)
+    if (nextPurpose === "MAIN" && !title.trim() && eventName) handleTitleChange(`Regístrate a ${eventName}`)
   }
 
   const handleMakeMain = async (form: any) => {
@@ -511,7 +517,7 @@ export function EventFormsSection() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-foreground">Finalidad</label>
-                <select value={purpose} onChange={(e) => setPurpose(e.target.value as typeof purpose)} className="h-11 w-full rounded-xl border border-border bg-background px-4 text-sm text-foreground">
+                <select value={purpose} onChange={(e) => handlePurposeChange(e.target.value as typeof purpose)} className="h-11 w-full rounded-xl border border-border bg-background px-4 text-sm text-foreground">
                   <option value="MAIN">Registro principal del evento</option>
                   <option value="PARTICIPANT">Registro de participantes</option>
                   <option value="WAITLIST">Lista de espera</option>

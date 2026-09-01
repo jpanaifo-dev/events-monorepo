@@ -215,7 +215,6 @@ export class RegistrationFormsService {
   }
 
   private async mainRegistrationFields(eventId: string, title: string) {
-    const editions = await this.prisma.edition.findMany({ where: { mainEventId: eventId }, select: { id: true, name: true } });
     return [
       { key: 'header_title', label: title, type: 'header', required: false, options: { text: title } },
       { key: 'first_name', label: 'Nombres', type: 'text', required: true, options: { helpText: 'Nombres completos del participante.' } },
@@ -223,7 +222,6 @@ export class RegistrationFormsService {
       { key: 'email', label: 'Correo Electrónico', type: 'email', required: true, options: { helpText: 'Dirección de correo electrónico única del participante.' } },
       { key: 'document_type', label: 'Identificación', type: 'select', required: false, options: ['Ninguno', 'DNI', 'RUC', 'Otros'] },
       { key: 'document_number', label: 'Número de identificación', type: 'text', required: false, options: { helpText: 'Tipo y número del documento nacional de identidad.' } },
-      { key: 'edition_id', label: 'Edición Relacionada', type: 'select', required: false, options: [{ label: 'Global (asignación por defecto)', value: '' }, ...editions.map((edition) => ({ label: edition.name, value: edition.id }))] },
     ];
   }
 
@@ -242,7 +240,7 @@ export class RegistrationFormsService {
     const fullName = String(answers.full_name || answers.name || '').trim();
     const firstName = String(answers.first_name || answers.firstName || fullName.split(/\s+/)[0] || 'Participante').trim();
     const lastNameParts = String(answers.last_name || answers.lastName || fullName.split(/\s+/).slice(1).join(' ')).trim().split(/\s+/).filter(Boolean);
-    const selectedEdition = requestedEditionId || (typeof answers.edition_id === 'string' ? answers.edition_id : undefined) || form.editionId;
+    const selectedEdition = requestedEditionId || form.editionId;
     return this.prisma.$transaction(async (tx) => {
       let edition = selectedEdition ? await tx.edition.findFirst({ where: { id: selectedEdition, mainEventId: form.mainEventId } }) : await tx.edition.findFirst({ where: { mainEventId: form.mainEventId }, orderBy: { createdAt: 'asc' } });
       if (!edition) edition = await tx.edition.create({ data: { mainEventId: form.mainEventId, name: 'Edición Principal' } });

@@ -157,7 +157,7 @@ export function EventFormBuilderPage() {
         setMaxSubmissions(data.maxSubmissions ? String(data.maxSubmissions) : "")
 
         if (data.fields && data.fields.length > 0) {
-          const loadedBlocks: FormBlock[] = data.fields.map((f: any) => ({
+          const loadedBlocks: FormBlock[] = data.fields.filter((f: any) => data.purpose !== "MAIN" || f.key !== "edition_id").map((f: any) => ({
             key: f.key || `field_${Date.now()}_${Math.random()}`,
             label: f.label || "Campo",
             type: f.type || "text",
