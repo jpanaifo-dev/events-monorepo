@@ -12,6 +12,11 @@ export class RegistrationFormsController {
     return this.forms.list(eventId);
   }
 
+  @Get('events/:eventId/registration-submissions')
+  listSubmissions(@Param('eventId') eventId: string) {
+    return this.forms.listSubmissions(eventId);
+  }
+
   @Get('registration-forms/:id')
   get(@Param('id') id: string) {
     return this.forms.get(id);

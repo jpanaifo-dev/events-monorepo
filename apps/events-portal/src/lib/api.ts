@@ -1,6 +1,7 @@
 const apiUrl = import.meta.env.PUBLIC_API_URL?.replace(/\/$/, '') || 'http://localhost:3010/api';
 
-export type PortalOrganization = { id: string; name: string; slug: string; description?: string | null; logoUrl?: string | null; coverUrl?: string | null };
+export type PortalConfiguration = { isPublished: boolean; heroTitle?: string | null; heroDescription?: string | null; heroImageUrl?: string | null; featuredEventId?: string | null; sections?: unknown; navigation?: unknown; seoTitle?: string | null; seoDescription?: string | null };
+export type PortalOrganization = { id: string; name: string; slug: string; description?: string | null; logoUrl?: string | null; coverUrl?: string | null; portal?: PortalConfiguration | null };
 export type PortalEvent = { id: string; eventName: string; description?: string | null; startDate: string; endDate?: string | null; eventMode?: string | null; coverUrl?: string | null; logoUrl?: string | null; venueAddress?: string | null; contactEmail?: string | null };
 
 async function request<T>(path: string): Promise<T> {

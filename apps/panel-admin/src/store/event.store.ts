@@ -106,6 +106,7 @@ export interface Attendee {
   identityDocumentType?: string | null
   identityDocumentNumber?: string | null
   roleId?: string
+  source?: "PARTICIPANT" | "FORM"
 }
 
 export interface ParticipantRole {
@@ -300,12 +301,23 @@ function mapEdition(row: any): Edition {
 }
 
 function mapParticipantRole(row: any): ParticipantRole {
+  let name: Record<string, string> = { es: "" }
+  if (typeof row.name === "string") {
+    try {
+      const parsed = JSON.parse(row.name)
+      name = parsed && typeof parsed === "object" ? parsed : { es: row.name }
+    } catch {
+      name = { es: row.name }
+    }
+  } else if (row.name && typeof row.name === "object") {
+    name = row.name
+  }
   return {
     id: row.id,
     mainEventId: row.main_event_id,
     editionId: row.edition_id,
     slug: row.slug,
-    name: typeof row.name === "string" ? JSON.parse(row.name) : (row.name || { es: "" }),
+    name,
     badgeColor: row.badge_color,
     isActive: row.is_active !== false,
     createdAt: row.created_at || "",
@@ -428,6 +440,26 @@ export const useEventStore = create<EventState>((set, get) => ({
             updatedAt: act.updatedAt || null,
           }))
         }
+
+        const submissions = (await Promise.all(mainEventIds.map((eventId) => api.registrationForms.submissions(eventId)))).flat()
+        submissions.forEach((submission: any) => {
+          const answers = submission.answers && typeof submission.answers === "object" ? submission.answers : {}
+          const firstName = answers.first_name || answers.firstName || answers.name || answers.nombres || ""
+          const lastName = answers.last_name || answers.lastName || answers.apellidos || ""
+          const fullName = `${firstName} ${lastName}`.trim() || submission.email || "Participante"
+          formattedAttendees.push({
+            id: `form:${submission.id}`,
+            eventId: submission.form?.mainEventId || "",
+            editionId: submission.editionId || submission.form?.editionId || null,
+            fullName,
+            email: submission.email || answers.email || "",
+            ticketType: submission.status === "APPROVED" ? "Registro aprobado" : "Registro por revisar",
+            registrationDate: submission.submittedAt ? submission.submittedAt.split("T")[0] : new Date().toISOString().split("T")[0],
+            checkedIn: false,
+            avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fullName)}`,
+            source: "FORM",
+          })
+        })
       }
 
       // Fetch participant roles to match role_id without postgrest join constraint issues

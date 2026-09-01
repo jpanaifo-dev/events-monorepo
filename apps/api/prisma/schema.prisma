@@ -183,6 +183,7 @@ model Organization {
   automations MarketingAutomation[]
   emailDeliveries EmailDelivery[]
   marketingEnrollments MarketingEventEnrollment[]
+  portal             OrganizationPortal?
 
   @@map("organizations")
 }
@@ -657,6 +658,27 @@ model MarketingAutomation {
   enrollments MarketingEventEnrollment[]
   @@index([organizationId, status])
   @@map("marketing_automations")
+}
+
+/// Contenido editorial del portal público. No sustituye los datos operativos
+/// de un evento; permite a cada institución definir su propia portada.
+model OrganizationPortal {
+  id              String       @id @default(uuid()) @db.Uuid
+  organizationId  String       @unique @map("organization_id") @db.Uuid
+  isPublished     Boolean      @default(true) @map("is_published")
+  heroTitle       String?      @map("hero_title")
+  heroDescription String?      @map("hero_description")
+  heroImageUrl    String?      @map("hero_image_url")
+  featuredEventId String?      @map("featured_event_id") @db.Uuid
+  sections        Json?        @map("sections")
+  navigation      Json?        @map("navigation")
+  seoTitle        String?      @map("seo_title")
+  seoDescription  String?      @map("seo_description")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("organization_portals")
 }
 
 // Campañas puntuales: se conserva para envíos manuales y para no perder datos previos.

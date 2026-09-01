@@ -7,6 +7,11 @@ if (!institution || !formSlug) return new Response('Formulario no encontrado', {
 
 let listing: Awaited<ReturnType<typeof portalApi.events>>;
 let form: any;
+const choicesFor = (field: any): string[] => Array.isArray(field.options?.choices)
+  ? field.options.choices
+  : Array.isArray(field.options)
+    ? field.options
+    : [];
 try {
   [listing, form] = await Promise.all([
     portalApi.events(institution),
@@ -39,11 +44,20 @@ try {
         <form id="registration-form" data-api={portalApi.apiUrl} data-slug={form.slug} class="reg-form">
           <div class="form-fields-grid">
             {form.fields.map((field: any) => (
-              <div class="form-field-group">
-                <label for={field.key} class="field-label">
+              <div class:list={["form-field-group", `field-${field.type}`]}>
+                {field.type === 'header' ? (
+                  <h2 class="embedded-heading">{field.options?.text || field.label}</h2>
+                ) : field.type === 'paragraph' ? (
+                  <p class="embedded-paragraph">{field.options?.text || field.label}</p>
+                ) : field.type === 'image' ? (
+                  field.options?.imageUrl && <img class="embedded-image" src={field.options.imageUrl} alt={field.options?.imageAlt || field.label} />
+                ) : field.type === 'divider' ? (
+                  <hr class="embedded-divider" />
+                ) : <>
+                {(field.options?.showLabel !== false) && <label for={field.key} class="field-label">
                   <span>{field.label}</span>
                   {field.required && <span class="req-star">*</span>}
-                </label>
+                </label>}
 
                 {field.type === 'textarea' ? (
                   <textarea
@@ -61,6 +75,20 @@ try {
                         <option value={option}>{option}</option>
                       ))}
                   </select>
+                ) : field.type === 'radio' ? (
+                  <div class="choice-group">
+                    {choicesFor(field).map((option: string) => (
+                      <label class="choice-option"><input type="radio" name={field.key} value={option} required={field.required} /><span>{option}</span></label>
+                    ))}
+                  </div>
+                ) : field.type === 'multiple' ? (
+                  <div class="choice-group">
+                    {choicesFor(field).map((option: string) => (
+                      <label class="choice-option"><input type="checkbox" name={field.key} value={option} /><span>{option}</span></label>
+                    ))}
+                  </div>
+                ) : field.type === 'checkbox' || field.type === 'terms' ? (
+                  <label class="check-option"><input id={field.key} name={field.key} type="checkbox" value="true" required={field.required} /><span>{field.options?.text || field.label}</span></label>
                 ) : (
                   <input
                     id={field.key}
@@ -71,6 +99,8 @@ try {
                     class="form-input"
                   />
                 )}
+                {field.options?.helpText && <small class="field-help">{field.options.helpText}</small>}
+                </>}
               </div>
             ))}
           </div>
@@ -98,7 +128,12 @@ try {
 
   form?.addEventListener('submit', async (event) => {
     event.preventDefault();
-    const values = Object.fromEntries(new FormData(form).entries());
+    const rawValues = new FormData(form);
+    const values: Record<string, string | string[]> = {};
+    rawValues.forEach((value, key) => {
+      const current = values[key];
+      values[key] = current === undefined ? String(value) : Array.isArray(current) ? [...current, String(value)] : [current, String(value)];
+    });
     if (submitBtn) submitBtn.disabled = true;
     if (status) {
       status.textContent = 'Enviando tu inscripción…';
@@ -175,7 +210,7 @@ try {
     display: inline-block;
     font-family: 'Outfit', sans-serif;
     font-size: 0.72rem;
-    font-weight: 800;
+    font-weight: 600;
     letter-spacing: 0.14em;
     color: #818cf8;
     text-transform: uppercase;
@@ -184,7 +219,7 @@ try {
   .reg-title {
     font-family: 'Outfit', sans-serif;
     font-size: 2.2rem;
-    font-weight: 900;
+    font-weight: 700;
     color: #ffffff;
     letter-spacing: -0.03em;
     line-height: 1.15;
@@ -207,6 +242,10 @@ try {
     flex-direction: column;
     gap: 0.45rem;
   }
+  .embedded-heading { font-family: 'Outfit', sans-serif; font-size: 1.45rem; font-weight: 600; line-height: 1.25; color: #ffffff; }
+  .embedded-paragraph { color: #94a3b8; font-size: 0.94rem; line-height: 1.65; }
+  .embedded-image { width: 100%; max-height: 280px; object-fit: cover; border-radius: 12px; }
+  .embedded-divider { width: 100%; border: 0; border-top: 1px solid rgba(255,255,255,.12); }
   .field-label {
     font-size: 0.88rem;
     font-weight: 700;
@@ -218,6 +257,10 @@ try {
   .req-star {
     color: #f87171;
   }
+  .field-help { color: #94a3b8; font-size: 0.78rem; line-height: 1.4; }
+  .choice-group { display: grid; gap: 0.6rem; }
+  .choice-option, .check-option { display: flex; gap: 0.65rem; align-items: flex-start; color: #dbe4ef; font-size: 0.9rem; line-height: 1.45; cursor: pointer; }
+  .choice-option input, .check-option input { margin-top: 0.2rem; accent-color: #818cf8; }
 
   .form-input {
     width: 100%;
@@ -256,7 +299,7 @@ try {
     background: #ffffff;
     color: #000000;
     font-family: 'Plus Jakarta Sans', sans-serif;
-    font-weight: 800;
+    font-weight: 600;
     font-size: 0.95rem;
     padding: 0.95rem 1.8rem;
     border-radius: 12px;
@@ -304,4 +347,11 @@ try {
       padding: 1.75rem;
     }
   }
+  :global(html:not(.dark)) .reg-page-wrap { background: #f8fafc; color: #172033; }
+  :global(html:not(.dark)) .reg-form-card { background: #ffffff; border-color: #dce4ee; box-shadow: none; }
+  :global(html:not(.dark)) .reg-card-header, :global(html:not(.dark)) .embedded-divider { border-color: #e2e8f0; }
+  :global(html:not(.dark)) .reg-title, :global(html:not(.dark)) .field-label, :global(html:not(.dark)) .embedded-heading { color: #172033; }
+  :global(html:not(.dark)) .reg-desc, :global(html:not(.dark)) .embedded-paragraph, :global(html:not(.dark)) .field-help { color: #52637a; }
+  :global(html:not(.dark)) .form-input { background: #ffffff; border-color: #cfd9e6; color: #172033; }
+  :global(html:not(.dark)) .choice-option, :global(html:not(.dark)) .check-option { color: #334155; }
 </style>

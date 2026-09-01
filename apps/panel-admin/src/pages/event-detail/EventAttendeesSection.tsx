@@ -75,6 +75,16 @@ export function EventAttendeesSection() {
       }
     },
     {
+      header: "Origen",
+      className: "p-3",
+      headerClassName: "p-3",
+      cell: (at) => (
+        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${at.source === "FORM" ? "bg-sky-500/10 text-sky-700 dark:text-sky-300" : "bg-muted text-muted-foreground"}`}>
+          {at.source === "FORM" ? "Formulario" : "Manual"}
+        </span>
+      )
+    },
+    {
       header: "Ticket",
       className: "p-3",
       headerClassName: "p-3",
@@ -104,7 +114,7 @@ export function EventAttendeesSection() {
       className: "p-3 text-center",
       headerClassName: "p-3 text-center",
       cell: (at) => (
-        <button
+        at.source === "FORM" ? <span className="text-xs text-muted-foreground">—</span> : <button
           onClick={() => toggleAttendeeCheckIn(at.id)}
           className={`p-1.5 rounded-full border transition-colors inline-flex ${at.checkedIn ? "bg-primary/10 border-primary/30 text-primary" : "bg-muted/40 border-border/80 text-muted-foreground/60 hover:text-foreground"}`}
         >
@@ -135,7 +145,7 @@ export function EventAttendeesSection() {
               </a>
             </Button>
           )}
-          <AlertDialog>
+          {at.source !== "FORM" && <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="ghost" className="size-7 p-0 text-destructive hover:bg-destructive/10">
                 <Trash2 className="size-3.5" />
@@ -155,7 +165,7 @@ export function EventAttendeesSection() {
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
-          </AlertDialog>
+          </AlertDialog>}
         </div>
       )
     }

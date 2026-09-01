@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { EventStatus } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service.js';
 
 @Injectable()
@@ -6,7 +7,7 @@ export class EventsService {
   constructor(private readonly prisma: PrismaService) {}
   list(organizationId?: string) { return this.prisma.mainEvent.findMany({ where: organizationId ? { organizationId } : undefined, include: { editions: true, details: true, thematicLines: true }, orderBy: { startDate: 'desc' } }); }
   async get(id: string) { const event = await this.prisma.mainEvent.findUnique({ where: { id }, include: { editions: { include: { activities: true, participants: true, tickets: true } }, details: true, thematicLines: true } }); if (!event) throw new NotFoundException('Evento no encontrado'); return event; }
-  create(data: Record<string, any>) { return this.prisma.mainEvent.create({ data: { eventName: data.eventName, startDate: new Date(data.startDate), organizationId: data.organizationId, description: data.description, coverUrl: data.coverUrl, logoUrl: data.logoUrl, contactEmail: data.contactEmail } }); }
+  create(data: Record<string, any>) { return this.prisma.mainEvent.create({ data: { eventName: data.eventName, startDate: new Date(data.startDate), organizationId: data.organizationId, description: data.description, coverUrl: data.coverUrl, logoUrl: data.logoUrl, contactEmail: data.contactEmail, status: (data.status ? String(data.status).toUpperCase() : 'DRAFT') as EventStatus } }); }
   update(id: string, data: Record<string, unknown>) {
     const input: Record<string, unknown> = {};
     for (const key of ['eventName', 'description', 'coverUrl', 'logoUrl', 'organizationId', 'eventMode', 'contactEmail', 'venueAddress', 'latitude', 'longitude']) if (data[key] !== undefined) input[key] = data[key];

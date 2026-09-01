@@ -33,6 +33,22 @@ export class RegistrationFormsService {
     return form;
   }
 
+  listSubmissions(eventId: string) {
+    return this.prisma.registrationSubmission.findMany({
+      where: { form: { mainEventId: eventId } },
+      select: {
+        id: true,
+        email: true,
+        answers: true,
+        status: true,
+        editionId: true,
+        submittedAt: true,
+        form: { select: { mainEventId: true, editionId: true, title: true } },
+      },
+      orderBy: { submittedAt: 'desc' },
+    });
+  }
+
   async create(eventId: string, data: any) {
     if (data.editionId) {
       const edition = await this.prisma.edition.findFirst({
