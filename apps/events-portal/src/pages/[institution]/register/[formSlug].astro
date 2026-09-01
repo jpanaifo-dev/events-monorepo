@@ -97,9 +97,12 @@ try {
                     required={field.required}
                     placeholder={field.type === 'email' ? 'ejemplo@correo.com' : 'Ingresa tu información'}
                     class="form-input"
+                    data-email-field={field.key === 'email' ? 'true' : undefined}
+                    aria-describedby={field.key === 'email' ? 'email-availability' : undefined}
                   />
                 )}
                 {field.options?.helpText && <small class="field-help">{field.options.helpText}</small>}
+                {field.key === 'email' && <small id="email-availability" class="field-help email-availability" aria-live="polite"></small>}
                 </>}
               </div>
             ))}
@@ -125,9 +128,71 @@ try {
   const form = document.querySelector('#registration-form') as HTMLFormElement | null;
   const status = document.querySelector('#form-status') as HTMLParagraphElement | null;
   const submitBtn = document.querySelector('#submit-btn') as HTMLButtonElement | null;
+  const emailInput = document.querySelector('[data-email-field="true"]') as HTMLInputElement | null;
+  const emailAvailability = document.querySelector('#email-availability') as HTMLElement | null;
+  let emailCheckTimer: ReturnType<typeof setTimeout> | undefined;
+  let checkedEmail = '';
+  let emailIsAvailable = false;
+
+  const setEmailAvailability = (message: string, state = '') => {
+    if (!emailAvailability) return;
+    emailAvailability.textContent = message;
+    emailAvailability.className = `field-help email-availability ${state}`;
+  };
+
+  const checkEmailAvailability = async () => {
+    const email = emailInput?.value.trim().toLowerCase() || '';
+    if (!email) {
+      checkedEmail = '';
+      emailIsAvailable = false;
+      setEmailAvailability('');
+      return false;
+    }
+    if (!emailInput?.validity.valid) {
+      checkedEmail = email;
+      emailIsAvailable = false;
+      setEmailAvailability('Ingresa un correo electrónico válido.', 'unavailable');
+      return false;
+    }
+    setEmailAvailability('Verificando disponibilidad…', 'checking');
+    try {
+      const response = await fetch(`${form?.dataset.api}/public/registration-forms/${form?.dataset.slug}/email-availability?email=${encodeURIComponent(email)}`);
+      const result = await response.json().catch(() => ({}));
+      checkedEmail = email;
+      emailIsAvailable = response.ok && result.available === true;
+      setEmailAvailability(
+        emailIsAvailable ? '✓ Correo disponible para este formulario.' : 'Este correo ya está registrado en este formulario.',
+        emailIsAvailable ? 'available' : 'unavailable',
+      );
+      return emailIsAvailable;
+    } catch {
+      checkedEmail = email;
+      emailIsAvailable = false;
+      setEmailAvailability('No se pudo validar el correo. Inténtalo nuevamente.', 'unavailable');
+      return false;
+    }
+  };
+
+  emailInput?.addEventListener('input', () => {
+    emailIsAvailable = false;
+    checkedEmail = '';
+    if (emailCheckTimer) clearTimeout(emailCheckTimer);
+    const email = emailInput.value.trim();
+    if (!email) {
+      setEmailAvailability('');
+      return;
+    }
+    setEmailAvailability('Verificando disponibilidad…', 'checking');
+    emailCheckTimer = setTimeout(() => void checkEmailAvailability(), 450);
+  });
 
   form?.addEventListener('submit', async (event) => {
     event.preventDefault();
+    const currentEmail = emailInput?.value.trim().toLowerCase() || '';
+    if (emailInput && (checkedEmail !== currentEmail || !emailIsAvailable)) {
+      const isAvailable = await checkEmailAvailability();
+      if (!isAvailable) return;
+    }
     const rawValues = new FormData(form);
     const values: Record<string, string | string[]> = {};
     rawValues.forEach((value, key) => {
@@ -258,6 +323,9 @@ try {
     color: #f87171;
   }
   .field-help { color: #94a3b8; font-size: 0.78rem; line-height: 1.4; }
+  .email-availability.available { color: #34d399; }
+  .email-availability.unavailable { color: #f87171; }
+  .email-availability.checking { color: #818cf8; }
   .choice-group { display: grid; gap: 0.6rem; }
   .choice-option, .check-option { display: flex; gap: 0.65rem; align-items: flex-start; color: #dbe4ef; font-size: 0.9rem; line-height: 1.45; cursor: pointer; }
   .choice-option input, .check-option input { margin-top: 0.2rem; accent-color: #818cf8; }
@@ -352,6 +420,8 @@ try {
   :global(html:not(.dark)) .reg-card-header, :global(html:not(.dark)) .embedded-divider { border-color: #e2e8f0; }
   :global(html:not(.dark)) .reg-title, :global(html:not(.dark)) .field-label, :global(html:not(.dark)) .embedded-heading { color: #172033; }
   :global(html:not(.dark)) .reg-desc, :global(html:not(.dark)) .embedded-paragraph, :global(html:not(.dark)) .field-help { color: #52637a; }
+  :global(html:not(.dark)) .email-availability.available { color: #047857; }
+  :global(html:not(.dark)) .email-availability.unavailable { color: #b91c1c; }
   :global(html:not(.dark)) .form-input { background: #ffffff; border-color: #cfd9e6; color: #172033; }
   :global(html:not(.dark)) .choice-option, :global(html:not(.dark)) .check-option { color: #334155; }
 </style>
