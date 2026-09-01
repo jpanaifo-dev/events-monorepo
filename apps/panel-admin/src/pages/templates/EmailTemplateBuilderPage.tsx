@@ -1493,7 +1493,7 @@ export function EmailTemplateBuilderPage() {
                     )}
 
                     {/* Block Render Output */}
-                    {renderEmailCanvasBlock(block, theme, (text) => updateSelectedBlock({ options: { ...block.options, text } }), () => setSelectedBlockId(block.id))}
+                    {renderEmailCanvasBlock(block, theme, isSelected, (text) => updateSelectedBlock({ options: { ...block.options, text } }), () => setSelectedBlockId(block.id))}
                   </div>
                 )
               })
@@ -1560,7 +1560,7 @@ export function EmailTemplateBuilderPage() {
 }
 
 // Render each block on the email preview canvas
-function renderEmailCanvasBlock(block: EmailBlock, theme: EmailTheme, onTextCommit?: (text: string) => void, onTextSelect?: () => void) {
+function renderEmailCanvasBlock(block: EmailBlock, theme: EmailTheme, editable = false, onTextCommit?: (text: string) => void, onTextSelect?: () => void) {
   const opt = block.options || {}
 
   switch (block.type) {
@@ -1631,6 +1631,7 @@ function renderEmailCanvasBlock(block: EmailBlock, theme: EmailTheme, onTextComm
         >
           <InlineCanvasText
             as="h2"
+            editable={editable}
             value={opt.text || "Este es el titular."}
             onCommit={onTextCommit}
             onSelect={onTextSelect}
@@ -1660,6 +1661,7 @@ function renderEmailCanvasBlock(block: EmailBlock, theme: EmailTheme, onTextComm
       return (
         <InlineCanvasText
           as="div"
+          editable={editable}
           value={opt.text || "Contenido del párrafo..."}
           onCommit={onTextCommit}
           onSelect={onTextSelect}
@@ -1840,12 +1842,12 @@ function TextFormattingToolbar({ block, onUpdate }: { block: EmailBlock; onUpdat
   )
 }
 
-function InlineCanvasText({ as: Tag, value, onCommit, onSelect, style, className }: { as: "h2" | "div"; value: string; onCommit?: (value: string) => void; onSelect?: () => void; style: CSSProperties; className?: string }) {
+function InlineCanvasText({ as: Tag, editable, value, onCommit, onSelect, style, className }: { as: "h2" | "div"; editable: boolean; value: string; onCommit?: (value: string) => void; onSelect?: () => void; style: CSSProperties; className?: string }) {
   const ref = useRef<HTMLElement>(null)
   useEffect(() => {
     if (ref.current && document.activeElement !== ref.current && ref.current.textContent !== value) ref.current.textContent = value
   }, [value])
-  return <Tag ref={ref as any} contentEditable suppressContentEditableWarning spellCheck={false} onMouseDown={onSelect} onBlur={(event) => { const next = event.currentTarget.textContent || ""; if (next !== value) onCommit?.(next) }} style={style} className={`outline-none ${className || ""}`} aria-label="Editar contenido">{value}</Tag>
+  return <Tag ref={ref as any} contentEditable={editable} suppressContentEditableWarning spellCheck={false} onMouseDown={onSelect} onBlur={(event) => { const next = event.currentTarget.textContent || ""; if (next !== value) onCommit?.(next) }} style={style} className={`outline-none ${editable ? "cursor-text" : "cursor-pointer"} ${className || ""}`} aria-label="Editar contenido">{value}</Tag>
 }
 
 function InspectorInput({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string }) {
