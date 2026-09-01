@@ -84,6 +84,27 @@ enum TemplateChannel {
   SMS
 }
 
+enum AutomationStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum AutomationTiming {
+  IMMEDIATE
+  BEFORE_EVENT
+  AFTER_EVENT
+  AFTER_PREVIOUS_STEP
+}
+
+enum DeliveryStatus {
+  QUEUED
+  SENT
+  FAILED
+  SKIPPED
+}
+
 model AuthUser {
   id                     String               @id @default(uuid()) @db.Uuid
   email                  String               @unique
@@ -158,6 +179,8 @@ model Organization {
   emailTemplates EmailTemplate[]
   marketingContacts MarketingContact[]
   marketingSegments MarketingSegment[]
+  automations MarketingAutomation[]
+  emailDeliveries EmailDelivery[]
 
   @@map("organizations")
 }
@@ -283,6 +306,7 @@ model MainEvent {
   setupProgress  EventSetupProgress?
   contacts       EventContact[]
   registrationForms RegistrationForm[]
+  automations MarketingAutomation[]
 
   @@index([organizationId, status])
   @@map("main_events")
@@ -608,4 +632,53 @@ model EmailTemplate {
 
   @@index([organizationId, channel, status])
   @@map("email_templates")
+}
+
+model MarketingAutomation {
+  id String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  eventId String? @map("event_id") @db.Uuid
+  name String
+  status AutomationStatus @default(DRAFT)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  organization Organization @relation(fields:[organizationId], references:[id], onDelete:Cascade)
+  event MainEvent? @relation(fields:[eventId], references:[id], onDelete:SetNull)
+  steps MarketingAutomationStep[]
+  @@index([organizationId, status])
+  @@map("marketing_automations")
+}
+
+model MarketingAutomationStep {
+  id String @id @default(uuid()) @db.Uuid
+  automationId String @map("automation_id") @db.Uuid
+  position Int
+  timing AutomationTiming
+  offsetHours Int @default(0) @map("offset_hours")
+  templateId String? @map("template_id") @db.Uuid
+  subject String?
+  htmlContent String? @map("html_content") @db.Text
+  conditions Json?
+  automation MarketingAutomation @relation(fields:[automationId], references:[id], onDelete:Cascade)
+  @@unique([automationId, position])
+  @@map("marketing_automation_steps")
+}
+
+model EmailDelivery {
+  id String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  automationId String @map("automation_id") @db.Uuid
+  stepId String @map("step_id") @db.Uuid
+  contactId String? @map("contact_id") @db.Uuid
+  recipientEmail String @map("recipient_email")
+  recipientName String? @map("recipient_name")
+  scheduledAt DateTime @map("scheduled_at")
+  sentAt DateTime? @map("sent_at")
+  status DeliveryStatus @default(QUEUED)
+  providerMessageId String? @map("provider_message_id")
+  error String?
+  organization Organization @relation(fields:[organizationId], references:[id], onDelete:Cascade)
+  @@unique([stepId, recipientEmail])
+  @@index([status, scheduledAt])
+  @@map("email_deliveries")
 }

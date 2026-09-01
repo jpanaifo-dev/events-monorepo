@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom"
 import { z } from "zod"
 import { useEventStore } from "@/store/event.store"
 import { api } from "@/api/client"
-import { uploadToR2 } from "@/utils/r2-storage"
+import { uploadOrganizationAsset } from "@/utils/r2-storage"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
@@ -79,7 +79,8 @@ export function EditEventPage() {
     try {
       // 1. Subir a Cloudflare R2
       console.log("[EditEvent] Subiendo portada a R2...")
-      const publicUrl = await uploadToR2(file, `events/${id}`, "cover")
+      if (!event?.organizationId) throw new Error("El evento no tiene una institución asignada.")
+      const publicUrl = await uploadOrganizationAsset(file, { organizationId: event.organizationId, type: "events/cover", resourceId: id })
       console.log("[EditEvent] Portada subida a R2:", publicUrl)
 
       await api.events.update(id, { coverUrl: publicUrl })
@@ -109,7 +110,8 @@ export function EditEventPage() {
     try {
       // 1. Subir a Cloudflare R2
       console.log("[EditEvent] Subiendo logo a R2...")
-      const publicUrl = await uploadToR2(file, `events/${id}`, "logo")
+      if (!event?.organizationId) throw new Error("El evento no tiene una institución asignada.")
+      const publicUrl = await uploadOrganizationAsset(file, { organizationId: event.organizationId, type: "events/logo", resourceId: id })
       console.log("[EditEvent] Logo subido a R2:", publicUrl)
 
       await api.events.update(id, { logoUrl: publicUrl })
