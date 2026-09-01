@@ -34,17 +34,17 @@ export class AutomationService implements OnModuleInit, OnModuleDestroy {
   }
 
   /** Enrola una inscripción sólo en automatizaciones activas de su evento. */
-  async enrollRegistration(input: { eventId: string; submissionId: string; email?: string | null; firstName?: string | null; registeredAt?: Date }) {
+  async enrollRegistration(input: { eventId: string; submissionId: string; email?: string | null; firstName?: string | null; lastName?: string | null; registeredAt?: Date }) {
     const email = String(input.email || '').trim().toLowerCase();
     if (!email) return { enrolled: 0, reason: 'La inscripción no tiene correo' };
-    const event = await this.prisma.mainEvent.findUnique({ where: { id: input.eventId }, select: { id: true, organizationId: true, eventName: true, startDate: true } });
+    const event = await this.prisma.mainEvent.findUnique({ where: { id: input.eventId }, select: { id: true, organizationId: true, eventName: true, startDate: true, venueAddress: true } });
     if (!event?.organizationId) return { enrolled: 0, reason: 'El evento no tiene institución' };
     const contact = await this.prisma.marketingContact.upsert({ where: { organizationId_emailFallback: { organizationId: event.organizationId, emailFallback: email } }, update: { source: 'EVENT_REGISTRATION' }, create: { organizationId: event.organizationId, emailFallback: email, consentStatus: 'SUBSCRIBED', consentedAt: new Date(), source: 'EVENT_REGISTRATION' } });
     const automations = await this.prisma.marketingAutomation.findMany({ where: { organizationId: event.organizationId, eventId: event.id, status: 'ACTIVE' }, include: { steps: { orderBy: { position: 'asc' } } } });
     let enrolled = 0;
     for (const automation of automations) {
       await this.prisma.marketingEventEnrollment.upsert({ where: { automationId_contactId: { automationId: automation.id, contactId: contact.id } }, update: { submissionId: input.submissionId, firstName: input.firstName || null, registeredAt: input.registeredAt || new Date(), attendanceStatus: 'REGISTERED' }, create: { organizationId: event.organizationId, eventId: event.id, automationId: automation.id, contactId: contact.id, submissionId: input.submissionId, firstName: input.firstName || null, registeredAt: input.registeredAt || new Date() } });
-      await this.queueContact(automation, contact, event, input.firstName || null, input.registeredAt || new Date());
+      await this.queueContact(automation, contact, event, input.firstName || null, input.registeredAt || new Date(), { last_name: input.lastName || '', registration_code: input.submissionId });
       enrolled++;
     }
     return { enrolled };
@@ -83,9 +83,10 @@ export class AutomationService implements OnModuleInit, OnModuleDestroy {
 
   async analytics(organizationId: string) { const group = await this.prisma.emailDelivery.groupBy({ by: ['status'], where: { organizationId }, _count: { _all: true } }); return Object.fromEntries(group.map((x) => [x.status, x._count._all])); }
 
-  private async queueContact(automation: any, contact: any, event: any, firstName: string | null, registeredAt: Date) {
+  private async queueContact(automation: any, contact: any, event: any, firstName: string | null, registeredAt: Date, extraContext: Record<string, unknown> = {}) {
     if (contact.consentStatus !== 'SUBSCRIBED' || !contact.emailFallback) return 0;
-    const context = { first_name: firstName || 'amigo', email: contact.emailFallback, event_name: event.eventName, event_start_date: event.startDate.toISOString(), unsubscribe_url: '', ...((automation.settings as Record<string, unknown> | null) || {}) };
+    const settings = (automation.settings as Record<string, unknown> | null) || {};
+    const context = { first_name: firstName || 'amigo', email: contact.emailFallback, event_name: event.eventName, event_start_date: event.startDate.toISOString(), event_location: event.venueAddress || '', unsubscribe_url: '', ...settings, ...extraContext };
     let queued = 0;
     for (const step of automation.steps) {
       const date = this.when(step, event.startDate, registeredAt, new Date());

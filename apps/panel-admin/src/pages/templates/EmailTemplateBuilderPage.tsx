@@ -1,4 +1,5 @@
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState, useMemo, useRef, type CSSProperties, type ElementType } from "react"
+import { createPortal } from "react-dom"
 import { useNavigate, useParams } from "react-router-dom"
 import {
   ArrowLeft,
@@ -27,6 +28,20 @@ import {
   Copy,
   Search,
   Plus,
+  Braces,
+  UserRound,
+  CalendarDays,
+  Ticket,
+  Settings2,
+  ChevronRight,
+  X,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  Bold,
+  Italic,
+  Link,
+  Smile,
 } from "lucide-react"
 import { toast } from "sonner"
 import { api } from "@/api/client"
@@ -85,13 +100,17 @@ const DEFAULT_THEME: EmailTheme = {
 }
 
 export const AVAILABLE_VARIABLES = [
-  { key: "contact.FIRSTNAME", label: "Nombre", category: "Contacto" },
-  { key: "contact.LASTNAME", label: "Apellido", category: "Contacto" },
-  { key: "contact.EMAIL", label: "Email", category: "Contacto" },
-  { key: "event.NAME", label: "Nombre Evento", category: "Evento" },
-  { key: "event.DATE", label: "Fecha Evento", category: "Evento" },
-  { key: "event.LOCATION", label: "Lugar Evento", category: "Evento" },
-  { key: "registration.CODE", label: "Cód. Registro", category: "Registro" },
+  { key: "first_name", label: "Nombre", category: "Datos de contacto", description: "Nombre con el que se registró la persona" },
+  { key: "last_name", label: "Apellidos", category: "Datos de contacto", description: "Apellidos de la persona registrada" },
+  { key: "email", label: "Correo electrónico", category: "Datos de contacto", description: "Correo de contacto" },
+  { key: "event_name", label: "Nombre del evento", category: "Datos del evento", description: "Evento que activa la automatización" },
+  { key: "event_start_date", label: "Fecha del evento", category: "Datos del evento", description: "Fecha y hora configurada para el evento" },
+  { key: "event_location", label: "Ubicación", category: "Datos del evento", description: "Lugar o enlace del evento" },
+  { key: "registration_code", label: "Código de registro", category: "Registro", description: "Código único de la inscripción" },
+  { key: "whatsapp_community_url", label: "Enlace de WhatsApp", category: "Automatización", description: "URL configurada para la comunidad" },
+  { key: "offer_url", label: "URL de oferta", category: "Automatización", description: "Enlace de conversión de la automatización" },
+  { key: "discount_code", label: "Código de beneficio", category: "Automatización", description: "Código promocional vigente" },
+  { key: "unsubscribe_url", label: "Enlace de baja", category: "Automatización", description: "Enlace para cancelar suscripción" },
 ]
 
 export function formatTextWithVariables(raw: string): string {
@@ -99,7 +118,7 @@ export function formatTextWithVariables(raw: string): string {
   const withLineBreaks = raw.replace(/\n/g, "<br/>")
   return withLineBreaks.replace(
     /{{\s*([\w.]+)\s*}}/g,
-    `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 mx-0.5 rounded-md bg-violet-100/90 dark:bg-violet-950/80 text-violet-800 dark:text-violet-300 font-mono text-[0.82em] font-bold border border-violet-300/80 dark:border-violet-700 shadow-2xs select-none align-baseline tracking-normal" title="Variable dinámica: $1"><span class="opacity-60 text-[0.75em] font-mono">{ }</span><span>$1</span></span>`
+    `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 mx-0.5 rounded-md bg-violet-50 dark:bg-violet-950/50 text-violet-800 dark:text-violet-300 font-mono text-[0.82em] font-medium border border-violet-200 dark:border-violet-800 select-none align-baseline tracking-normal" title="Variable dinámica: $1"><span class="opacity-60 text-[0.75em] font-mono">{ }</span><span>$1</span></span>`
   )
 }
 
@@ -115,43 +134,50 @@ function VariableChipsBar({
     return Array.from(new Set(matches.map((m) => m[1])))
   }, [currentValue])
 
+  return <VariablePicker onInsert={onInsert} detectedVariables={detectedVariables} />
+}
+
+function VariablePicker({ onInsert, detectedVariables }: { onInsert: (key: string) => void; detectedVariables: string[] }) {
+  const [open, setOpen] = useState(false)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 })
+  const [query, setQuery] = useState("")
+  const [category, setCategory] = useState<string | null>(null)
+  const [customKey, setCustomKey] = useState("")
+  const groups = Array.from(new Set(AVAILABLE_VARIABLES.map((item) => item.category)))
+  const filtered = AVAILABLE_VARIABLES.filter((item) => (!category || item.category === category) && `${item.label} ${item.key} ${item.description}`.toLowerCase().includes(query.toLowerCase()))
+  const choose = (key: string) => { onInsert(key); setOpen(false); setQuery(""); setCategory(null) }
+  const toggle = () => { const rect = triggerRef.current?.getBoundingClientRect(); if (rect) setMenuPosition({ top: rect.bottom + 8, left: rect.left }); setOpen((value) => !value) }
+  const icons: Record<string, ElementType> = { "Datos de contacto": UserRound, "Datos del evento": CalendarDays, Registro: Ticket, Automatización: Settings2 }
+
   return (
-    <div className="space-y-1.5 pt-1.5">
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] font-semibold text-muted-foreground flex items-center gap-1">
-          <Sparkles className="size-3 text-violet-600 dark:text-violet-400" />
-          Variables disponibles:
-        </span>
+    <div className="relative pt-2">
+      <div className="flex items-center gap-2">
+        <button ref={triggerRef} type="button" onClick={toggle} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-violet-200 bg-background px-2.5 text-xs font-medium text-violet-700 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-300 dark:hover:bg-violet-950/40">
+          <Braces className="size-3.5" /> Añadir variable
+        </button>
+        <span className="text-[11px] text-muted-foreground">Personaliza cada envío sin duplicar plantillas.</span>
       </div>
-
-      <div className="flex flex-wrap gap-1">
-        {AVAILABLE_VARIABLES.map((v) => (
-          <button
-            key={v.key}
-            type="button"
-            onClick={() => onInsert(v.key)}
-            title={`Insertar {{ ${v.key} }} (${v.label})`}
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold bg-violet-50 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 border border-violet-200/80 dark:border-violet-800/60 hover:bg-violet-100 dark:hover:bg-violet-900/60 hover:border-violet-400 hover:scale-[1.02] active:scale-95 transition-all cursor-pointer shadow-2xs"
-          >
-            <span className="opacity-50 text-[9px]">{"{ }"}</span>
-            <span>{v.key}</span>
-          </button>
-        ))}
-      </div>
-
-      {detectedVariables.length > 0 && (
-        <div className="flex items-center gap-1 pt-0.5 text-[10px] text-muted-foreground flex-wrap">
-          <span className="font-semibold text-slate-600 dark:text-slate-400 text-[10px]">Detectadas:</span>
-          {detectedVariables.map((v) => (
-            <span
-              key={v}
-              className="px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-mono text-[9px] font-bold"
-            >
-              {`{{ ${v} }}`}
-            </span>
-          ))}
-        </div>
+      {open && createPortal(
+        <div className="fixed z-[100] w-[340px] overflow-hidden rounded-lg border border-border bg-popover" style={{ top: menuPosition.top, left: Math.min(menuPosition.left, window.innerWidth - 356) }}>
+          <div className="border-b border-border p-3">
+            <div className="flex h-9 items-center gap-2 rounded-md border border-input px-2.5 focus-within:border-violet-500">
+              <Search className="size-4 text-muted-foreground" /><input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar una variable" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground" />
+              {query && <button type="button" onClick={() => setQuery("")} className="text-muted-foreground"><X className="size-3.5" /></button>}
+            </div>
+          </div>
+          {!category ? <div className="py-1">
+            {groups.map((group) => { const Icon = icons[group] || Braces; const count = AVAILABLE_VARIABLES.filter((item) => item.category === group && `${item.label} ${item.key}`.toLowerCase().includes(query.toLowerCase())).length; if (query && count === 0) return null; return <button key={group} type="button" onClick={() => setCategory(group)} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-muted/50"><Icon className="size-4 text-muted-foreground" /><span className="flex-1"><span className="block text-sm font-medium">{group}</span><span className="block pt-0.5 text-xs text-muted-foreground">{group === "Datos de contacto" ? "Información de la persona registrada" : group === "Datos del evento" ? "Información del evento asociado" : group === "Registro" ? "Datos únicos de la inscripción" : "Enlaces y código configurados"}</span></span><ChevronRight className="size-4 text-muted-foreground" /></button> })}
+            <div className="mx-3 my-2 border-t border-border" />
+            <div className="px-4 pb-3"><p className="mb-2 text-xs text-muted-foreground">Variable personalizada</p><div className="flex gap-2"><Input value={customKey} onChange={(event) => setCustomKey(event.target.value.replace(/[^a-z0-9_]/gi, "").toLowerCase())} placeholder="ej. sede_evento" className="h-8 text-xs" /><Button type="button" size="sm" variant="outline" className="h-8 text-xs font-medium" disabled={!customKey} onClick={() => choose(`custom.${customKey}`)}>Insertar</Button></div><p className="mt-1.5 text-[11px] text-muted-foreground">Configúrala después en la automatización.</p></div>
+          </div> : <div className="py-1">
+            <button type="button" onClick={() => setCategory(null)} className="flex items-center gap-2 px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> Atrás</button>
+            {filtered.map((item) => <button key={item.key} type="button" onClick={() => choose(item.key)} className="flex w-full items-start gap-3 px-4 py-2.5 text-left hover:bg-muted/50"><Braces className="mt-0.5 size-4 text-violet-600" /><span><span className="block text-sm font-medium">{item.label}</span><span className="block pt-0.5 font-mono text-[11px] text-muted-foreground">{`{{ ${item.key} }}`}</span><span className="block pt-0.5 text-xs text-muted-foreground">{item.description}</span></span></button>)}
+            {filtered.length === 0 && <p className="px-4 py-6 text-center text-sm text-muted-foreground">No encontramos variables.</p>}
+          </div>}
+        </div>, document.body
       )}
+      {detectedVariables.length > 0 && <div className="mt-2 flex flex-wrap items-center gap-1.5"><span className="text-[11px] text-muted-foreground">En uso:</span>{detectedVariables.map((key) => <span key={key} className="rounded-md border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 font-mono text-[10px] text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300">{`{{ ${key} }}`}</span>)}</div>}
     </div>
   )
 }
@@ -1038,24 +1064,10 @@ export function EmailTemplateBuilderPage() {
 
                 {selectedBlock.type === "dynamic" && (
                   <div className="space-y-3">
-                    <InspectorInput label="Variable" value={selectedBlock.options?.variable || ""} onChange={(variable) => updateSelectedBlock({ options: { ...selectedBlock.options, variable } })} placeholder="contact.FIRSTNAME" />
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-semibold text-muted-foreground">Selección rápida:</label>
-                      <div className="flex flex-wrap gap-1">
-                        {AVAILABLE_VARIABLES.map((v) => (
-                          <button
-                            key={v.key}
-                            type="button"
-                            onClick={() => updateSelectedBlock({ options: { ...selectedBlock.options, variable: v.key } })}
-                            className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold transition-all cursor-pointer ${selectedBlock.options?.variable === v.key ? "bg-violet-600 text-white font-bold shadow-2xs" : "bg-violet-50 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 border border-violet-200/80 hover:bg-violet-100"}`}
-                          >
-                            {v.key}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+                    <InspectorInput label="Variable" value={selectedBlock.options?.variable || ""} onChange={(variable) => updateSelectedBlock({ options: { ...selectedBlock.options, variable } })} placeholder="first_name" />
+                    <VariablePicker onInsert={(variable) => updateSelectedBlock({ options: { ...selectedBlock.options, variable } })} detectedVariables={selectedBlock.options?.variable ? [selectedBlock.options.variable] : []} />
                     <InspectorInput label="Valor alternativo" value={selectedBlock.options?.fallback || ""} onChange={(fallback) => updateSelectedBlock({ options: { ...selectedBlock.options, fallback } })} placeholder="Asistente" />
-                    <p className="text-[11px] text-muted-foreground">Se enviará como <code>{`{{ ${selectedBlock.options?.variable || "contact.FIRSTNAME"} }}`}</code>. Usa el valor alternativo cuando no exista información.</p>
+                    <p className="text-[11px] text-muted-foreground">Se enviará como <code>{`{{ ${selectedBlock.options?.variable || "first_name"} }}`}</code>. Usa el valor alternativo cuando no exista información.</p>
                   </div>
                 )}
 
@@ -1474,8 +1486,15 @@ export function EmailTemplateBuilderPage() {
                       </div>
                     )}
 
+                    {isSelected && (block.type === "heading" || block.type === "text") && (
+                      <TextFormattingToolbar
+                        block={block}
+                        onUpdate={(options) => updateSelectedBlock({ options: { ...block.options, ...options } })}
+                      />
+                    )}
+
                     {/* Block Render Output */}
-                    {renderEmailCanvasBlock(block, theme)}
+                    {renderEmailCanvasBlock(block, theme, isSelected, (text) => updateSelectedBlock({ options: { ...block.options, text } }))}
                   </div>
                 )
               })
@@ -1542,7 +1561,7 @@ export function EmailTemplateBuilderPage() {
 }
 
 // Render each block on the email preview canvas
-function renderEmailCanvasBlock(block: EmailBlock, theme: EmailTheme) {
+function renderEmailCanvasBlock(block: EmailBlock, theme: EmailTheme, editable = false, onTextCommit?: (text: string) => void) {
   const opt = block.options || {}
 
   switch (block.type) {
@@ -1611,15 +1630,18 @@ function renderEmailCanvasBlock(block: EmailBlock, theme: EmailTheme) {
           }}
           className="my-1"
         >
-          <h2
+          <InlineCanvasText
+            as="h2"
+            editable={editable}
+            value={opt.text || "Este es el titular."}
+            onCommit={onTextCommit}
             style={{
               color: opt.color || (opt.bgColor ? "#ffffff" : "#0f172a"),
               fontSize: opt.fontSize ? `${opt.fontSize}px` : "24px",
+              fontWeight: opt.fontWeight || 500,
+              fontStyle: opt.fontStyle || "normal",
             }}
-            className="font-extrabold tracking-tight"
-            dangerouslySetInnerHTML={{
-              __html: formatTextWithVariables(opt.text || "Este es el titular."),
-            }}
+            className="font-medium tracking-tight"
           />
           {opt.subtitle && (
             <p
@@ -1637,17 +1659,20 @@ function renderEmailCanvasBlock(block: EmailBlock, theme: EmailTheme) {
 
     case "text":
       return (
-        <div
+        <InlineCanvasText
+          as="div"
+          editable={editable}
+          value={opt.text || "Contenido del párrafo..."}
+          onCommit={onTextCommit}
           style={{
             textAlign: opt.align || "left",
             color: opt.color || "#334155",
             fontSize: opt.fontSize ? `${opt.fontSize}px` : "14px",
             lineHeight: opt.lineHeight || 1.6,
+            fontWeight: opt.fontWeight || 400,
+            fontStyle: opt.fontStyle || "normal",
           }}
           className="text-xs sm:text-sm leading-relaxed my-1"
-          dangerouslySetInnerHTML={{
-            __html: formatTextWithVariables(opt.text || "Contenido del párrafo..."),
-          }}
         />
       )
 
@@ -1791,6 +1816,38 @@ function renderEmailCanvasBlock(block: EmailBlock, theme: EmailTheme) {
     default:
       return <div className="text-xs text-muted-foreground py-2">Bloque {block.label}</div>
   }
+}
+
+function TextFormattingToolbar({ block, onUpdate }: { block: EmailBlock; onUpdate: (options: Record<string, unknown>) => void }) {
+  const options = block.options || {}
+  const alignments = [{ value: "left", icon: AlignLeft }, { value: "center", icon: AlignCenter }, { value: "right", icon: AlignRight }]
+  return (
+    <div onClick={(event) => event.stopPropagation()} className="absolute -top-12 left-1/2 z-20 flex h-9 -translate-x-1/2 items-center gap-1 rounded-md border border-border bg-background px-1.5 text-muted-foreground">
+      <select value={options.level || 2} onChange={(event) => onUpdate({ level: Number(event.target.value) })} className="h-7 max-w-16 border-0 bg-transparent px-1 text-[11px] outline-none">
+        <option value={1}>Título 1</option><option value={2}>Título 2</option><option value={3}>Título 3</option><option value={4}>Texto</option>
+      </select>
+      <span className="h-4 w-px bg-border" />
+      <button type="button" title="Reducir tamaño" onClick={() => onUpdate({ fontSize: Math.max(12, Number(options.fontSize || 24) - 2) })} className="size-7 rounded text-sm hover:bg-muted">−</button>
+      <span className="min-w-6 text-center text-[11px]">{options.fontSize || 24}</span>
+      <button type="button" title="Aumentar tamaño" onClick={() => onUpdate({ fontSize: Math.min(64, Number(options.fontSize || 24) + 2) })} className="size-7 rounded text-sm hover:bg-muted">+</button>
+      <span className="h-4 w-px bg-border" />
+      <label title="Color" className="flex size-7 cursor-pointer items-center justify-center rounded hover:bg-muted"><span className="text-sm" style={{ color: String(options.color || "#0f172a") }}>A</span><input type="color" value={String(options.color || "#0f172a")} onChange={(event) => onUpdate({ color: event.target.value })} className="sr-only" /></label>
+      {alignments.map(({ value, icon: Icon }) => <button key={value} type="button" title={`Alinear ${value}`} onClick={() => onUpdate({ align: value })} className={`flex size-7 items-center justify-center rounded ${options.align === value ? "bg-muted text-foreground" : "hover:bg-muted"}`}><Icon className="size-3.5" /></button>)}
+      <span className="h-4 w-px bg-border" />
+      <button type="button" title="Negrita" onClick={() => onUpdate({ fontWeight: Number(options.fontWeight || 400) >= 600 ? 400 : 600 })} className={`flex size-7 items-center justify-center rounded ${Number(options.fontWeight || 400) >= 600 ? "bg-muted text-foreground" : "hover:bg-muted"}`}><Bold className="size-3.5" /></button>
+      <button type="button" title="Cursiva" onClick={() => onUpdate({ fontStyle: options.fontStyle === "italic" ? "normal" : "italic" })} className={`flex size-7 items-center justify-center rounded ${options.fontStyle === "italic" ? "bg-muted text-foreground" : "hover:bg-muted"}`}><Italic className="size-3.5" /></button>
+      <button type="button" title="Usa un bloque Botón para añadir enlaces" className="flex size-7 items-center justify-center rounded hover:bg-muted"><Link className="size-3.5" /></button>
+      <button type="button" title="Añadir variable desde el panel derecho" className="flex size-7 items-center justify-center rounded hover:bg-muted"><Braces className="size-3.5" /></button>
+      <button type="button" title="Emoji" className="flex size-7 items-center justify-center rounded hover:bg-muted"><Smile className="size-3.5" /></button>
+    </div>
+  )
+}
+
+function InlineCanvasText({ as: Tag, editable, value, onCommit, style, className }: { as: "h2" | "div"; editable: boolean; value: string; onCommit?: (value: string) => void; style: CSSProperties; className?: string }) {
+  const [draft, setDraft] = useState(value)
+  useEffect(() => setDraft(value), [value])
+  if (editable) return <textarea autoFocus value={draft} onClick={(event) => event.stopPropagation()} onChange={(event) => setDraft(event.target.value)} onBlur={() => { if (draft !== value) onCommit?.(draft) }} rows={Tag === "h2" ? 1 : 3} style={style} className={`w-full resize-none border-0 bg-transparent p-0 outline-none ring-0 ${className || ""}`} aria-label="Editar contenido" />
+  return <Tag style={style} className={className} dangerouslySetInnerHTML={{ __html: formatTextWithVariables(value) }} />
 }
 
 function InspectorInput({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string }) {

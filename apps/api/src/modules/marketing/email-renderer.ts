@@ -5,7 +5,18 @@ const escapeHtml = (value: unknown) => String(value ?? '').replace(/[&<>'"]/g, (
 }[char] || char));
 
 export function interpolate(value: string, context: Record<string, unknown>) {
-  return value.replace(/{{\s*([\w.]+)\s*}}/g, (_match, key) => escapeHtml(context[key] ?? ''));
+  return value.replace(/{{\s*([\w.]+)\s*}}/g, (_match, key) => escapeHtml(variableValue(key, context) ?? ''));
+}
+
+function variableValue(key: string, context: Record<string, unknown>): unknown {
+  const legacy: Record<string, string> = {
+    'contact.FIRSTNAME': 'first_name', 'contact.LASTNAME': 'last_name', 'contact.EMAIL': 'email',
+    'event.NAME': 'event_name', 'event.DATE': 'event_start_date', 'event.LOCATION': 'event_location',
+    'registration.CODE': 'registration_code',
+  };
+  const resolved = legacy[key] || key;
+  if (context[resolved] !== undefined) return context[resolved];
+  return resolved.split('.').reduce<unknown>((value, part) => value && typeof value === 'object' ? (value as Record<string, unknown>)[part] : undefined, context);
 }
 
 function button(text: string, url: string, options: Record<string, unknown>) {

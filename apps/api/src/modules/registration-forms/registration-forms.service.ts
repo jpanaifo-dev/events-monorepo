@@ -151,7 +151,8 @@ export class RegistrationFormsService {
       },
     });
     const firstName = [answers.first_name, answers.firstName, answers.name, answers.nombres].find((value) => typeof value === 'string') as string | undefined;
-    await this.automations.enrollRegistration({ eventId: form.mainEventId, submissionId: submission.id, email, firstName, registeredAt: submission.submittedAt });
+    const lastName = [answers.last_name, answers.lastName, answers.apellidos].find((value) => typeof value === 'string') as string | undefined;
+    await this.automations.enrollRegistration({ eventId: form.mainEventId, submissionId: submission.id, email, firstName, lastName, registeredAt: submission.submittedAt });
     return submission;
   }
 }
