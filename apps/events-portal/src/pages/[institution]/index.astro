@@ -1,21 +1,877 @@
 ---
 import PortalLayout from '../../layouts/PortalLayout.astro';
-import { portalApi } from '../../lib/api';
+import { portalApi, type PortalEvent } from '../../lib/api';
+
 const { institution } = Astro.params;
 if (!institution) return Astro.redirect('/');
+
 let data;
-try { data = await portalApi.events(institution); } catch { return new Response('Institución no encontrada', { status: 404 }); }
-const date = new Intl.DateTimeFormat('es-PE', { dateStyle: 'long', timeStyle: 'short' });
+try {
+  data = await portalApi.events(institution);
+} catch {
+  return new Response('Institución no encontrada', { status: 404 });
+}
+
+const dateFormatter = new Intl.DateTimeFormat('es-PE', {
+  weekday: 'short',
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+
+const events: PortalEvent[] = data.events || [];
+const organization = data.organization;
+
+// Extract real venues and modes dynamically
+const venues = Array.from(new Set(events.map((e) => e.venueAddress).filter(Boolean))) as string[];
+const modes = Array.from(new Set(events.map((e) => e.eventMode).filter(Boolean))) as string[];
+
+const featuredEvent = events[0] as PortalEvent | undefined;
 ---
-<PortalLayout organization={data.organization} title={`Eventos · ${data.organization.name}`}>
-  <section class="hero" style={data.organization.coverUrl ? `background-image: linear-gradient(90deg, rgba(14,25,42,.76), rgba(14,25,42,.38)), url(${data.organization.coverUrl})` : undefined}>
-    <p>Portal institucional</p><h1>{data.organization.name}</h1><span>{data.organization.description || 'Encuentra actividades, congresos y experiencias disponibles.'}</span>
+
+<PortalLayout
+  organization={organization}
+  title={`${organization.name} · Experiencias & Eventos`}
+  venues={venues}
+>
+  <!-- ========================================================================= -->
+  <!-- 1. CINEMATIC HERO (The Design Conference style - Screenshot 1)           -->
+  <!-- ========================================================================= -->
+  <section class="tdc-hero">
+    <div
+      class="tdc-hero-bg"
+      style={featuredEvent?.coverUrl ? `background-image: url(${featuredEvent.coverUrl})` : (organization.coverUrl ? `background-image: url(${organization.coverUrl})` : undefined)}
+    ></div>
+    <div class="tdc-hero-vignette"></div>
+
+    <div class="tdc-container tdc-hero-container">
+      <div class="tdc-hero-eyebrow-row">
+        <span class="tdc-sub-tag">{organization.name}</span>
+        <div class="tdc-dots">
+          <span class="tdc-dot active"></span>
+          <span class="tdc-dot"></span>
+        </div>
+      </div>
+
+      <div class="tdc-hero-center">
+        <div class="tdc-tag-row">
+          <span class="tdc-badge-pill light">{featuredEvent?.eventMode?.toUpperCase() || 'EVENTO OFICIAL'}</span>
+          <span class="tdc-badge-pill dark">{events.length} {events.length === 1 ? 'EVENTO' : 'EVENTOS PUBLICADOS'}</span>
+        </div>
+
+        <h1 class="tdc-hero-headline">
+          {featuredEvent ? featuredEvent.eventName : `Conferencias y Experiencias de ${organization.name}`}
+        </h1>
+
+        <p class="tdc-hero-desc">
+          {featuredEvent?.description || organization.description || 'Descubre los próximos encuentros, talleres magistrales y actividades presenciales.'}
+        </p>
+
+        <div class="tdc-hero-actions">
+          {featuredEvent ? (
+            <a href={`/${organization.slug}/events/${featuredEvent.id}`} class="tdc-action-pill">
+              <span>Ver detalles y registro</span>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h14"/>
+                <path d="m12 5 7 7-7 7"/>
+              </svg>
+            </a>
+          ) : (
+            <a href="#eventos" class="tdc-action-pill">
+              <span>Explorar eventos</span>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M5 12h14"/>
+                <path d="m12 5 7 7-7 7"/>
+              </svg>
+            </a>
+          )}
+        </div>
+      </div>
+
+      <!-- Hero Bottom Meta Bar -->
+      <div class="tdc-hero-bottom-bar">
+        <span class="bottom-credit">Organizado por: <strong>{organization.name}</strong></span>
+        <span class="bottom-tag">{organization.slug.toUpperCase()}</span>
+      </div>
+    </div>
   </section>
-  <section id="eventos" class="events"><div class="heading"><p>Próximamente</p><h2>Eventos publicados</h2></div>
-    {data.events.length ? <div class="grid">{data.events.map((event) => <a class="event-card" href={`/${data.organization.slug}/events/${event.id}`}><div class="cover" style={event.coverUrl ? `background-image:url(${event.coverUrl})` : undefined}></div><div class="card-body"><span class="mode">{event.eventMode || 'Evento'}</span><h3>{event.eventName}</h3><p>{event.description || 'Conoce todos los detalles y agenda.'}</p><time>{date.format(new Date(event.startDate))}</time></div></a>)}</div> : <p class="empty">Aún no hay eventos publicados.</p>}
+
+  <!-- ========================================================================= -->
+  <!-- 2. CURATED LINEUP & OVERVIEW SPLIT (Screenshot 2)                        -->
+  <!-- ========================================================================= -->
+  <section class="tdc-overview-section" id="destacado">
+    <div class="tdc-container">
+      <div class="tdc-section-eyebrow-line">
+        <span>PERÚ · {new Date().getFullYear()}</span>
+      </div>
+
+      <div class="tdc-split-grid">
+        <div class="tdc-split-left">
+          <h2 class="tdc-massive-heading">
+            Una programación curada de líderes, investigadores y creadores
+          </h2>
+        </div>
+
+        <div class="tdc-split-right">
+          <p class="tdc-split-paragraph">
+            {organization.description || `${organization.name} reúne a especialistas y profesionales líderes en su campo. Cada sesión ofrece una perspectiva de vanguardia y un espacio para conectar e impulsar tu desarrollo.`}
+          </p>
+          <div class="tdc-split-actions">
+            <a href="#eventos" class="tdc-pill-btn primary">
+              <span>Ver eventos →</span>
+            </a>
+            <a href="#workshops" class="tdc-pill-btn secondary">
+              <span>Actividades →</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================================= -->
+  <!-- 3. WORKSHOPS & SESIONES DESTACADAS (Screenshot 3 style)                  -->
+  <!-- ========================================================================= -->
+  {events.length > 0 && (
+    <section class="tdc-workshops-section" id="workshops">
+      <div class="tdc-container">
+        <div class="tdc-section-header-row">
+          <h2 class="tdc-section-title">Talleres & Conferencias</h2>
+          <div class="tdc-nav-arrows">
+            <a href="#eventos" class="arrow-btn" title="Ver anteriores">←</a>
+            <a href="#eventos" class="arrow-btn" title="Ver siguientes">→</a>
+          </div>
+        </div>
+
+        <div class="tdc-workshops-grid">
+          {events.slice(0, 3).map((evt) => (
+            <a href={`/${organization.slug}/events/${evt.id}`} class="tdc-workshop-card">
+              <div
+                class="workshop-card-img"
+                style={evt.coverUrl ? `background-image: url(${evt.coverUrl})` : undefined}
+              >
+                <span class="workshop-hover-badge">
+                  <span>Ver evento</span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M7 17 17 7"/>
+                    <path d="M7 7h10v10"/>
+                  </svg>
+                </span>
+              </div>
+
+              <div class="workshop-card-content">
+                <div class="workshop-badges-row">
+                  <span class="w-badge white">{evt.eventMode || 'PRESENCIAL'}</span>
+                  <span class="w-badge dark">{dateFormatter.format(new Date(evt.startDate))}</span>
+                  {evt.venueAddress && <span class="w-badge dark truncate">{evt.venueAddress}</span>}
+                </div>
+
+                <h3 class="workshop-title">{evt.eventName}</h3>
+                <p class="workshop-desc">{evt.description || 'Conoce la agenda completa, expositores y detalles de registro.'}</p>
+
+                <div class="workshop-speaker-row">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                  </svg>
+                  <span>{organization.name}</span>
+                </div>
+              </div>
+            </a>
+          ))}
+        </div>
+      </div>
+    </section>
+  )}
+
+  <!-- ========================================================================= -->
+  <!-- 4. ESCENARIO PRINCIPAL / AGENDA COMPLETA (Screenshot 4 style)            -->
+  <!-- ========================================================================= -->
+  <section class="tdc-stages-section" id="eventos">
+    <div class="tdc-container">
+      <div class="tdc-stages-header">
+        <div>
+          <span class="tdc-eyebrow-accent">AGENDA Y REGISTRO EN VIVO</span>
+          <h2 class="tdc-section-title">Escenario principal</h2>
+        </div>
+
+        <!-- Live Search & Mode Filter -->
+        <div class="tdc-controls-bar">
+          <div class="tdc-search-box">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <circle cx="11" cy="11" r="8"/>
+              <path d="m21 21-4.3-4.3"/>
+            </svg>
+            <input
+              type="text"
+              id="event-search-input"
+              placeholder="Buscar por título o sede..."
+              aria-label="Buscar eventos"
+            />
+          </div>
+
+          {modes.length > 0 && (
+            <div class="tdc-pills-filter">
+              <button type="button" class="filter-pill active" data-mode="all">Todos ({events.length})</button>
+              {modes.map((m) => (
+                <button type="button" class="filter-pill" data-mode={m.toLowerCase()}>{m}</button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {events.length > 0 ? (
+        <div class="tdc-stage-cards-grid" id="events-grid">
+          {events.map((evt) => (
+            <a
+              href={`/${organization.slug}/events/${evt.id}`}
+              class="tdc-stage-card"
+              data-card-title={evt.eventName.toLowerCase()}
+              data-card-venue={(evt.venueAddress || '').toLowerCase()}
+              data-card-mode={(evt.eventMode || '').toLowerCase()}
+            >
+              <div
+                class="stage-card-thumb"
+                style={evt.coverUrl ? `background-image: url(${evt.coverUrl})` : undefined}
+              >
+                <span class="stage-tag">{evt.eventMode || 'Presencial'}</span>
+              </div>
+              <div class="stage-card-body">
+                <time class="stage-time">{dateFormatter.format(new Date(evt.startDate))}</time>
+                <h3 class="stage-title">{evt.eventName}</h3>
+                <p class="stage-desc">{evt.description || 'Haz clic para revisar la programación y asegurar tu lugar.'}</p>
+                <div class="stage-action-link">
+                  <span>Ver evento</span>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="m9 18 6-6-6-6"/>
+                  </svg>
+                </div>
+              </div>
+            </a>
+          ))}
+        </div>
+      ) : (
+        <div class="tdc-empty-card">
+          <div class="empty-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/>
+              <line x1="16" x2="16" y1="2" y2="6"/>
+              <line x1="8" x2="8" y1="2" y2="6"/>
+              <line x1="3" x2="21" y1="10" y2="10"/>
+            </svg>
+          </div>
+          <h3>No hay eventos publicados actualmente</h3>
+          <p>{organization.name} no cuenta con eventos públicos en este momento. Te invitamos a volver pronto para nuevas convocatorias.</p>
+        </div>
+      )}
+
+      <div id="no-search-results" class="tdc-empty-card" style="display: none;">
+        <h3>No encontramos eventos</h3>
+        <p>Intenta con otros términos de búsqueda.</p>
+      </div>
+    </div>
   </section>
 </PortalLayout>
 
+<script>
+  // Real Search & Mode Filter Logic
+  const searchInput = document.getElementById('event-search-input') as HTMLInputElement | null;
+  const filterPills = document.querySelectorAll<HTMLButtonElement>('.filter-pill');
+  const stageCards = document.querySelectorAll<HTMLElement>('.tdc-stage-card');
+  const noResults = document.getElementById('no-search-results');
+
+  let activeMode = 'all';
+  let searchQuery = '';
+
+  function applyFilters() {
+    let visibleCount = 0;
+    stageCards.forEach((card) => {
+      const title = card.getAttribute('data-card-title') || '';
+      const venue = card.getAttribute('data-card-venue') || '';
+      const mode = card.getAttribute('data-card-mode') || '';
+
+      const matchSearch = !searchQuery || title.includes(searchQuery) || venue.includes(searchQuery);
+      const matchMode = activeMode === 'all' || mode === activeMode;
+
+      if (matchSearch && matchMode) {
+        card.style.display = 'flex';
+        visibleCount++;
+      } else {
+        card.style.display = 'none';
+      }
+    });
+
+    if (noResults) {
+      noResults.style.display = visibleCount === 0 && stageCards.length > 0 ? 'block' : 'none';
+    }
+  }
+
+  searchInput?.addEventListener('input', (e) => {
+    searchQuery = (e.target as HTMLInputElement).value.trim().toLowerCase();
+    applyFilters();
+  });
+
+  filterPills.forEach((pill) => {
+    pill.addEventListener('click', () => {
+      filterPills.forEach((p) => p.classList.remove('active'));
+      pill.classList.add('active');
+      activeMode = pill.getAttribute('data-mode') || 'all';
+      applyFilters();
+    });
+  });
+</script>
+
 <style>
-  .hero { min-height: 360px; padding: 6rem 12vw; display: grid; align-content: center; gap: .75rem; color: white; background: #1c385e center/cover; } .hero p,.heading p,.mode { margin: 0; color: #9cc7ff; font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; } h1 { margin: 0; max-width: 760px; font-size: clamp(2.2rem, 5vw, 4.5rem); font-weight: 500; letter-spacing: -.045em; } .hero span { max-width: 580px; color: #e0eaff; line-height: 1.65; } .events { max-width: 1150px; margin: 0 auto; padding: 5rem 6vw; } .heading h2 { margin: .35rem 0 2rem; font-size: 2rem; font-weight: 500; letter-spacing: -.03em; } .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.25rem; } .event-card { overflow: hidden; border: 1px solid #e5e9f0; border-radius: 12px; color: inherit; text-decoration: none; background: white; transition: border-color .18s, transform .18s; } .event-card:hover { border-color: #a9bddb; transform: translateY(-2px); } .cover { height: 160px; background: #e8eef7 center/cover; } .card-body { padding: 1.25rem; } .card-body h3 { margin: .65rem 0; font-size: 1.1rem; font-weight: 500; } .card-body p { min-height: 2.6rem; color: #607087; font-size: .88rem; line-height: 1.5; } time { color: #315d94; font-size: .82rem; } .empty { color: #6a7689; }
+  /* ---------------------------------------------------- */
+  /* 1. HERO SECTION (Screenshot 1)                       */
+  /* ---------------------------------------------------- */
+  .tdc-hero {
+    position: relative;
+    min-height: 85vh;
+    display: flex;
+    align-items: center;
+    background-color: #0c0e12;
+    overflow: hidden;
+    padding: 3rem 0;
+  }
+  .tdc-hero-bg {
+    position: absolute;
+    inset: 0;
+    background-image: url('https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=1600&auto=format&fit=crop&q=80');
+    background-position: center;
+    background-size: cover;
+    opacity: 0.55;
+    transform: scale(1.02);
+  }
+  .tdc-hero-vignette {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at center, rgba(12, 14, 18, 0.4) 0%, rgba(12, 14, 18, 0.95) 100%),
+                linear-gradient(180deg, rgba(12, 14, 18, 0.6) 0%, #0c0e12 100%);
+  }
+  .tdc-hero-container {
+    position: relative;
+    z-index: 10;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 70vh;
+  }
+  .tdc-hero-eyebrow-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 2rem;
+  }
+  .tdc-sub-tag {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.7);
+    letter-spacing: 0.04em;
+  }
+  .tdc-dots {
+    display: flex;
+    gap: 0.35rem;
+  }
+  .tdc-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+  }
+  .tdc-dot.active {
+    background: #ffffff;
+  }
+
+  .tdc-hero-center {
+    max-width: 860px;
+    margin: 2rem 0 3rem;
+  }
+  .tdc-tag-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .tdc-badge-pill {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    padding: 0.35rem 0.75rem;
+    border-radius: 9999px;
+  }
+  .tdc-badge-pill.light {
+    background: #ffffff;
+    color: #000000;
+  }
+  .tdc-badge-pill.dark {
+    background: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+  .tdc-hero-headline {
+    font-family: 'Outfit', sans-serif;
+    font-size: clamp(2.8rem, 5.5vw, 4.8rem);
+    font-weight: 900;
+    line-height: 1.05;
+    letter-spacing: -0.035em;
+    color: #ffffff;
+    margin-bottom: 1.25rem;
+  }
+  .tdc-hero-desc {
+    font-size: clamp(1.05rem, 1.8vw, 1.3rem);
+    color: rgba(255, 255, 255, 0.75);
+    line-height: 1.6;
+    margin-bottom: 2rem;
+    max-width: 650px;
+  }
+  .tdc-action-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    background: #ffffff;
+    color: #000000;
+    padding: 0.85rem 1.6rem;
+    border-radius: 9999px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 800;
+    font-size: 0.92rem;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 20px rgba(255, 255, 255, 0.15);
+  }
+  .tdc-action-pill:hover {
+    background: #e2e8f0;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 25px rgba(255, 255, 255, 0.25);
+  }
+
+  .tdc-hero-bottom-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 1.5rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.6);
+  }
+  .bottom-credit strong {
+    color: #ffffff;
+  }
+  .bottom-tag {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    color: #ffffff;
+  }
+
+  /* ---------------------------------------------------- */
+  /* 2. OVERVIEW SPLIT (Screenshot 2)                     */
+  /* ---------------------------------------------------- */
+  .tdc-overview-section {
+    padding: 6rem 0 5rem;
+    background-color: #11141a;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .tdc-section-eyebrow-line {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: #64748b;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    margin-bottom: 3.5rem;
+  }
+  .tdc-split-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 4rem;
+    align-items: flex-start;
+  }
+  .tdc-massive-heading {
+    font-family: 'Outfit', sans-serif;
+    font-size: clamp(2.4rem, 4vw, 3.8rem);
+    font-weight: 900;
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+    color: #ffffff;
+  }
+  .tdc-split-paragraph {
+    font-size: 1.1rem;
+    color: #94a3b8;
+    line-height: 1.75;
+    margin-bottom: 2rem;
+  }
+  .tdc-split-actions {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  /* ---------------------------------------------------- */
+  /* 3. WORKSHOPS GRID (Screenshot 3)                     */
+  /* ---------------------------------------------------- */
+  .tdc-workshops-section {
+    padding: 6rem 0;
+    background-color: #0c0e12;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .tdc-section-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .tdc-section-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: -0.02em;
+  }
+  .tdc-nav-arrows {
+    display: flex;
+    gap: 0.5rem;
+  }
+  .arrow-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    font-size: 1.1rem;
+    transition: all 0.2s ease;
+  }
+  .arrow-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+  }
+
+  .tdc-workshops-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 2.5rem;
+  }
+  .tdc-workshop-card {
+    background: #11141a;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    transition: all 0.25s ease;
+  }
+  .tdc-workshop-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(255, 255, 255, 0.25);
+    box-shadow: 0 16px 35px -10px rgba(0, 0, 0, 0.5);
+  }
+  .workshop-card-img {
+    height: 220px;
+    background-image: url('https://images.unsplash.com/photo-1511578314322-379afb476865?w=800&auto=format&fit=crop&q=80');
+    background-position: center;
+    background-size: cover;
+    position: relative;
+    padding: 1rem;
+    display: flex;
+    justify-content: flex-end;
+    align-items: flex-end;
+  }
+  .workshop-hover-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(8px);
+    color: #ffffff;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.4rem 0.75rem;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+  .workshop-card-content {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+  }
+  .workshop-badges-row {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+  }
+  .w-badge {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.68rem;
+    font-weight: 800;
+    padding: 0.25rem 0.6rem;
+    border-radius: 4px;
+    letter-spacing: 0.05em;
+  }
+  .w-badge.white {
+    background: #ffffff;
+    color: #000000;
+  }
+  .w-badge.dark {
+    background: rgba(255, 255, 255, 0.08);
+    color: #94a3b8;
+  }
+  .w-badge.truncate {
+    max-width: 150px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .workshop-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: #ffffff;
+    line-height: 1.25;
+    margin-bottom: 0.75rem;
+  }
+  .workshop-desc {
+    font-size: 0.88rem;
+    color: #94a3b8;
+    line-height: 1.55;
+    margin-bottom: 1.5rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .workshop-speaker-row {
+    margin-top: auto;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.82rem;
+    color: #cbd5e1;
+    font-weight: 600;
+  }
+
+  /* ---------------------------------------------------- */
+  /* 4. ESCENARIO PRINCIPAL (Screenshot 4)                */
+  /* ---------------------------------------------------- */
+  .tdc-stages-section {
+    padding: 6rem 0;
+    background-color: #11141a;
+  }
+  .tdc-stages-header {
+    display: flex;
+    flex-direction: column;
+    gap: 1.75rem;
+    margin-bottom: 3.5rem;
+  }
+  .tdc-eyebrow-accent {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    color: #818cf8;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 0.4rem;
+  }
+  .tdc-controls-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .tdc-search-box {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    padding: 0.65rem 1rem;
+    border-radius: 10px;
+    min-width: 300px;
+    flex: 1;
+    max-width: 440px;
+  }
+  .tdc-search-box svg {
+    color: #64748b;
+  }
+  .tdc-search-box input {
+    background: transparent;
+    border: none;
+    outline: none;
+    font-family: inherit;
+    font-size: 0.88rem;
+    color: #ffffff;
+    width: 100%;
+  }
+  .tdc-search-box input::placeholder {
+    color: #64748b;
+  }
+  .tdc-pills-filter {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+  }
+  .filter-pill {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #94a3b8;
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 0.5rem 1rem;
+    border-radius: 9999px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+  }
+  .filter-pill:hover {
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.25);
+  }
+  .filter-pill.active {
+    background: #ffffff;
+    color: #000000;
+    border-color: #ffffff;
+  }
+
+  .tdc-stage-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 2rem;
+  }
+  .tdc-stage-card {
+    background: #0c0e12;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    overflow: hidden;
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.2s, border-color 0.2s;
+  }
+  .tdc-stage-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(255, 255, 255, 0.3);
+  }
+  .stage-card-thumb {
+    height: 180px;
+    background-image: url('https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&auto=format&fit=crop&q=80');
+    background-position: center;
+    background-size: cover;
+    position: relative;
+    padding: 0.85rem;
+  }
+  .stage-tag {
+    background: rgba(0, 0, 0, 0.85);
+    color: #ffffff;
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.68rem;
+    font-weight: 800;
+    padding: 0.25rem 0.6rem;
+    border-radius: 4px;
+  }
+  .stage-card-body {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+  }
+  .stage-time {
+    font-size: 0.8rem;
+    color: #818cf8;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+  }
+  .stage-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: #ffffff;
+    line-height: 1.3;
+    margin-bottom: 0.6rem;
+  }
+  .stage-desc {
+    font-size: 0.85rem;
+    color: #94a3b8;
+    line-height: 1.55;
+    margin-bottom: 1.25rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .stage-action-link {
+    margin-top: auto;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #ffffff;
+  }
+
+  .tdc-empty-card {
+    padding: 4.5rem 2rem;
+    text-align: center;
+    background: #0c0e12;
+    border-radius: 16px;
+    border: 1px dashed rgba(255, 255, 255, 0.15);
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  .empty-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.05);
+    color: #64748b;
+    display: grid;
+    place-items: center;
+    margin: 0 auto 1.25rem;
+  }
+  .tdc-empty-card h3 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: #ffffff;
+    margin-bottom: 0.5rem;
+  }
+  .tdc-empty-card p {
+    font-size: 0.9rem;
+    color: #94a3b8;
+    line-height: 1.6;
+  }
+
+  @media (max-width: 850px) {
+    .tdc-split-grid {
+      grid-template-columns: 1fr;
+      gap: 2rem;
+    }
+  }
 </style>

@@ -1,19 +1,546 @@
 ---
 import PortalLayout from '../../../layouts/PortalLayout.astro';
 import { portalApi } from '../../../lib/api';
+
 const { institution, eventId } = Astro.params;
 if (!institution || !eventId) return new Response('No encontrado', { status: 404 });
-let listing; let event;
-try { [listing, event] = await Promise.all([portalApi.events(institution), portalApi.event(institution, eventId)]); } catch { return new Response('Evento no encontrado', { status: 404 }); }
-const date = new Intl.DateTimeFormat('es-PE', { dateStyle: 'full', timeStyle: 'short' });
-const form = event.registrationForms[0];
+
+let listing;
+let event;
+try {
+  [listing, event] = await Promise.all([
+    portalApi.events(institution),
+    portalApi.event(institution, eventId),
+  ]);
+} catch {
+  return new Response('Evento no encontrado', { status: 404 });
+}
+
+const date = new Intl.DateTimeFormat('es-PE', {
+  dateStyle: 'full',
+  timeStyle: 'short',
+});
+
+const activities = event.editions.flatMap((edition) =>
+  edition.activities.map((a) => ({ ...a, editionName: edition.name, location: edition.location }))
+);
+
+const forms = event.registrationForms || [];
 ---
+
 <PortalLayout organization={listing.organization} title={`${event.eventName} · ${listing.organization.name}`}>
-  <article>
-    <section class="hero" style={event.coverUrl ? `background-image: linear-gradient(90deg, rgba(13,24,40,.76), rgba(13,24,40,.3)), url(${event.coverUrl})` : undefined}><p>{event.eventMode || 'Evento'}</p><h1>{event.eventName}</h1><time>{date.format(new Date(event.startDate))}</time>{event.venueAddress && <span>{event.venueAddress}</span>}{form && <a href={`#registro`} class="cta">Registrarme</a>}</section>
-    <section class="content"><div class="main"><h2>Sobre el evento</h2><p>{event.description || event.details?.content || 'Próximamente encontrarás más información.'}</p>{event.editions.flatMap((edition) => edition.activities).length > 0 && <><h2>Agenda</h2><div class="agenda">{event.editions.flatMap((edition) => edition.activities).map((activity) => <div><time>{activity.startsAt ? date.format(new Date(activity.startsAt)) : 'Por confirmar'}</time><h3>{activity.title}</h3><p>{activity.description}</p></div>)}</div></>}</div>{form && <aside id="registro"><p>Inscripciones</p><h2>{form.title}</h2><span>{form.description || 'Completa tu registro para participar.'}</span><a class="cta" href={`/${institution}/register/${form.slug}`}>Registrarme</a></aside>}</section>
+  <article class="event-detail-page">
+    <!-- Top Minimalist Back Breadcrumb -->
+    <div class="event-breadcrumb-bar">
+      <div class="tdc-container">
+        <a href={`/${institution}`} class="back-link">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="m15 18-6-6 6-6"/>
+          </svg>
+          <span>Volver al portal de {listing.organization.name}</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Cinematic Hero Section (Screenshot 1 style) -->
+    <header class="event-hero" style={event.coverUrl ? `background-image: url(${event.coverUrl})` : undefined}>
+      <div class="event-hero-vignette"></div>
+      <div class="tdc-container event-hero-container">
+        <div class="event-hero-eyebrow">
+          <span class="eyebrow-org">{listing.organization.name}</span>
+          <span class="eyebrow-sep">/</span>
+          <span class="eyebrow-mode">{event.eventMode || 'CONFERENCIA'}</span>
+        </div>
+
+        <div class="event-badges-row">
+          <span class="badge-pill light">{event.eventMode || 'PRESENCIAL'}</span>
+          <span class="badge-pill dark">{date.format(new Date(event.startDate))}</span>
+        </div>
+
+        <h1 class="event-hero-title">{event.eventName}</h1>
+
+        <div class="event-meta-pills">
+          <div class="meta-pill">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/>
+              <line x1="16" x2="16" y1="2" y2="6"/>
+              <line x1="8" x2="8" y1="2" y2="6"/>
+              <line x1="3" x2="21" y1="10" y2="10"/>
+            </svg>
+            <time>{date.format(new Date(event.startDate))}</time>
+          </div>
+
+          {event.venueAddress && (
+            <div class="meta-pill">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
+                <circle cx="12" cy="10" r="3"/>
+              </svg>
+              <span>{event.venueAddress}</span>
+            </div>
+          )}
+        </div>
+
+        {forms.length > 0 && (
+          <div class="event-hero-cta">
+            <a href="#inscripciones" class="tdc-pill-btn primary large">
+              <span>Inscribirme ahora →</span>
+            </a>
+          </div>
+        )}
+      </div>
+    </header>
+
+    <!-- Overview Section (Screenshot 2 style: Two-column split) -->
+    <section class="event-overview-section">
+      <div class="tdc-container">
+        <div class="overview-split-grid">
+          <div class="overview-left">
+            <span class="section-tag">INFORMACIÓN DEL EVENTO</span>
+            <h2 class="overview-heading">Sobre esta experiencia</h2>
+          </div>
+
+          <div class="overview-right">
+            <div class="rich-desc">
+              <p>{event.description || event.details?.content || 'Próximamente encontrarás más información sobre este evento.'}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Workshops & Activities (Screenshot 3 style) -->
+    {activities.length > 0 && (
+      <section class="event-activities-section" id="agenda">
+        <div class="tdc-container">
+          <div class="activities-header">
+            <div>
+              <span class="section-tag">CRONOGRAMA & HORARIOS</span>
+              <h2 class="activities-title">Agenda y Sesiones</h2>
+            </div>
+          </div>
+
+          <div class="activities-grid">
+            {activities.map((act, index) => (
+              <div class="activity-card">
+                <div class="activity-card-header">
+                  <span class="act-badge white">SESIÓN 0{index + 1}</span>
+                  <span class="act-badge dark">
+                    {act.startsAt ? date.format(new Date(act.startsAt)) : 'Por confirmar'}
+                  </span>
+                  {act.location && <span class="act-badge dark">{act.location}</span>}
+                </div>
+
+                <div class="activity-card-body">
+                  <h3 class="act-title">{act.title}</h3>
+                  <p class="act-desc">{act.description || 'Sesión magistral y espacio de debate.'}</p>
+                </div>
+
+                <div class="activity-card-footer">
+                  <span class="edition-label">{act.editionName || event.eventName}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    )}
+
+    <!-- Registration Forms Section (Screenshot 4 / TDC style) -->
+    <section class="event-registration-section" id="inscripciones">
+      <div class="tdc-container">
+        <div class="reg-section-header">
+          <span class="section-tag">ACCESO OFICIAL</span>
+          <h2 class="reg-section-title">Inscripciones y Entradas</h2>
+          <p class="reg-section-subtitle">Selecciona el formulario correspondiente para completar tu registro oficial.</p>
+        </div>
+
+        {forms.length > 0 ? (
+          <div class="reg-forms-grid">
+            {forms.map((f) => (
+              <div class="reg-ticket-card">
+                <div class="ticket-header">
+                  <span class="ticket-badge">FORMULARIO PUBLICADO</span>
+                  <h3 class="ticket-title">{f.title}</h3>
+                  <p class="ticket-desc">{f.description || 'Completa tus datos para confirmar tu asistencia al evento.'}</p>
+                </div>
+
+                <div class="ticket-footer">
+                  <a href={`/${institution}/register/${f.slug}`} class="ticket-btn">
+                    <span>Completar Formulario</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                      <path d="M5 12h14"/>
+                      <path d="m12 5 7 7-7 7"/>
+                    </svg>
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div class="empty-reg-box">
+            <h3>Inscripciones próximamente</h3>
+            <p>El formulario de registro para este evento se habilitará en los próximos días.</p>
+          </div>
+        )}
+      </div>
+    </section>
   </article>
 </PortalLayout>
+
 <style>
-  .hero { min-height: 430px; padding: 7rem 12vw; display: grid; align-content: center; gap: .8rem; color: white; background: #1c385e center/cover; } .hero p { margin: 0; color: #b3d2ff; font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; } h1 { margin: 0; max-width: 800px; font-size: clamp(2.3rem, 5vw, 4.8rem); font-weight: 500; letter-spacing: -.045em; } .hero time,.hero span { color: #e0eaff; } .cta { display: inline-flex; width: fit-content; margin-top: 1rem; border-radius: 7px; padding: .75rem 1rem; color: white; background: #2766ac; text-decoration: none; font-size: .9rem; } .content { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 4rem; max-width: 1080px; margin: 0 auto; padding: 5rem 6vw; } .main h2, aside h2 { font-size: 1.4rem; font-weight: 500; letter-spacing: -.025em; } .main > p { color: #4e5d71; line-height: 1.8; white-space: pre-line; } .agenda > div { padding: 1rem 0; border-top: 1px solid #e5e9f0; } .agenda time, .agenda p { color: #64748b; font-size: .85rem; } .agenda h3 { margin: .3rem 0; font-size: 1rem; font-weight: 500; } aside { height: fit-content; padding: 1.5rem; border: 1px solid #e3e8ef; border-radius: 12px; } aside p { margin: 0; color: #3970ae; font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; } aside span { color: #617086; font-size: .9rem; line-height: 1.5; } aside .cta { display: flex; justify-content: center; } @media (max-width: 760px) { .content { grid-template-columns: 1fr; gap: 2rem; } }
+  .event-detail-page {
+    background: #0c0e12;
+    min-height: 100vh;
+    color: #f1f5f9;
+  }
+
+  .event-breadcrumb-bar {
+    padding: 1.25rem 0;
+    background: #080a0d;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #94a3b8;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+  .back-link:hover {
+    color: #ffffff;
+  }
+
+  /* ---------------------------------------------------- */
+  /* HERO SECTION (Screenshot 1)                         */
+  /* ---------------------------------------------------- */
+  .event-hero {
+    position: relative;
+    padding: 6rem 0 5rem;
+    background-color: #0c0e12;
+    background-position: center;
+    background-size: cover;
+    overflow: hidden;
+  }
+  .event-hero-vignette {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at center, rgba(12, 14, 18, 0.45) 0%, rgba(12, 14, 18, 0.96) 100%),
+                linear-gradient(180deg, rgba(12, 14, 18, 0.7) 0%, #0c0e12 100%);
+  }
+  .event-hero-container {
+    position: relative;
+    z-index: 10;
+  }
+  .event-hero-eyebrow {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #94a3b8;
+    margin-bottom: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .eyebrow-sep {
+    color: #475569;
+  }
+  .eyebrow-mode {
+    color: #818cf8;
+  }
+
+  .event-badges-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .badge-pill {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    padding: 0.35rem 0.75rem;
+    border-radius: 9999px;
+  }
+  .badge-pill.light {
+    background: #ffffff;
+    color: #000000;
+  }
+  .badge-pill.dark {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+  }
+
+  .event-hero-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: clamp(2.8rem, 5.5vw, 4.8rem);
+    font-weight: 900;
+    line-height: 1.05;
+    letter-spacing: -0.035em;
+    color: #ffffff;
+    margin-bottom: 2rem;
+    max-width: 960px;
+  }
+
+  .event-meta-pills {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 2.5rem;
+  }
+  .meta-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    padding: 0.55rem 1.1rem;
+    border-radius: 9999px;
+    font-size: 0.85rem;
+    color: #e2e8f0;
+    font-weight: 600;
+  }
+
+  .tdc-pill-btn.primary.large {
+    padding: 0.9rem 2rem;
+    font-size: 0.95rem;
+    font-weight: 800;
+  }
+
+  /* ---------------------------------------------------- */
+  /* 2. OVERVIEW SPLIT (Screenshot 2)                     */
+  /* ---------------------------------------------------- */
+  .event-overview-section {
+    padding: 6rem 0;
+    background: #11141a;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .section-tag {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    color: #818cf8;
+    display: block;
+    margin-bottom: 0.5rem;
+  }
+  .overview-split-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.6fr;
+    gap: 4.5rem;
+  }
+  .overview-heading {
+    font-family: 'Outfit', sans-serif;
+    font-size: clamp(2.2rem, 3.5vw, 3.2rem);
+    font-weight: 900;
+    color: #ffffff;
+    line-height: 1.1;
+    letter-spacing: -0.025em;
+  }
+  .rich-desc p {
+    font-size: 1.15rem;
+    color: #cbd5e1;
+    line-height: 1.85;
+    white-space: pre-line;
+  }
+
+  /* ---------------------------------------------------- */
+  /* 3. WORKSHOPS & ACTIVITIES (Screenshot 3)             */
+  /* ---------------------------------------------------- */
+  .event-activities-section {
+    padding: 6rem 0;
+    background: #0c0e12;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .activities-header {
+    margin-bottom: 3.5rem;
+  }
+  .activities-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: -0.02em;
+  }
+  .activities-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 2rem;
+  }
+  .activity-card {
+    background: #11141a;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    padding: 1.75rem;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.2s, border-color 0.2s;
+  }
+  .activity-card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(255, 255, 255, 0.25);
+  }
+  .activity-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 1.25rem;
+    flex-wrap: wrap;
+  }
+  .act-badge {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.68rem;
+    font-weight: 800;
+    padding: 0.25rem 0.6rem;
+    border-radius: 4px;
+    letter-spacing: 0.05em;
+  }
+  .act-badge.white {
+    background: #ffffff;
+    color: #000000;
+  }
+  .act-badge.dark {
+    background: rgba(255, 255, 255, 0.08);
+    color: #94a3b8;
+  }
+  .act-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: #ffffff;
+    line-height: 1.25;
+    margin-bottom: 0.75rem;
+  }
+  .act-desc {
+    font-size: 0.88rem;
+    color: #94a3b8;
+    line-height: 1.55;
+    margin-bottom: 1.5rem;
+  }
+  .activity-card-footer {
+    margin-top: auto;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    font-size: 0.82rem;
+    color: #64748b;
+    font-weight: 600;
+  }
+
+  /* ---------------------------------------------------- */
+  /* 4. REGISTRATION (Screenshot 4)                       */
+  /* ---------------------------------------------------- */
+  .event-registration-section {
+    padding: 6rem 0 8rem;
+    background: #11141a;
+  }
+  .reg-section-header {
+    margin-bottom: 3.5rem;
+  }
+  .reg-section-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 2.4rem;
+    font-weight: 900;
+    color: #ffffff;
+    letter-spacing: -0.025em;
+    margin-bottom: 0.5rem;
+  }
+  .reg-section-subtitle {
+    font-size: 1rem;
+    color: #94a3b8;
+  }
+  .reg-forms-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 2rem;
+  }
+  .reg-ticket-card {
+    background: #0c0e12;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: transform 0.2s, border-color 0.2s;
+  }
+  .reg-ticket-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(255, 255, 255, 0.3);
+  }
+  .ticket-badge {
+    display: inline-block;
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    color: #818cf8;
+    margin-bottom: 0.75rem;
+  }
+  .ticket-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: #ffffff;
+    margin-bottom: 0.6rem;
+  }
+  .ticket-desc {
+    font-size: 0.88rem;
+    color: #94a3b8;
+    line-height: 1.55;
+    margin-bottom: 2rem;
+  }
+  .ticket-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    background: #ffffff;
+    color: #000000;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 800;
+    font-size: 0.92rem;
+    padding: 0.85rem;
+    border-radius: 12px;
+    text-decoration: none;
+    transition: background 0.15s, transform 0.15s;
+  }
+  .ticket-btn:hover {
+    background: #e2e8f0;
+    transform: translateY(-2px);
+  }
+  .empty-reg-box {
+    padding: 4rem 2rem;
+    text-align: center;
+    background: #0c0e12;
+    border-radius: 16px;
+    border: 1px dashed rgba(255, 255, 255, 0.15);
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  .empty-reg-box h3 {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: #ffffff;
+    margin-bottom: 0.5rem;
+  }
+  .empty-reg-box p {
+    font-size: 0.9rem;
+    color: #94a3b8;
+  }
+
+  @media (max-width: 850px) {
+    .overview-split-grid {
+      grid-template-columns: 1fr;
+      gap: 2rem;
+    }
+  }
 </style>

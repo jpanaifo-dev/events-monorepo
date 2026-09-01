@@ -1,29 +1,307 @@
 ---
 import PortalLayout from '../../../layouts/PortalLayout.astro';
 import { portalApi } from '../../../lib/api';
+
 const { institution, formSlug } = Astro.params;
 if (!institution || !formSlug) return new Response('Formulario no encontrado', { status: 404 });
-let listing: Awaited<ReturnType<typeof portalApi.events>>; let form: any;
+
+let listing: Awaited<ReturnType<typeof portalApi.events>>;
+let form: any;
 try {
   [listing, form] = await Promise.all([
     portalApi.events(institution),
-    fetch(`${portalApi.apiUrl}/public/registration-forms/${encodeURIComponent(formSlug)}`).then((response) => response.ok ? response.json() : Promise.reject()),
+    fetch(`${portalApi.apiUrl}/public/registration-forms/${encodeURIComponent(formSlug)}`).then((response) =>
+      response.ok ? response.json() : Promise.reject()
+    ),
   ]);
-} catch { return new Response('Formulario no disponible', { status: 404 }); }
+} catch {
+  return new Response('Formulario no disponible', { status: 404 });
+}
 ---
-<PortalLayout organization={listing.organization} title={`${form.title} · ${listing.organization.name}`}>
-  <section class="wrap"><a href={`/${institution}`} class="back">← Volver a eventos</a><div class="form-card"><p>Inscripción</p><h1>{form.title}</h1>{form.description && <span>{form.description}</span>}<form id="registration-form" data-api={portalApi.apiUrl} data-slug={form.slug}>{form.fields.map((field: any) => <label>{field.label}{field.required && <b> *</b>}{field.type === 'textarea' ? <textarea name={field.key} required={field.required} /> : field.type === 'select' ? <select name={field.key} required={field.required}><option value="">Selecciona una opción</option>{Array.isArray(field.options) && field.options.map((option: string) => <option value={option}>{option}</option>)}</select> : <input name={field.key} type={field.type === 'email' ? 'email' : field.type === 'phone' ? 'tel' : 'text'} required={field.required} />}</label>)}<button type="submit">Enviar inscripción</button><p id="form-status" role="status"></p></form></div></section>
+
+<PortalLayout organization={listing.organization} title={`Registro · ${form.title} · ${listing.organization.name}`}>
+  <section class="reg-page-wrap">
+    <div class="reg-container">
+      <a href={`/${institution}`} class="reg-back-link">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="m15 18-6-6 6-6"/>
+        </svg>
+        <span>Volver al portal</span>
+      </a>
+
+      <div class="reg-form-card">
+        <div class="reg-card-header">
+          <span class="reg-badge">REGISTRO OFICIAL</span>
+          <h1 class="reg-title">{form.title}</h1>
+          {form.description && <p class="reg-desc">{form.description}</p>}
+        </div>
+
+        <form id="registration-form" data-api={portalApi.apiUrl} data-slug={form.slug} class="reg-form">
+          <div class="form-fields-grid">
+            {form.fields.map((field: any) => (
+              <div class="form-field-group">
+                <label for={field.key} class="field-label">
+                  <span>{field.label}</span>
+                  {field.required && <span class="req-star">*</span>}
+                </label>
+
+                {field.type === 'textarea' ? (
+                  <textarea
+                    id={field.key}
+                    name={field.key}
+                    required={field.required}
+                    placeholder="Escribe tu respuesta aquí..."
+                    class="form-input textarea"
+                  />
+                ) : field.type === 'select' ? (
+                  <select id={field.key} name={field.key} required={field.required} class="form-input select">
+                    <option value="">Selecciona una opción</option>
+                    {Array.isArray(field.options) &&
+                      field.options.map((option: string) => (
+                        <option value={option}>{option}</option>
+                      ))}
+                  </select>
+                ) : (
+                  <input
+                    id={field.key}
+                    name={field.key}
+                    type={field.type === 'email' ? 'email' : field.type === 'phone' ? 'tel' : 'text'}
+                    required={field.required}
+                    placeholder={field.type === 'email' ? 'ejemplo@correo.com' : 'Ingresa tu información'}
+                    class="form-input"
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div class="form-submit-wrap">
+            <button type="submit" class="submit-btn" id="submit-btn">
+              <span>Confirmar y Enviar Inscripción</span>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M5 12h14"/>
+                <path d="m12 5 7 7-7 7"/>
+              </svg>
+            </button>
+            <p id="form-status" class="form-status" role="status"></p>
+          </div>
+        </form>
+      </div>
+    </div>
+  </section>
 </PortalLayout>
+
 <script>
-  const form = document.querySelector('#registration-form');
-  const status = document.querySelector('#form-status');
+  const form = document.querySelector('#registration-form') as HTMLFormElement | null;
+  const status = document.querySelector('#form-status') as HTMLParagraphElement | null;
+  const submitBtn = document.querySelector('#submit-btn') as HTMLButtonElement | null;
+
   form?.addEventListener('submit', async (event) => {
-    event.preventDefault(); const values = Object.fromEntries(new FormData(form).entries()); const button = form.querySelector('button'); button.disabled = true; status.textContent = 'Enviando…';
-    try { const response = await fetch(`${form.dataset.api}/public/registration-forms/${form.dataset.slug}/submissions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ answers: values }) }); if (!response.ok) throw new Error((await response.json()).message || 'No se pudo enviar el registro'); form.reset(); status.textContent = 'Tu inscripción fue enviada correctamente.'; }
-    catch (error) { status.textContent = error instanceof Error ? error.message : 'No se pudo enviar el registro.'; }
-    finally { button.disabled = false; }
+    event.preventDefault();
+    const values = Object.fromEntries(new FormData(form).entries());
+    if (submitBtn) submitBtn.disabled = true;
+    if (status) {
+      status.textContent = 'Enviando tu inscripción…';
+      status.className = 'form-status loading';
+    }
+
+    try {
+      const response = await fetch(`${form.dataset.api}/public/registration-forms/${form.dataset.slug}/submissions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answers: values }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.message || 'No se pudo procesar la inscripción');
+      }
+
+      form.reset();
+      if (status) {
+        status.textContent = '¡Inscripción confirmada con éxito! Te hemos enviado los detalles por correo.';
+        status.className = 'form-status success';
+      }
+    } catch (error) {
+      if (status) {
+        status.textContent = error instanceof Error ? error.message : 'Ocurrió un error al enviar el registro.';
+        status.className = 'form-status error';
+      }
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
+    }
   });
 </script>
+
 <style>
-  .wrap { max-width: 720px; margin: 0 auto; padding: 4rem 6vw; } .back { color: #426a9d; font-size: .9rem; text-decoration: none; } .form-card { margin-top: 1.5rem; padding: 2rem; border: 1px solid #e3e8ef; border-radius: 12px; background: #fff; } .form-card > p { margin: 0; color: #3970ae; font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; } h1 { margin: .5rem 0; font-size: 2rem; font-weight: 500; letter-spacing: -.03em; } .form-card > span { color: #607087; line-height: 1.6; } form { display: grid; gap: 1rem; margin-top: 2rem; } label { display: grid; gap: .45rem; color: #334155; font-size: .9rem; } b { color: #b24a4a; font-weight: 500; } input, textarea, select { width: 100%; border: 1px solid #d9e0ea; border-radius: 7px; padding: .7rem .75rem; font: inherit; } textarea { min-height: 110px; resize: vertical; } button { justify-self: start; border: 0; border-radius: 7px; padding: .75rem 1rem; color: white; background: #2766ac; font: inherit; cursor: pointer; } button:disabled { opacity: .6; } #form-status { min-height: 1.3rem; color: #476380; font-size: .88rem; }
+  .reg-page-wrap {
+    background: #0c0e12;
+    min-height: calc(100vh - 72px);
+    padding: 3.5rem 4vw 6rem;
+    color: #f1f5f9;
+  }
+  .reg-container {
+    max-width: 680px;
+    margin: 0 auto;
+  }
+  .reg-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: #94a3b8;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    margin-bottom: 1.5rem;
+    transition: color 0.15s;
+  }
+  .reg-back-link:hover {
+    color: #ffffff;
+  }
+
+  .reg-form-card {
+    background: #11141a;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 3rem;
+    box-shadow: 0 16px 40px -10px rgba(0, 0, 0, 0.5);
+  }
+  .reg-card-header {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding-bottom: 2rem;
+    margin-bottom: 2rem;
+  }
+  .reg-badge {
+    display: inline-block;
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    color: #818cf8;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+  }
+  .reg-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 2.2rem;
+    font-weight: 900;
+    color: #ffffff;
+    letter-spacing: -0.03em;
+    line-height: 1.15;
+    margin-bottom: 0.75rem;
+  }
+  .reg-desc {
+    font-size: 0.95rem;
+    color: #94a3b8;
+    line-height: 1.6;
+  }
+
+  .form-fields-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1.4rem;
+    margin-bottom: 2rem;
+  }
+  .form-field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
+  .field-label {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #e2e8f0;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+  .req-star {
+    color: #f87171;
+  }
+
+  .form-input {
+    width: 100%;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 10px;
+    padding: 0.8rem 1rem;
+    font-family: inherit;
+    font-size: 0.92rem;
+    color: #ffffff;
+    background: #0c0e12;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    outline: none;
+  }
+  .form-input:focus {
+    border-color: #818cf8;
+    box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.2);
+  }
+  .form-input.textarea {
+    min-height: 120px;
+    resize: vertical;
+  }
+  .form-input.select {
+    cursor: pointer;
+  }
+
+  .form-submit-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .submit-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    background: #ffffff;
+    color: #000000;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 800;
+    font-size: 0.95rem;
+    padding: 0.95rem 1.8rem;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.15s;
+    width: 100%;
+  }
+  .submit-btn:hover {
+    background: #e2e8f0;
+    transform: translateY(-2px);
+  }
+  .submit-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .form-status {
+    font-size: 0.9rem;
+    font-weight: 600;
+    min-height: 1.5rem;
+    text-align: center;
+  }
+  .form-status.loading {
+    color: #818cf8;
+  }
+  .form-status.success {
+    color: #34d399;
+    padding: 0.85rem;
+    background: rgba(16, 185, 129, 0.12);
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    border-radius: 8px;
+  }
+  .form-status.error {
+    color: #f87171;
+    padding: 0.85rem;
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    border-radius: 8px;
+  }
+
+  @media (max-width: 640px) {
+    .reg-form-card {
+      padding: 1.75rem;
+    }
+  }
 </style>
