@@ -45,6 +45,7 @@ function isCurrentMember(member: any, accountId?: string) {
 export function OrganizationSettingsPage() {
   const navigate = useNavigate()
   const { user, selectedOrganization, selectOrganization, setOrganizations, organizations } = useAuthStore()
+  const organizationId = selectedOrganization?.id || ""
 
   useSEO({
     title: "Ajustes de la Organización",
@@ -702,13 +703,13 @@ export function OrganizationSettingsPage() {
                 onChange={setLogoUrl}
                 aspectRatio="square"
                 placeholder="Arrastra tu logotipo aquí, o pega un enlace"
-                folder={`organizations/${selectedOrganization.id}/branding/logo`}
+                folder={`organizations/${organizationId}/branding/logo`}
                 identifier="logo"
                 onR2UploadComplete={async (publicUrl) => {
-                  await api.organizations.update(selectedOrganization.id, { logoUrl: publicUrl })
-                  const updatedOrganization = { ...selectedOrganization, logoUrl: publicUrl }
+                  await api.organizations.update(organizationId, { logoUrl: publicUrl })
+                  const updatedOrganization = { ...selectedOrganization!, logoUrl: publicUrl }
                   selectOrganization(updatedOrganization)
-                  setOrganizations(organizations.map((org) => org.id === selectedOrganization.id ? updatedOrganization : org))
+                  setOrganizations(organizations.map((org) => org.id === organizationId ? updatedOrganization : org))
                   toast.success("Logotipo guardado correctamente")
                 }}
               />
@@ -731,13 +732,13 @@ export function OrganizationSettingsPage() {
                 onChange={setCoverUrl}
                 aspectRatio="banner"
                 placeholder="Arrastra tu banner de portada aquí, o pega un enlace"
-                folder={`organizations/${selectedOrganization.id}/branding/cover`}
+                folder={`organizations/${organizationId}/branding/cover`}
                 identifier="cover"
                 onR2UploadComplete={async (publicUrl) => {
-                  await api.organizations.update(selectedOrganization.id, { coverUrl: publicUrl })
-                  const updatedOrganization = { ...selectedOrganization, coverUrl: publicUrl }
+                  await api.organizations.update(organizationId, { coverUrl: publicUrl })
+                  const updatedOrganization = { ...selectedOrganization!, coverUrl: publicUrl }
                   selectOrganization(updatedOrganization)
-                  setOrganizations(organizations.map((org) => org.id === selectedOrganization.id ? updatedOrganization : org))
+                  setOrganizations(organizations.map((org) => org.id === organizationId ? updatedOrganization : org))
                   toast.success("Portada guardada correctamente")
                 }}
               />
@@ -760,13 +761,13 @@ export function OrganizationSettingsPage() {
                 onChange={setFaviconUrl}
                 aspectRatio="favicon"
                 placeholder="Arrastra tu favicon aquí, o pega un enlace"
-                folder={`organizations/${selectedOrganization.id}/branding/favicon`}
+                folder={`organizations/${organizationId}/branding/favicon`}
                 identifier="favicon"
                 onR2UploadComplete={async (publicUrl) => {
-                  await api.organizations.update(selectedOrganization.id, { faviconUrl: publicUrl })
-                  const updatedOrganization = { ...selectedOrganization, faviconUrl: publicUrl }
+                  await api.organizations.update(organizationId, { faviconUrl: publicUrl })
+                  const updatedOrganization = { ...selectedOrganization!, faviconUrl: publicUrl }
                   selectOrganization(updatedOrganization)
-                  setOrganizations(organizations.map((org) => org.id === selectedOrganization.id ? updatedOrganization : org))
+                  setOrganizations(organizations.map((org) => org.id === organizationId ? updatedOrganization : org))
                   toast.success("Favicon guardado correctamente")
                 }}
               />
