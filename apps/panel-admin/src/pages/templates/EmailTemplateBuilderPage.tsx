@@ -11,7 +11,6 @@ import {
   ImageIcon,
   Minus,
   Trash2,
-  Sparkles,
   Palette,
   Save,
   ChevronLeft,
@@ -43,7 +42,7 @@ import {
   EMAIL_SECTIONS,
   EMAIL_SECTION_CATEGORIES,
   createBlocksFromSection,
-  EmailSectionTemplate,
+  type EmailSectionTemplate,
 } from "./emailSections"
 
 export interface EmailBlock {
@@ -487,7 +486,6 @@ export function EmailTemplateBuilderPage() {
 
           {/* Last Saved Status */}
           <div className="hidden lg:flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Sparkles className="size-3.5 text-violet-500" />
             <span>Guardado por última vez el {lastSavedTime}</span>
           </div>
 
@@ -987,24 +985,24 @@ export function EmailTemplateBuilderPage() {
               {/* Subtabs Header */}
               <div className="grid grid-cols-2 border-b border-border/80 text-center text-xs font-semibold bg-slate-50 dark:bg-zinc-800/40 shrink-0">
                 <button
-                  onClick={() => setContentTab("sections")}
-                  className={`py-3 border-b-2 transition-all flex items-center justify-center gap-1.5 cursor-pointer ${contentTab === "sections"
+                  type="button"
+                  onClick={() => setContentTab("blocks")}
+                  className={`py-3 border-b-2 transition-all flex items-center justify-center cursor-pointer ${contentTab === "blocks"
                     ? "border-violet-600 text-violet-600 dark:text-violet-400 font-bold bg-white dark:bg-zinc-900"
                     : "border-transparent text-muted-foreground hover:text-foreground"
                     }`}
                 >
-                  <Sparkles className="size-3.5" />
-                  <span>Secciones</span>
+                  <span>Bloques</span>
                 </button>
                 <button
-                  onClick={() => setContentTab("blocks")}
-                  className={`py-3 border-b-2 transition-all flex items-center justify-center gap-1.5 cursor-pointer ${contentTab === "blocks"
+                  type="button"
+                  onClick={() => setContentTab("sections")}
+                  className={`py-3 border-b-2 transition-all flex items-center justify-center cursor-pointer ${contentTab === "sections"
                     ? "border-violet-600 text-violet-600 dark:text-violet-400 font-bold bg-white dark:bg-zinc-900"
                     : "border-transparent text-muted-foreground hover:text-foreground"
                     }`}
                 >
-                  <Layers className="size-3.5" />
-                  <span>Bloques Básicos</span>
+                  <span>Secciones</span>
                 </button>
               </div>
 

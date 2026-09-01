@@ -1,4 +1,4 @@
-import { EmailBlock } from "./EmailTemplateBuilderPage"
+import type { EmailBlock } from "./EmailTemplateBuilderPage"
 
 export interface EmailSectionTemplate {
   id: string
