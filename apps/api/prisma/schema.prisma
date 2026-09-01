@@ -77,6 +77,12 @@ enum TemplateChannel {
   SMS
 }
 
+enum MarketingContactStatus {
+  SUBSCRIBED
+  UNSUBSCRIBED
+  BOUNCED
+}
+
 model AuthUser {
   id                     String               @id @default(uuid()) @db.Uuid
   email                  String               @unique
@@ -148,6 +154,10 @@ model Organization {
   events         MainEvent[]
   subscription   OrganizationSubscription?
   emailTemplates EmailTemplate[]
+  marketingContacts MarketingContact[]
+  marketingSegments MarketingSegment[]
+  marketingCampaigns MarketingCampaign[]
+  marketingAutomations MarketingAutomation[]
 
   @@map("organizations")
 }
@@ -287,6 +297,8 @@ model Edition {
   endDate      DateTime?          @map("end_date")
   modality     String?
   location     String?
+  latitude     Float?
+  longitude    Float?
   createdAt    DateTime           @default(now()) @map("created_at")
   mainEvent    MainEvent          @relation(fields: [mainEventId], references: [id], onDelete: Cascade)
   activities   EventActivity[]
@@ -555,4 +567,73 @@ model EmailTemplate {
 
   @@index([organizationId, channel, status])
   @@map("email_templates")
+}
+
+model MarketingContact {
+  id             String                 @id @default(uuid()) @db.Uuid
+  organizationId String                 @map("organization_id") @db.Uuid
+  email          String
+  firstName      String?                @map("first_name")
+  lastName       String?                @map("last_name")
+  phone          String?
+  status         MarketingContactStatus @default(SUBSCRIBED)
+  tags           String[]               @default([])
+  consentedAt    DateTime?              @map("consented_at")
+  createdAt      DateTime               @default(now()) @map("created_at")
+  updatedAt      DateTime               @updatedAt @map("updated_at")
+  organization   Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  segments       MarketingSegmentMember[]
+  @@unique([organizationId, email])
+  @@index([organizationId, status])
+  @@map("marketing_contacts")
+}
+
+model MarketingSegment {
+  id             String                  @id @default(uuid()) @db.Uuid
+  organizationId String                  @map("organization_id") @db.Uuid
+  name           String
+  description    String?
+  createdAt      DateTime                @default(now()) @map("created_at")
+  updatedAt      DateTime                @updatedAt @map("updated_at")
+  organization   Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  members        MarketingSegmentMember[]
+  @@unique([organizationId, name])
+  @@map("marketing_segments")
+}
+
+model MarketingSegmentMember {
+  segmentId String           @map("segment_id") @db.Uuid
+  contactId String           @map("contact_id") @db.Uuid
+  segment   MarketingSegment @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+  contact   MarketingContact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  @@id([segmentId, contactId])
+  @@map("marketing_segment_members")
+}
+
+model MarketingCampaign {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  name           String
+  subject        String?
+  status         String       @default("DRAFT")
+  segmentIds     Json         @default("[]") @map("segment_ids")
+  scheduledAt    DateTime?    @map("scheduled_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@index([organizationId, status])
+  @@map("marketing_campaigns")
+}
+
+model MarketingAutomation {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  name           String
+  trigger        String
+  segmentIds     Json         @default("[]") @map("segment_ids")
+  active         Boolean      @default(true)
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@map("marketing_automations")
 }
