@@ -1,0 +1,71 @@
+#1 [internal] load local bake definitions
+#1 reading from stdin 374B 0.3s done
+#1 DONE 0.3s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile:
+#2 transferring dockerfile: 923B 0.1s done
+#2 DONE 1.2s
+
+#3 [internal] load metadata for docker.io/library/node:22-alpine
+#3 DONE 2.2s
+
+#4 [internal] load .dockerignore
+#4 transferring context:
+#4 transferring context: 102B 0.1s done
+#4 DONE 0.4s
+
+#5 [internal] load build context
+#5 DONE 0.0s
+
+#6 [build 1/9] FROM docker.io/library/node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32
+#6 resolve docker.io/library/node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32
+#6 resolve docker.io/library/node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 0.2s done
+#6 DONE 0.3s
+
+#5 [internal] load build context
+#5 transferring context: 524.46kB 1.1s done
+#5 DONE 1.5s
+
+#7 [build 2/9] WORKDIR /app
+#7 CACHED
+
+#8 [build 3/9] COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+#8 DONE 1.9s
+
+#9 [build 4/9] COPY apps/api/package.json ./apps/api/package.json
+#9 DONE 2.0s
+
+#10 [build 5/9] RUN corepack enable && pnpm install --frozen-lockfile=false
+#10 10.81 ! Corepack is about to download https://registry.npmjs.org/pnpm/-/pnpm-9.0.0.tgz
+#10 36.75 Scope: all 2 workspace projects
+#10 52.85 
+#10 52.85    ╭───────────────────────────────────────────────────────────────────╮
+#10 52.85    │                                                                   │
+#10 52.85    │                Update available! 9.0.0 → 11.25.0.                 │
+#10 52.85    │   Changelog: https://github.com/pnpm/pnpm/releases/tag/v11.25.0   │
+#10 52.85    │     Run "corepack prepare pnpm@11.25.0 --activate" to update.     │
+#10 52.85    │                                                                   │
+#10 52.85    │      Follow @pnpmjs for updates: https://twitter.com/pnpmjs       │
+#10 52.85    │                                                                   │
+#10 52.85    ╰───────────────────────────────────────────────────────────────────╯
+#10 52.85 
+#10 57.70 Progress: resolved 0, reused 0, downloaded 1, added 0
+#10 60.40 Progress: resolved 1, reused 0, downloaded 1, added 0
+#10 62.23 Progress: resolved 3, reused 0, downloaded 3, added 0
+#10 63.68 Progress: resolved 7, reused 0, downloaded 7, added 0
+#10 65.59 Progress: resolved 10, reused 0, downloaded 10, added 0
+#10 66.73 Progress: resolved 16, reused 0, downloaded 16, added 0
+#10 68.28 Progress: resolved 18, reused 0, downloaded 18, added 0
+#10 70.06 Progress: resolved 18, reused 0, downloaded 19, added 0
+#10 71.41 Progress: resolved 19, reused 0, downloaded 19, added 0
+#10 76.36 Progress: resolved 19, reused 0, downloaded 20, added 0
+#10 79.24 Progress: resolved 21, reused 0, downloaded 21, added 0
+#10 80.33 Progress: resolved 22, reused 0, downloaded 22, added 0
+#10 163.5 Progress: resolved 22, reused 0, downloaded 23, added 0
+#10 164.9 Progress: resolved 23, reused 0, downloaded 23, added 0
+#10 202.5 Progress: resolved 23, reused 0, downloaded 24, added 0
+#10 206.9 Progress: resolved 24, reused 0, downloaded 24, added 0
+#10 209.2 Progress: resolved 24, reused 0, downloaded 25, added 0
+#10 210.3 Progress: resolved 29, reused 0, downloaded 28, added 0
+#10 211.4 Progress: resolved 38, reused 0, downloaded 34, added 0
