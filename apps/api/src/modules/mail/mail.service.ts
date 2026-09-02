@@ -10,7 +10,7 @@ import {
   WelcomeEmailData,
 } from './mail.types.js';
 import { TemplateService } from './template.service.js';
-import { PrismaService } from '../prisma/prisma.service.js';
+import { PrismaService } from '../../database/prisma.service.js';
 import { decryptCredential } from '../../common/utils/encryption.util.js';
 import nodemailer from 'nodemailer';
 

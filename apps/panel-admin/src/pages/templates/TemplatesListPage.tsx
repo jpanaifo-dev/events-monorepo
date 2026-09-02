@@ -34,6 +34,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 
+import { OrgEmailSettingsModal } from "./OrgEmailSettingsModal"
+import { ShieldCheck, Settings } from "lucide-react"
+
 export function TemplatesListPage() {
   const navigate = useNavigate()
   const { selectedOrganization } = useAuthStore()
@@ -46,9 +49,25 @@ export function TemplatesListPage() {
   const [templates, setTemplates] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
+  const [openEmailSettings, setOpenEmailSettings] = useState(false)
+  const [emailConfigSummary, setEmailConfigSummary] = useState<{ configured: boolean; provider?: string; domain?: string } | null>(null)
 
   // Delete dialog
   const [templateToDelete, setTemplateToDelete] = useState<any | null>(null)
+
+  const loadEmailSettings = async () => {
+    if (!selectedOrganization?.id) return
+    try {
+      const data = await api.emailSettings.get(selectedOrganization.id)
+      setEmailConfigSummary({
+        configured: data.configured,
+        provider: data.defaultProvider,
+        domain: data.resendDomain || (data.resendFromEmail?.includes('@') ? data.resendFromEmail.split('@')[1] : undefined),
+      })
+    } catch {
+      // ignore
+    }
+  }
 
   const loadTemplates = async () => {
     if (!selectedOrganization?.id) return
@@ -65,6 +84,7 @@ export function TemplatesListPage() {
 
   useEffect(() => {
     loadTemplates()
+    loadEmailSettings()
   }, [selectedOrganization?.id, search])
 
   const handleDuplicate = async (id: string) => {
@@ -101,13 +121,29 @@ export function TemplatesListPage() {
         title="Plantillas de Email"
         description="Crea, personaliza y gestiona las plantillas de correo para tus campañas y notificaciones."
         actionButton={
-          <Button
-            onClick={() => navigate("/dashboard/templates/new")}
-            className="flex items-center gap-2"
-          >
-            <Plus className="size-4" />
-            <span>Crear plantilla</span>
-          </Button>
+          <div className="flex items-center gap-2.5">
+            <Button
+              variant="outline"
+              onClick={() => setOpenEmailSettings(true)}
+              className="rounded-xl h-10 px-3.5 text-xs font-semibold border-border flex items-center gap-2 hover:bg-muted"
+            >
+              <ShieldCheck className="size-4 text-emerald-600" />
+              <span>Configuración de Correo</span>
+              {emailConfigSummary?.domain && (
+                <span className="hidden sm:inline-block px-2 py-0.5 rounded-full text-[10px] bg-emerald-500/10 text-emerald-600 font-mono">
+                  @{emailConfigSummary.domain}
+                </span>
+              )}
+            </Button>
+
+            <Button
+              onClick={() => navigate("/dashboard/templates/new")}
+              className="flex items-center gap-2 rounded-xl h-10"
+            >
+              <Plus className="size-4" />
+              <span>Crear plantilla</span>
+            </Button>
+          </div>
         }
       />
 
@@ -297,6 +333,16 @@ export function TemplatesListPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Email Provider Settings Modal */}
+      <OrgEmailSettingsModal
+        open={openEmailSettings}
+        onOpenChange={setOpenEmailSettings}
+        onSaved={() => {
+          loadEmailSettings()
+          loadTemplates()
+        }}
+      />
     </div>
   )
 }

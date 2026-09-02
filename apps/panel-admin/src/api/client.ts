@@ -210,6 +210,14 @@ export const api = {
     sendTest: (id: string, email: string) =>
       apiFetch<any>(`/email-templates/${id}/test`, { method: "POST", body: JSON.stringify({ email }) }),
   },
+  emailSettings: {
+    get: (organizationId: string) =>
+      apiFetch<any>(`/organizations/${organizationId}/email-settings`),
+    save: (organizationId: string, data: any) =>
+      apiFetch<any>(`/organizations/${organizationId}/email-settings`, { method: "PUT", body: JSON.stringify(data) }),
+    test: (organizationId: string, data: any) =>
+      apiFetch<any>(`/organizations/${organizationId}/email-settings/test`, { method: "POST", body: JSON.stringify(data) }),
+  },
   marketing: {
     variables: () => apiFetch<Array<{ key: string; label: string; category: string; description: string }>>("/marketing/variables"),
     contacts: (organizationId: string, search?: string) => apiFetch<any[]>(`/organizations/${organizationId}/marketing/contacts${search ? `?search=${encodeURIComponent(search)}` : ""}`),

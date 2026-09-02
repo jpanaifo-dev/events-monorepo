@@ -1,5 +1,5 @@
 import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service.js';
+import { PrismaService } from '../../database/prisma.service.js';
 import { UpdateEmailSettingsDto, TestEmailSettingsDto } from './email-settings.dto.js';
 import { encryptCredential, decryptCredential, maskSecret } from '../../common/utils/encryption.util.js';
 import { MailService } from '../mail/mail.service.js';
@@ -208,14 +208,14 @@ export class EmailSettingsService {
 
     const result = await this.mailService.sendCustom({
       provider: provider as any,
-      resendApiKey,
+      resendApiKey: resendApiKey || undefined,
       resendFromEmail: fromEmail,
       resendFromName: fromName,
       smtpHost: dto.smtpHost || settings?.smtpHost || 'smtp.gmail.com',
       smtpPort: dto.smtpPort || settings?.smtpPort || 587,
       smtpSecure: dto.smtpSecure ?? settings?.smtpSecure ?? false,
-      smtpUser: dto.smtpUser || settings?.smtpUser,
-      smtpPass,
+      smtpUser: dto.smtpUser || settings?.smtpUser || undefined,
+      smtpPass: smtpPass || undefined,
       to: dto.recipientEmail,
       subject: testSubject,
       html: testHtml,

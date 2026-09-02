@@ -12,6 +12,8 @@ import {
   Sparkles,
   Check,
   LayoutTemplate,
+  ShieldCheck,
+  Send,
 } from "lucide-react"
 import { toast } from "sonner"
 import { api } from "@/api/client"
@@ -19,36 +21,58 @@ import { useAuthStore } from "@/store/auth.store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { TemplatePickerModal } from "./TemplatePickerModal"
+import { OrgEmailSettingsModal } from "./OrgEmailSettingsModal"
 
 export function TemplateConfigPage() {
   const { templateId } = useParams<{ templateId: string }>()
   const navigate = useNavigate()
-  const { selectedOrganization } = useAuthStore()
+  const { selectedOrganization, user } = useAuthStore()
 
   const isNew = !templateId || templateId === "new"
 
   const [loading, setLoading] = useState(!isNew)
   const [saving, setSaving] = useState(false)
+  const [testing, setTesting] = useState(false)
 
   // Template Data
   const [name, setName] = useState("Nueva plantilla")
   const [isEditingName, setIsEditingName] = useState(false)
   const [status, setStatus] = useState<"ACTIVE" | "INACTIVE" | "DRAFT">("INACTIVE")
-  const [senderEmail, setSenderEmail] = useState("daylersan@gmail.com")
+  const [senderEmail, setSenderEmail] = useState("noreply@asipe.site")
   const [senderName, setSenderName] = useState(selectedOrganization?.name || "IIAP")
   const [subject, setSubject] = useState("")
   const [previewText, setPreviewText] = useState("")
   const [content, setContent] = useState<any[] | null>(null)
   const [category, setCategory] = useState("CUSTOM")
 
+  // Org email settings
+  const [orgSettings, setOrgSettings] = useState<any | null>(null)
+  const [openSettingsModal, setOpenSettingsModal] = useState(false)
+
   // Modal Gallery
   const [openPicker, setOpenPicker] = useState(false)
 
   useEffect(() => {
+    if (selectedOrganization?.id) {
+      loadOrgSettings(selectedOrganization.id)
+    }
     if (!isNew && templateId) {
       loadTemplate(templateId)
     }
-  }, [templateId, isNew])
+  }, [templateId, isNew, selectedOrganization?.id])
+
+  const loadOrgSettings = async (orgId: string) => {
+    try {
+      const data = await api.emailSettings.get(orgId)
+      setOrgSettings(data)
+      if (isNew && data.resendFromEmail) {
+        setSenderEmail(data.resendFromEmail)
+        if (data.resendFromName) setSenderName(data.resendFromName)
+      }
+    } catch {
+      // ignore
+    }
+  }
 
   const loadTemplate = async (id: string) => {
     try {
@@ -277,11 +301,47 @@ export function TemplateConfigPage() {
         {/* RIGHT COLUMN: Sender, Subject, Preview Text Fields (Image 2)             */}
         {/* ========================================================================= */}
         <div className="lg:col-span-7 space-y-6">
+          {/* Org Provider & Domain Status Banner */}
+          <div className="p-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="size-9 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-500/20">
+                <ShieldCheck className="size-5" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-foreground flex items-center gap-2">
+                  <span>Credenciales Institucionales Activas</span>
+                  <span className="text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 px-2 py-0.2 rounded-md">
+                    {orgSettings?.defaultProvider === "GMAIL_SMTP" ? "Gmail / SMTP" : "Resend API"}
+                  </span>
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  {orgSettings?.resendDomain
+                    ? `Dominio autenticado: @${orgSettings.resendDomain}`
+                    : `Remitente institucional: ${orgSettings?.resendFromEmail || "noreply@asipe.site"}`}
+                </p>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setOpenSettingsModal(true)}
+              className="h-8 rounded-xl text-xs font-semibold shrink-0 border-border bg-background hover:bg-muted"
+            >
+              <ShieldCheck className="size-3.5 text-emerald-600 mr-1.5" />
+              <span>Ajustar credenciales</span>
+            </Button>
+          </div>
+
           {/* Email de remitente * */}
           <div className="space-y-2">
-            <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
-              Email de remitente <span className="text-rose-500">*</span>
-              <HelpCircle className="size-3.5 text-muted-foreground cursor-pointer" />
+            <label className="text-xs font-bold text-foreground flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                Email de remitente <span className="text-rose-500">*</span>
+                <HelpCircle className="size-3.5 text-muted-foreground cursor-pointer" />
+              </span>
+              <span className="text-[10px] text-muted-foreground">Heredado del dominio institucional</span>
             </label>
             <Input
               value={senderEmail}
@@ -289,13 +349,30 @@ export function TemplateConfigPage() {
               placeholder="ejemplo@tuorganizacion.com"
               className="h-11 rounded-xl bg-background border-border text-xs px-4"
             />
-            {/* Domain authentication notice (Image 2) */}
-            <div className="flex items-start gap-2 p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-700 dark:text-rose-400 text-[11px] leading-tight">
-              <AlertCircle className="size-3.5 shrink-0 mt-0.5" />
-              <span>
-                Tu dominio no está autenticado con DKIM/SPF. Para garantizar la entrega sin caer en spam, el envío se procesa mediante los servidores seguros configurados.
-              </span>
-            </div>
+
+            {/* Quick Senders Chips */}
+            {orgSettings?.verifiedSenders && orgSettings.verifiedSenders.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                <span className="text-[10px] text-muted-foreground font-medium mr-1">Sugeridos:</span>
+                {orgSettings.verifiedSenders.map((s: any, idx: number) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setSenderEmail(s.email)
+                      if (s.name) setSenderName(s.name)
+                    }}
+                    className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all font-mono ${
+                      senderEmail === s.email
+                        ? "bg-primary text-primary-foreground border-primary font-bold shadow-xs"
+                        : "bg-muted/40 text-muted-foreground hover:text-foreground border-border hover:bg-muted"
+                    }`}
+                  >
+                    {s.email}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Nombre de remitente * */}
@@ -373,6 +450,17 @@ export function TemplateConfigPage() {
         open={openPicker}
         onOpenChange={setOpenPicker}
         onSelectTemplate={handleSelectFromPicker}
+      />
+
+      {/* Org Email Settings Modal */}
+      <OrgEmailSettingsModal
+        open={openSettingsModal}
+        onOpenChange={setOpenSettingsModal}
+        onSaved={() => {
+          if (selectedOrganization?.id) {
+            loadOrgSettings(selectedOrganization.id)
+          }
+        }}
       />
     </div>
   )

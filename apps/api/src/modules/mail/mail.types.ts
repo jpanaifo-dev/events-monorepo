@@ -22,6 +22,8 @@ export interface SendCustomMailOptions {
   smtpSecure?: boolean;
   smtpUser?: string;
   smtpPass?: string;
+  smtpFromEmail?: string;
+  smtpFromName?: string;
   fromName?: string;
   fromEmail?: string;
 }

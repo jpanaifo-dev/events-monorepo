@@ -211,6 +211,45 @@ model Organization {
   marketingEnrollments MarketingEventEnrollment[]
   portal             OrganizationPortal?
   mediaAssets        MediaAsset[]
+
+  @@map("organizations")
+}
+
+model MarketingContact {
+  id              String                 @id @default(uuid()) @db.Uuid
+  organizationId  String                 @map("organization_id") @db.Uuid
+  profileId       String?                @map("profile_id") @db.Uuid
+  emailFallback   String?                @map("email_fallback")
+  consentStatus   MarketingConsentStatus @default(PENDING_CONFIRMATION) @map("consent_status")
+  consentedAt     DateTime?              @map("consented_at")
+  unsubscribedAt  DateTime?              @map("unsubscribed_at")
+  source          String                 @default("MANUAL")
+  tags            String[]               @default([])
+  createdAt       DateTime               @default(now()) @map("created_at")
+  organization    Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  profile         Profile?               @relation(fields: [profileId], references: [id], onDelete: SetNull)
+  segmentMembers  MarketingSegmentMember[]
+  enrollments     MarketingEventEnrollment[]
+
+  @@unique([organizationId, profileId])
+  @@unique([organizationId, emailFallback])
+  @@index([organizationId, emailFallback])
+  @@map("marketing_contacts")
+}
+
+model MarketingSegment {
+  id              String                   @id @default(uuid()) @db.Uuid
+  organizationId  String                   @map("organization_id") @db.Uuid
+  name            String
+  description     String?
+  type            String                   @default("MANUAL")
+  rules           Json?
+  createdAt       DateTime                 @default(now()) @map("created_at")
+  organization    Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  members         MarketingSegmentMember[]
+
+  @@unique([organizationId, name])
+  @@map("marketing_segments")
 }
 
 model MarketingSegmentMember {

@@ -1554,9 +1554,20 @@ export function EmailTemplateBuilderPage() {
                   className="h-10 text-xs rounded-xl"
                 />
                 <Button
-                  onClick={() => {
-                    toast.success(`Correo de prueba enviado con éxito a ${testEmail}`)
-                    setOpenPreviewModal(false)
+                  onClick={async () => {
+                    if (!testEmail || !testEmail.includes("@")) {
+                      return toast.error("Ingresa un correo destinatario válido.")
+                    }
+                    if (!templateId || templateId === "new") {
+                      return toast.error("Guarda la plantilla primero antes de enviar una prueba.")
+                    }
+                    try {
+                      const res = await api.emailTemplates.sendTest(templateId, testEmail.trim())
+                      toast.success(res.message || `Correo de prueba enviado con éxito a ${testEmail}`)
+                      setOpenPreviewModal(false)
+                    } catch (err: any) {
+                      toast.error(err?.message || "Error al despachar correo de prueba.")
+                    }
                   }}
                   className="h-10 px-5 font-semibold text-xs rounded-xl bg-neutral-900 text-white hover:bg-neutral-800 cursor-pointer"
                 >

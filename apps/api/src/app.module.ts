@@ -12,6 +12,7 @@ import { EventContentModule } from './modules/event-content/event-content.module
 import { MailModule } from './modules/mail/mail.module.js';
 import { RegistrationFormsModule } from './modules/registration-forms/registration-forms.module.js';
 import { EmailTemplatesModule } from './modules/email-templates/email-templates.module.js';
+import { EmailSettingsModule } from './modules/email-settings/email-settings.module.js';
 import { MarketingModule } from './modules/marketing/marketing.module.js';
 import { PublicEventsModule } from './modules/public-events/public-events.module.js';
 import { MediaModule } from './modules/media/media.module.js';
@@ -30,6 +31,7 @@ import { MediaModule } from './modules/media/media.module.js';
     EventContentModule,
     RegistrationFormsModule,
     EmailTemplatesModule,
+    EmailSettingsModule,
     MarketingModule,
     PublicEventsModule,
     MediaModule,
