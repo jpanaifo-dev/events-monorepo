@@ -302,8 +302,8 @@ export function TemplateConfigPage() {
         {/* ========================================================================= */}
         <div className="lg:col-span-7 space-y-6">
           <div className="p-4 rounded-2xl border border-border bg-muted/30">
-            <p className="text-xs font-semibold text-foreground">Envío administrado por el sistema</p>
-            <p className="text-[11px] text-muted-foreground mt-1">Las plantillas utilizan automáticamente la configuración predeterminada de la plataforma.</p>
+            <p className="text-xs font-semibold text-foreground">Envío de marketing de la organización</p>
+            <p className="text-[11px] text-muted-foreground mt-1">Esta plantilla utilizará la configuración de correo de la organización. Las notificaciones propias del sistema usan la configuración global de la plataforma.</p>
           </div>
 
           {/* Email de remitente * */}

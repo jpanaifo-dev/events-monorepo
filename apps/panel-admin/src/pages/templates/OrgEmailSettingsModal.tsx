@@ -217,16 +217,16 @@ export function OrgEmailSettingsModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-0 rounded-3xl border-border bg-card">
+      <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto p-0 rounded-3xl border-border bg-card">
         {/* Header */}
         <div className="p-6 border-b border-border bg-muted/20">
           <div className="flex items-center gap-3">
             <div>
               <DialogTitle className="text-xl font-bold text-foreground flex items-center gap-2">
-                Configuración de Correo Institucional
+                Configuración de Correo para Marketing
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                Configura tu proveedor de correo (Resend o Gmail/SMTP) y dominio una sola vez. Todas las plantillas reutilizarán estas credenciales.
+                Configura el proveedor que usará esta organización para sus campañas y comunicaciones de marketing. Las notificaciones internas del sistema usan la configuración global de la plataforma.
               </DialogDescription>
             </div>
           </div>
@@ -259,11 +259,11 @@ export function OrgEmailSettingsModal({
                       <span className="font-bold text-sm text-foreground">Resend (API)</span>
                     </div>
                     <span className="text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 px-2 py-0.5 rounded-md">
-                      Recomendado
+                      Disponible
                     </span>
                   </div>
                   <p className="text-[11px] text-muted-foreground leading-relaxed">
-                    Ideal para dominios propios (ej. <strong>@asipe.site</strong>), con alta entregabilidad y soporte para plantillas y estadísticas.
+                    Usa una cuenta de Resend y el remitente verificado de tu organización.
                   </p>
                 </div>
 

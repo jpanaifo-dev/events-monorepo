@@ -380,6 +380,7 @@ export class EmailTemplatesService {
       to: recipientEmail,
       subject,
       html: htmlContent,
+      organizationId: (template as any).organizationId,
     });
 
     if (!result.sent) {
