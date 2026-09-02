@@ -500,6 +500,7 @@ export const useEventStore = create<EventState>((set, get) => ({
                 ticketType: roleSlug === "vip" ? "VIP" : "General",
                 registrationDate: part.registeredAt ? part.registeredAt.split("T")[0] : new Date().toISOString().split("T")[0],
                 checkedIn: !!part.checkedIn,
+                source: "PARTICIPANT",
                 avatarUrl: profile.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fullName)}`,
                 identityDocumentType: profile.identity_document_type || null,
                 identityDocumentNumber: profile.identity_document_number || null,
