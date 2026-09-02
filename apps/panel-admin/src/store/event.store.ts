@@ -832,9 +832,9 @@ export const useEventStore = create<EventState>((set, get) => ({
 
   updateSpeaker: async (id, updates) => {
     try {
-      await api.content.updateSpeaker(id, { firstName: updates.firstName, lastName: updates.lastName, bio: updates.bio })
-      const current = get().speakers.find((s) => s.id === id)
-      if (!current) throw new Error("Speaker not found")
+      const updated = await api.content.updateSpeaker(id, { firstName: updates.firstName, lastName: updates.lastName, bio: updates.bio })
+      const current = get().speakers.find((s) => s.id === id) || updated
+      if (!current) throw new Error("Participante no encontrado")
 
       // 1. Update Profile in DB
       const profileUpdates: any = {}
@@ -847,7 +847,7 @@ export const useEventStore = create<EventState>((set, get) => ({
       if (updates.identityDocumentNumber !== undefined) profileUpdates.identity_document_number = updates.identityDocumentNumber || null
       if (updates.institution !== undefined) profileUpdates.institution = updates.institution || null
 
-      if (Object.keys(profileUpdates).length > 0) await api.profiles.update(current.profileId, { firstName: updates.firstName, lastName: updates.lastName, bio: updates.bio })
+      if (Object.keys(profileUpdates).length > 0) await api.profiles.update(current.profileId || updated.profileId, { firstName: updates.firstName, lastName: updates.lastName, bio: updates.bio, avatarUrl: updates.avatar })
 
       // 2. Update Participant in DB
       const participantUpdates: any = {}

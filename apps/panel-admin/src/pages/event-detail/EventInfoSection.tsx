@@ -39,7 +39,6 @@ export function EventInfoSection() {
   const [name, setName] = useState("")
   const [shortDescription, setShortDescription] = useState("")
   const [about, setAbout] = useState("")
-  const [coverUrl, setCoverUrl] = useState("")
   const [logoUrl, setLogoUrl] = useState("")
   const [status, setStatus] = useState<"draft" | "published" | "archived">("draft")
   const [isActive, setIsActive] = useState(true)
@@ -69,7 +68,6 @@ export function EventInfoSection() {
       setName(event.name || "")
       setShortDescription(event.shortDescription || "")
       setAbout(typeof event.about === "object" && event.about?.es ? event.about.es : typeof event.about === "string" ? event.about : "")
-      setCoverUrl(event.coverUrl || "")
       setLogoUrl(event.logoUrl || "")
       setStatus(event.status || "draft")
       setIsActive(event.isActive !== false)
@@ -129,7 +127,6 @@ export function EventInfoSection() {
         name: name.trim(),
         shortDescription: shortDescription.trim(),
         about: about.trim() ? { es: about.trim() } : "",
-        coverUrl: coverUrl.trim() || "",
         logoUrl: logoUrl.trim() || "",
         status,
         isActive,
@@ -258,22 +255,6 @@ export function EventInfoSection() {
           </div>
           <div className="md:w-2/3 w-full">
             <textarea id="evt-about" rows={4} value={about} onChange={(e) => setAbout(e.target.value)} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-1 focus-visible:ring-ring text-foreground" />
-          </div>
-        </div>
-
-        <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
-          <div className="md:w-1/3 space-y-1">
-            <label htmlFor="evt-cover" className="text-sm font-medium text-foreground">Portada del Evento</label>
-            <p className="text-xs text-muted-foreground">Imagen de portada del evento.</p>
-          </div>
-          <div className="md:w-2/3 w-full">
-            <MediaUploader
-              value={coverUrl}
-              onChange={setCoverUrl}
-              variant="banner"
-              assetTarget={{ organizationId: event.organizationId, type: "events/cover", resourceId: event.id }}
-              placeholder="Arrastra o selecciona una imagen de portada"
-            />
           </div>
         </div>
 

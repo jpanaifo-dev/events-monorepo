@@ -2,16 +2,16 @@ import React, { useEffect, useRef, useState } from "react"
 import {
   Film,
   GripVertical,
-  ImagePlus,
   Star,
   Trash2,
-  Upload,
+  CloudUpload,
   X,
   Loader2,
   Images,
   RefreshCw,
   Eye,
   CheckCircle2,
+  Plus,
 } from "lucide-react"
 import { toast } from "sonner"
 import { api } from "@/api/client"
@@ -174,9 +174,17 @@ export function MediaUploader({
   const [singlePendingFile, setSinglePendingFile] = useState<File | null>(null)
   const [singlePendingPreview, setSinglePendingPreview] = useState<string>("")
 
-  // Estados para MODO MÚLTIPLE
+  // Estados para MODO MÚLTIPLE (GALERÍA)
   const [galleryItems, setGalleryItems] = useState<MediaItem[]>([])
   const [galleryPending, setGalleryPending] = useState<PendingFile[]>([])
+
+  // Estados para Drag & Drop Reordering
+  const [draggedPendingId, setDraggedPendingId] = useState<string | null>(null)
+  const [dragOverPendingId, setDragOverPendingId] = useState<string | null>(null)
+
+  const [draggedItemId, setDraggedItemId] = useState<string | null>(null)
+  const [dragOverItemId, setDragOverItemId] = useState<string | null>(null)
+  const [_isReordering, setIsReordering] = useState(false)
 
   // Sincronizar valor en modo individual
   useEffect(() => {
@@ -198,15 +206,18 @@ export function MediaUploader({
     if (!effectiveOwnerId || !multiple) return
     try {
       const links = await api.media.list(effectiveOwnerType, effectiveOwnerId)
-      const mapped: MediaItem[] = links.map((link: any) => ({
-        id: link.id,
-        mediaId: link.mediaId,
-        url: link.media.url,
-        mimeType: link.media.mimeType,
-        orientation: link.media.orientation,
-        position: link.position,
-        isFeatured: Boolean(link.isFeatured),
-      }))
+      const mapped: MediaItem[] = links
+        .filter((link: any) => link.purpose === effectivePurpose)
+        .map((link: any) => ({
+          id: link.id,
+          mediaId: link.mediaId,
+          url: link.media.url,
+          mimeType: link.media.mimeType,
+          orientation: link.media.orientation,
+          position: link.position,
+          isFeatured: Boolean(link.isFeatured),
+        }))
+        .sort((a: MediaItem, b: MediaItem) => a.position - b.position)
       setGalleryItems(mapped)
       onGalleryCountChange?.(mapped.length)
     } catch (err: any) {
@@ -220,11 +231,15 @@ export function MediaUploader({
     }
   }, [multiple, effectiveOwnerId, effectiveOwnerType])
 
-  // Drag handlers
+  // Drag handlers para subida de archivos externos desde el explorador
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
     if (disabled) return
+    // Si estamos arrastrando un elemento interno (reordenamiento), no activar overlay de subida externa
+    if (e.dataTransfer.types.includes("application/x-zynqro-reorder")) {
+      return
+    }
     if (e.type === "dragenter" || e.type === "dragover") {
       setDragActive(true)
     } else if (e.type === "dragleave") {
@@ -374,14 +389,15 @@ export function MediaUploader({
     let successCount = 0
 
     try {
-      for (const item of galleryPending) {
+      for (let i = 0; i < galleryPending.length; i++) {
+        const item = galleryPending[i]
         try {
           await api.media.upload(item.file, {
             ownerType: effectiveOwnerType,
             ownerId: effectiveOwnerId,
             organizationId: effectiveOrgId || undefined,
             purpose: effectivePurpose,
-            position: galleryItems.length + successCount,
+            position: galleryItems.length + i,
             orientation: item.orientation,
           })
           successCount++
@@ -451,12 +467,124 @@ export function MediaUploader({
     }
   }
 
-  // Manejo de Drop
+  // Manejo de Drag & Drop para Reordenar Elementos Pendientes (Staged)
+  const handlePendingDragStart = (e: React.DragEvent, id: string) => {
+    e.dataTransfer.setData("application/x-zynqro-reorder", "pending")
+    e.dataTransfer.setData("text/plain", id)
+    e.dataTransfer.effectAllowed = "move"
+    setDraggedPendingId(id)
+  }
+
+  const handlePendingDragOver = (e: React.DragEvent, id: string) => {
+    if (draggedPendingId) {
+      e.preventDefault()
+      e.stopPropagation()
+      e.dataTransfer.dropEffect = "move"
+      if (dragOverPendingId !== id) {
+        setDragOverPendingId(id)
+      }
+    }
+  }
+
+  const handlePendingDrop = (e: React.DragEvent, targetId: string) => {
+    if (!draggedPendingId) return
+    e.preventDefault()
+    e.stopPropagation()
+
+    if (draggedPendingId !== targetId) {
+      setGalleryPending((current) => {
+        const fromIndex = current.findIndex((p) => p.id === draggedPendingId)
+        const toIndex = current.findIndex((p) => p.id === targetId)
+        if (fromIndex === -1 || toIndex === -1) return current
+        const copy = [...current]
+        const [moved] = copy.splice(fromIndex, 1)
+        copy.splice(toIndex, 0, moved)
+        return copy
+      })
+    }
+    setDraggedPendingId(null)
+    setDragOverPendingId(null)
+  }
+
+  const handlePendingDragEnd = () => {
+    setDraggedPendingId(null)
+    setDragOverPendingId(null)
+  }
+
+  // Manejo de Drag & Drop para Reordenar Multimedia Activa
+  const handleActiveDragStart = (e: React.DragEvent, id: string) => {
+    e.dataTransfer.setData("application/x-zynqro-reorder", "active")
+    e.dataTransfer.setData("text/plain", id)
+    e.dataTransfer.effectAllowed = "move"
+    setDraggedItemId(id)
+  }
+
+  const handleActiveDragOver = (e: React.DragEvent, id: string) => {
+    if (draggedItemId) {
+      e.preventDefault()
+      e.stopPropagation()
+      e.dataTransfer.dropEffect = "move"
+      if (dragOverItemId !== id) {
+        setDragOverItemId(id)
+      }
+    }
+  }
+
+  const handleActiveDrop = async (e: React.DragEvent, targetId: string) => {
+    if (!draggedItemId) return
+    e.preventDefault()
+    e.stopPropagation()
+
+    if (draggedItemId !== targetId) {
+      const fromIndex = galleryItems.findIndex((it) => it.id === draggedItemId)
+      const toIndex = galleryItems.findIndex((it) => it.id === targetId)
+      if (fromIndex !== -1 && toIndex !== -1) {
+        const copy = [...galleryItems]
+        const [moved] = copy.splice(fromIndex, 1)
+        copy.splice(toIndex, 0, moved)
+        setGalleryItems(copy)
+
+        try {
+          setIsReordering(true)
+          await api.media.reorder(
+            effectiveOwnerType,
+            effectiveOwnerId,
+            copy.map((candidate, position) => ({
+              id: candidate.id,
+              position,
+              isFeatured: candidate.isFeatured,
+            }))
+          )
+          toast.success("Orden de galería actualizado")
+        } catch (err: any) {
+          console.error("Error reordering media:", err)
+          toast.error("No se pudo guardar el nuevo orden.")
+          void refreshGallery()
+        } finally {
+          setIsReordering(false)
+        }
+      }
+    }
+    setDraggedItemId(null)
+    setDragOverItemId(null)
+  }
+
+  const handleActiveDragEnd = () => {
+    setDraggedItemId(null)
+    setDragOverItemId(null)
+  }
+
+  // Manejo de Drop externo de archivos
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
     setDragActive(false)
     if (disabled) return
+
+    // Si viene de un reorder interno, ignorar
+    if (e.dataTransfer.types.includes("application/x-zynqro-reorder")) {
+      return
+    }
 
     if (multiple) {
       if (e.dataTransfer.files && e.dataTransfer.files.length) {
@@ -519,37 +647,20 @@ export function MediaUploader({
     : singlePreviewUrl
 
   // ==========================================
-  // RENDER: MODO MÚLTIPLE (GALERÍA)
+  // RENDER: MODO MÚLTIPLE (GALERÍA UNIFICADA)
   // ==========================================
   if (multiple) {
+    const hasAnyContent = galleryItems.length > 0 || galleryPending.length > 0
+
     return (
-      <div className="w-full space-y-4">
+      <div
+        className="w-full space-y-3 relative"
+        onDragEnter={handleDrag}
+        onDragOver={handleDrag}
+        onDragLeave={handleDrag}
+        onDrop={handleDrop}
+      >
         {label && <label className="text-sm font-medium text-foreground block">{label}</label>}
-
-        {/* Cabecera / Contador */}
-        <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-          <div className="flex items-center gap-2">
-            <span className="font-medium text-foreground">
-              Archivos · {galleryItems.length}/{maxItems}
-            </span>
-            <span className="text-muted-foreground hidden sm:inline">
-              · Admite imágenes (JPG, PNG, WEBP) y videos (MP4, WEBM)
-            </span>
-          </div>
-
-          {effectiveOrgId && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setLibraryOpen(true)}
-              className="h-7 text-xs px-2.5 rounded-lg border-border/80 text-muted-foreground hover:text-foreground bg-muted/20"
-            >
-              <Images className="mr-1.5 size-3.5" />
-              Biblioteca multimedia
-            </Button>
-          )}
-        </div>
 
         <input
           ref={fileInputRef}
@@ -561,46 +672,106 @@ export function MediaUploader({
           disabled={disabled || isUploading}
         />
 
-        {/* ZONA DE ARRASTRE MINIMALISTA */}
-        {totalGalleryCount < maxItems && (
+        {/* OVERLAY GLOBAL AL ARRASTRAR ARCHIVOS EXTERNOS */}
+        {dragActive && (
+          <div className="absolute inset-0 z-40 rounded-xl border-2 border-dashed border-primary bg-primary/10 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center pointer-events-none animate-in fade-in-50 duration-150">
+            <div className="size-16 rounded-full bg-primary/20 text-primary flex items-center justify-center mb-2 animate-bounce shadow-sm">
+              <CloudUpload className="size-8" />
+            </div>
+            <p className="text-sm font-semibold text-primary">Suelta tus archivos multimedia aquí</p>
+            <p className="text-xs text-primary/80 mt-0.5">Se añadirán a la lista de previsualización</p>
+          </div>
+        )}
+
+        {/* BARRA SUPERIOR DE ESTADO Y ACCIONES */}
+        <div className="flex flex-wrap items-center justify-between gap-2.5 p-3 rounded-xl border border-border/80 bg-muted/20">
+          <div className="flex items-center gap-2 text-xs">
+            <span className="font-semibold text-foreground flex items-center gap-1.5">
+              <CloudUpload className="size-4 text-primary" />
+              Archivos · {galleryItems.length}/{maxItems}
+            </span>
+            <span className="text-muted-foreground hidden sm:inline">
+              · Arrastra archivos para agregar o reordénalos libremente
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {totalGalleryCount < maxItems && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+                className="h-7 text-xs px-3 rounded-lg border-border/80 hover:border-primary/60 bg-background text-foreground hover:bg-muted font-medium gap-1.5 shadow-2xs"
+              >
+                <Plus className="size-3.5" />
+                <span>Añadir archivos</span>
+              </Button>
+            )}
+
+            {effectiveOrgId && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setLibraryOpen(true)}
+                className="h-7 text-xs px-2.5 rounded-lg border-border/80 text-muted-foreground hover:text-foreground bg-background hover:bg-muted shadow-2xs"
+              >
+                <Images className="mr-1.5 size-3.5" />
+                Biblioteca
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* CONTENEDOR INTEGRADO: Si está completamente vacío, mostrar Dropzone Principal */}
+        {!hasAnyContent && (
           <div
-            onDragEnter={handleDrag}
-            onDragOver={handleDrag}
-            onDragLeave={handleDrag}
-            onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
             className={cn(
-              "group relative flex flex-col items-center justify-center p-6 rounded-xl border border-dashed cursor-pointer transition-all duration-200 select-none",
+              "group relative flex min-h-[160px] flex-col sm:flex-row items-center justify-center gap-5 p-6 rounded-xl border border-dashed cursor-pointer transition-all duration-200 select-none text-center sm:text-left",
               dragActive
                 ? "border-primary bg-primary/10 ring-2 ring-primary/20 scale-[0.99]"
-                : "border-border/80 bg-muted/20 hover:border-primary/60 hover:bg-muted/40"
+                : "border-border/80 bg-muted/10 hover:border-primary/60 hover:bg-muted/30"
             )}
           >
-            <div className="flex flex-col items-center gap-2 text-center">
-              <div className="flex size-10 items-center justify-center rounded-xl bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-colors">
-                <ImagePlus className="size-5" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">
-                  {placeholder || "Arrastra archivos de galería o selecciónalos"}
-                </p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Puedes seleccionar múltiples imágenes o videos a la vez
-                </p>
-              </div>
+            <div className="flex size-20 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary group-hover:scale-105 group-hover:bg-primary/15 transition-all shadow-2xs">
+              <CloudUpload className="size-10 stroke-[1.7]" />
+            </div>
+            <div className="max-w-md space-y-1.5">
+              <p className="text-sm font-semibold text-foreground">
+                {placeholder || "Arrastra archivos de galería o selecciónalos"}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Puedes seleccionar múltiples imágenes (JPG, PNG, WEBP) o videos (MP4, WEBM)
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="mt-2 text-xs font-medium gap-1.5 shadow-2xs"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  fileInputRef.current?.click()
+                }}
+              >
+                <CloudUpload className="size-3.5" />
+                Seleccionar archivos
+              </Button>
             </div>
           </div>
         )}
 
-        {/* PREVISUALIZACIÓN ANTES DE SUBIR (STAGING QUEUE) */}
+        {/* PREVISUALIZACIÓN ANTES DE SUBIR (STAGING CON DRAG & DROP REORDER) */}
         {galleryPending.length > 0 && (
           <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/5 space-y-3 animate-in fade-in duration-200">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2 text-xs font-medium text-amber-700 dark:text-amber-400">
-                <Upload className="size-4" />
+              <div className="flex items-center gap-2 text-xs font-semibold text-amber-700 dark:text-amber-400">
+                <CloudUpload className="size-4" />
                 <span>
                   {galleryPending.length} archivo{galleryPending.length > 1 ? "s" : ""} listo
-                  {galleryPending.length > 1 ? "s" : ""} para subir (previsualización previa)
+                  {galleryPending.length > 1 ? "s" : ""} para subir (arrastra para reordenar)
                 </span>
               </div>
 
@@ -611,7 +782,7 @@ export function MediaUploader({
                   size="sm"
                   disabled={isUploading}
                   onClick={clearAllGalleryPending}
-                  className="h-7 px-2.5 text-xs text-muted-foreground hover:text-foreground"
+                  className="h-7 px-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-amber-500/10"
                 >
                   Descartar todo
                 </Button>
@@ -629,7 +800,7 @@ export function MediaUploader({
                     </>
                   ) : (
                     <>
-                      <Upload className="size-3.5" />
+                      <CloudUpload className="size-3.5" />
                       Subir {galleryPending.length > 1 ? `(${galleryPending.length}) archivos` : "archivo"}
                     </>
                   )}
@@ -637,151 +808,215 @@ export function MediaUploader({
               </div>
             </div>
 
-            {/* Tarjetas de previsualización en lote */}
+            {/* Tarjetas de previsualización en cola con capacidad de ordenamiento */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-              {galleryPending.map((p) => (
-                <div
-                  key={p.id}
-                  className="group relative rounded-lg border border-border/80 bg-background overflow-hidden shadow-xs flex flex-col"
-                >
-                  <div className="relative aspect-video w-full bg-muted/40 overflow-hidden flex items-center justify-center">
-                    {p.isVideo ? (
-                      <div className="flex flex-col items-center gap-1 text-muted-foreground">
-                        <Film className="size-6 text-primary" />
-                        <span className="text-[10px] font-medium uppercase tracking-wider">Video</span>
-                      </div>
-                    ) : (
-                      <img
-                        src={p.preview}
-                        alt={p.file.name}
-                        className="size-full object-cover"
-                      />
+              {galleryPending.map((p) => {
+                const isBeingDragged = draggedPendingId === p.id
+                const isOver = dragOverPendingId === p.id && !isBeingDragged
+
+                return (
+                  <div
+                    key={p.id}
+                    draggable={!isUploading}
+                    onDragStart={(e) => handlePendingDragStart(e, p.id)}
+                    onDragOver={(e) => handlePendingDragOver(e, p.id)}
+                    onDrop={(e) => handlePendingDrop(e, p.id)}
+                    onDragEnd={handlePendingDragEnd}
+                    className={cn(
+                      "group relative rounded-xl border bg-card overflow-hidden shadow-2xs flex flex-col cursor-grab active:cursor-grabbing transition-all duration-150 select-none",
+                      isBeingDragged && "opacity-40 scale-95 border-dashed border-primary",
+                      isOver && "border-primary ring-2 ring-primary/30 scale-102",
+                      !isBeingDragged && !isOver && "border-border/80 hover:border-border hover:shadow-xs"
                     )}
+                  >
+                    <div className="relative aspect-video w-full bg-muted/40 overflow-hidden flex items-center justify-center">
+                      {p.isVideo ? (
+                        <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                          <Film className="size-6 text-primary" />
+                          <span className="text-[10px] font-semibold uppercase tracking-wider">Video</span>
+                        </div>
+                      ) : (
+                        <img
+                          src={p.preview}
+                          alt={p.file.name}
+                          className="size-full object-cover pointer-events-none"
+                        />
+                      )}
 
-                    <button
-                      type="button"
-                      onClick={() => removeGalleryPendingItem(p.id)}
-                      disabled={isUploading}
-                      className="absolute top-1.5 right-1.5 p-1 rounded-md bg-black/60 hover:bg-destructive text-white transition-colors"
-                      title="Descartar este archivo"
-                    >
-                      <X className="size-3.5" />
-                    </button>
-                  </div>
+                      {/* Grip indicator */}
+                      <div className="absolute top-1.5 left-1.5 p-1 rounded-md bg-black/60 text-white/80 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <GripVertical className="size-3.5" />
+                      </div>
 
-                  <div className="p-2 text-[11px] bg-card border-t border-border/50">
-                    <p className="font-medium text-foreground truncate">{p.file.name}</p>
-                    <p className="text-muted-foreground text-[10px] mt-0.5">
-                      {formatBytes(p.file.size)}
-                    </p>
+                      {/* Botón descartar */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          removeGalleryPendingItem(p.id)
+                        }}
+                        disabled={isUploading}
+                        className="absolute top-1.5 right-1.5 p-1 rounded-md bg-black/60 hover:bg-destructive text-white transition-colors"
+                        title="Descartar archivo"
+                      >
+                        <X className="size-3.5" />
+                      </button>
+                    </div>
+
+                    <div className="p-2 text-[11px] bg-card border-t border-border/50">
+                      <p className="font-medium text-foreground truncate">{p.file.name}</p>
+                      <p className="text-muted-foreground text-[10px] mt-0.5">
+                        {formatBytes(p.file.size)}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         )}
 
-        {/* CUADRÍCULA DE ELEMENTOS ACTIVOS */}
+        {/* CUADRÍCULA DE ELEMENTOS ACTIVOS (CON DRAG & DROP REORDER) */}
         {galleryItems.length > 0 && (
           <div className="space-y-2 pt-1">
             <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span className="font-medium text-foreground">Multimedia activa</span>
-              {enableHero && (
-                <span>⭐ Haz clic en la estrella para usarlo en el Hero público</span>
-              )}
+              <span className="font-semibold text-foreground flex items-center gap-1.5">
+                <CheckCircle2 className="size-3.5 text-emerald-500" />
+                Multimedia activa ({galleryItems.length})
+              </span>
+              <span className="text-[11px]">
+                {enableHero ? "⭐ Haz clic en la estrella para Hero público · Arrastra para ordenar" : "Arrastra para ordenar"}
+              </span>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-              {galleryItems.map((item) => (
-                <div
-                  key={item.id}
-                  className={cn(
-                    "group relative rounded-xl border bg-card overflow-hidden shadow-xs transition-all duration-200 flex flex-col",
-                    item.isFeatured
-                      ? "border-amber-500/80 ring-2 ring-amber-500/20 shadow-md"
-                      : "border-border/80 hover:border-primary/50"
-                  )}
-                >
-                  <div className="relative aspect-video w-full bg-muted/40 overflow-hidden flex items-center justify-center">
-                    {item.mimeType.startsWith("video/") ? (
-                      <div className="size-full relative">
-                        <video
-                          src={item.url}
-                          className="size-full object-cover"
-                          muted
-                          playsInline
-                          preload="metadata"
-                        />
-                        <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded-md bg-black/70 text-white text-[10px] flex items-center gap-1">
-                          <Film className="size-3" />
-                          <span>Video</span>
-                        </div>
-                      </div>
-                    ) : (
-                      <img
-                        src={item.url}
-                        alt="Multimedia"
-                        className="size-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                    )}
+              {galleryItems.map((item) => {
+                const isBeingDragged = draggedItemId === item.id
+                const isOver = dragOverItemId === item.id && !isBeingDragged
 
-                    {item.isFeatured && (
-                      <div className="absolute top-2 left-2 z-10">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500 text-white shadow-xs">
-                          <Star className="size-3 fill-current" />
-                          Hero Público
-                        </span>
-                      </div>
+                return (
+                  <div
+                    key={item.id}
+                    draggable={true}
+                    onDragStart={(e) => handleActiveDragStart(e, item.id)}
+                    onDragOver={(e) => handleActiveDragOver(e, item.id)}
+                    onDrop={(e) => handleActiveDrop(e, item.id)}
+                    onDragEnd={handleActiveDragEnd}
+                    className={cn(
+                      "group relative rounded-xl border bg-card overflow-hidden shadow-2xs transition-all duration-200 flex flex-col select-none cursor-grab active:cursor-grabbing",
+                      isBeingDragged && "opacity-40 scale-95 border-dashed border-primary",
+                      isOver && "border-primary ring-2 ring-primary/40 scale-102",
+                      item.isFeatured && !isBeingDragged && !isOver
+                        ? "border-amber-500/80 ring-2 ring-amber-500/20 shadow-md"
+                        : !isBeingDragged && !isOver && "border-border/80 hover:border-primary/50"
                     )}
-
-                    {/* Acciones flotantes */}
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 backdrop-blur-[1px]">
-                      {enableHero && (
-                        <button
-                          type="button"
-                          onClick={() => handleToggleFeatured(item)}
-                          className={cn(
-                            "p-2 rounded-lg transition-transform hover:scale-110 shadow-sm text-xs flex items-center gap-1 font-medium",
-                            item.isFeatured
-                              ? "bg-amber-500 text-white"
-                              : "bg-background/90 text-foreground hover:bg-amber-500 hover:text-white"
-                          )}
-                          title={
-                            item.isFeatured
-                              ? "Quitar del Hero público"
-                              : "Destacar en el Hero público"
-                          }
-                        >
-                          <Star
-                            className={cn("size-4", item.isFeatured && "fill-current")}
+                  >
+                    <div className="relative aspect-video w-full bg-muted/40 overflow-hidden flex items-center justify-center">
+                      {item.mimeType.startsWith("video/") ? (
+                        <div className="size-full relative">
+                          <video
+                            src={item.url}
+                            className="size-full object-cover pointer-events-none"
+                            muted
+                            playsInline
+                            preload="metadata"
                           />
-                        </button>
+                          <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded-md bg-black/70 text-white text-[10px] flex items-center gap-1">
+                            <Film className="size-3" />
+                            <span>Video</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <img
+                          src={item.url}
+                          alt="Multimedia"
+                          className="size-full object-cover group-hover:scale-105 transition-transform duration-300 pointer-events-none"
+                        />
                       )}
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setFullViewUrl(item.url)
-                          setFullViewOpen(true)
-                        }}
-                        className="p-2 bg-background/90 hover:bg-background text-foreground rounded-lg transition-transform hover:scale-110 shadow-sm"
-                        title="Ver en grande"
-                      >
-                        <Eye className="size-4" />
-                      </button>
+                      {/* Grip handle indicator on top-left */}
+                      <div className="absolute top-2 left-2 z-10 p-1 rounded-md bg-black/60 text-white/80 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <GripVertical className="size-3.5" />
+                      </div>
 
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveGalleryItem(item)}
-                        className="p-2 bg-destructive/90 hover:bg-destructive text-destructive-foreground rounded-lg transition-transform hover:scale-110 shadow-sm"
-                        title="Eliminar de la galería"
-                      >
-                        <Trash2 className="size-4" />
-                      </button>
+                      {item.isFeatured && (
+                        <div className="absolute top-2 left-2 z-10 group-hover:opacity-0 transition-opacity">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500 text-white shadow-xs">
+                            <Star className="size-3 fill-current" />
+                            Hero Público
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Acciones flotantes en hover */}
+                      <div className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5 backdrop-blur-[1px]">
+                        {enableHero && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              void handleToggleFeatured(item)
+                            }}
+                            className={cn(
+                              "p-2 rounded-lg transition-transform hover:scale-110 shadow-sm text-xs flex items-center gap-1 font-medium",
+                              item.isFeatured
+                                ? "bg-amber-500 text-white"
+                                : "bg-background/90 text-foreground hover:bg-amber-500 hover:text-white"
+                            )}
+                            title={
+                              item.isFeatured
+                                ? "Quitar del Hero público"
+                                : "Destacar en el Hero público"
+                            }
+                          >
+                            <Star
+                              className={cn("size-3.5", item.isFeatured && "fill-current")}
+                            />
+                          </button>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setFullViewUrl(item.url)
+                            setFullViewOpen(true)
+                          }}
+                          className="p-2 bg-background/90 hover:bg-background text-foreground rounded-lg transition-transform hover:scale-110 shadow-sm"
+                          title="Ver en grande"
+                        >
+                          <Eye className="size-3.5" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            void handleRemoveGalleryItem(item)
+                          }}
+                          className="p-2 bg-destructive/90 hover:bg-destructive text-destructive-foreground rounded-lg transition-transform hover:scale-110 shadow-sm"
+                          title="Eliminar de la galería"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
+                )
+              })}
+
+              {/* Botón / Tarjeta inline para añadir más archivos cuando ya hay galería */}
+              {totalGalleryCount < maxItems && (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="aspect-video rounded-xl border border-dashed border-border/80 hover:border-primary/60 bg-muted/10 hover:bg-muted/30 flex flex-col items-center justify-center gap-1.5 cursor-pointer text-muted-foreground hover:text-primary transition-all p-3 text-center group"
+                >
+                  <div className="size-8 rounded-full bg-muted/60 group-hover:bg-primary/10 flex items-center justify-center transition-colors">
+                    <CloudUpload className="size-4" />
+                  </div>
+                  <span className="text-[11px] font-medium leading-tight">Añadir más</span>
                 </div>
-              ))}
+              )}
             </div>
           </div>
         )}
@@ -957,7 +1192,7 @@ export function MediaUploader({
                   dragActive && "bg-primary/20 text-primary scale-110"
                 )}
               >
-                <ImagePlus className="size-5" />
+                <CloudUpload className="size-5" />
               </div>
 
               {effectiveVariant !== "favicon" ? (
@@ -981,7 +1216,7 @@ export function MediaUploader({
           <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 text-xs animate-in fade-in-50 duration-200">
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="size-8 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0 text-amber-600 dark:text-amber-400">
-                <Upload className="size-4" />
+                <CloudUpload className="size-4" />
               </div>
               <div className="min-w-0">
                 <p className="font-medium text-foreground truncate max-w-[240px]">
@@ -1019,7 +1254,7 @@ export function MediaUploader({
                   </>
                 ) : (
                   <>
-                    <Upload className="size-3.5" />
+                    <CloudUpload className="size-3.5" />
                     Subir imagen
                   </>
                 )}
@@ -1102,3 +1337,4 @@ export function MediaUploader({
     </div>
   )
 }
+

@@ -359,6 +359,7 @@ export function OrganizationSettingsPage() {
         slug,
         description: description || "",
         type,
+        organizationType: type,
         logoUrl,
         coverUrl,
         faviconUrl,
