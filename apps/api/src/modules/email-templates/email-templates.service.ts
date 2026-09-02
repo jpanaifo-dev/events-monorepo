@@ -376,13 +376,10 @@ export class EmailTemplatesService {
     }
 
     const subject = template.subject ? `[Prueba] ${template.subject}` : `[Prueba] ${template.name}`;
-    const organizationId = (template as any).organizationId;
-
     const result = await this.mailService.send({
       to: recipientEmail,
       subject,
       html: htmlContent,
-      organizationId,
     });
 
     if (!result.sent) {

@@ -47,7 +47,7 @@ export function OrgEmailSettingsModal({
 
   // Form states
   const [provider, setProvider] = useState<"RESEND" | "GMAIL_SMTP" | "CUSTOM_SMTP">("RESEND")
-  
+
   // Resend
   const [resendApiKey, setResendApiKey] = useState("")
   const [showApiKey, setShowApiKey] = useState(false)
@@ -85,7 +85,7 @@ export function OrgEmailSettingsModal({
     try {
       setLoading(true)
       const data = await api.emailSettings.get(orgId)
-      
+
       setProvider(data.defaultProvider || "RESEND")
       setResendApiKey(data.resendApiKeyMasked || "")
       setResendDomain(data.resendDomain || "")
@@ -221,15 +221,9 @@ export function OrgEmailSettingsModal({
         {/* Header */}
         <div className="p-6 border-b border-border bg-muted/20">
           <div className="flex items-center gap-3">
-            <div className="size-11 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center border border-emerald-500/20 shadow-xs">
-              <ShieldCheck className="size-6" />
-            </div>
             <div>
               <DialogTitle className="text-xl font-bold text-foreground flex items-center gap-2">
                 Configuración de Correo Institucional
-                <span className="text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                  Cifrado AES-256
-                </span>
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground mt-0.5">
                 Configura tu proveedor de correo (Resend o Gmail/SMTP) y dominio una sola vez. Todas las plantillas reutilizarán estas credenciales.
@@ -252,11 +246,10 @@ export function OrgEmailSettingsModal({
                 {/* Resend Option */}
                 <div
                   onClick={() => setProvider("RESEND")}
-                  className={`cursor-pointer rounded-2xl border p-4 transition-all flex flex-col justify-between ${
-                    provider === "RESEND"
-                      ? "border-emerald-500 bg-emerald-500/5 ring-2 ring-emerald-500/20 shadow-sm"
-                      : "border-border bg-background hover:bg-muted/40"
-                  }`}
+                  className={`cursor-pointer rounded-2xl border p-4 transition-all flex flex-col justify-between ${provider === "RESEND"
+                    ? "border-emerald-500 bg-emerald-500/5 ring-2 ring-emerald-500/20 shadow-sm"
+                    : "border-border bg-background hover:bg-muted/40"
+                    }`}
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
@@ -277,11 +270,10 @@ export function OrgEmailSettingsModal({
                 {/* Gmail / SMTP Option */}
                 <div
                   onClick={() => setProvider("GMAIL_SMTP")}
-                  className={`cursor-pointer rounded-2xl border p-4 transition-all flex flex-col justify-between ${
-                    provider === "GMAIL_SMTP"
-                      ? "border-emerald-500 bg-emerald-500/5 ring-2 ring-emerald-500/20 shadow-sm"
-                      : "border-border bg-background hover:bg-muted/40"
-                  }`}
+                  className={`cursor-pointer rounded-2xl border p-4 transition-all flex flex-col justify-between ${provider === "GMAIL_SMTP"
+                    ? "border-emerald-500 bg-emerald-500/5 ring-2 ring-emerald-500/20 shadow-sm"
+                    : "border-border bg-background hover:bg-muted/40"
+                    }`}
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
@@ -607,11 +599,10 @@ export function OrgEmailSettingsModal({
 
               {testResult && (
                 <div
-                  className={`p-3 rounded-xl border text-xs flex items-start gap-2 ${
-                    testResult.success
-                      ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-300"
-                      : "bg-rose-500/10 border-rose-500/20 text-rose-700 dark:text-rose-300"
-                  }`}
+                  className={`p-3 rounded-xl border text-xs flex items-start gap-2 ${testResult.success
+                    ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-300"
+                    : "bg-rose-500/10 border-rose-500/20 text-rose-700 dark:text-rose-300"
+                    }`}
                 >
                   {testResult.success ? (
                     <CheckCircle2 className="size-4 shrink-0 mt-0.5" />
