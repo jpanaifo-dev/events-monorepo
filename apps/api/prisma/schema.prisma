@@ -211,15 +211,6 @@ model Organization {
   marketingEnrollments MarketingEventEnrollment[]
   portal             OrganizationPortal?
   mediaAssets        MediaAsset[]
-  name            String
-  description     String?
-  type            String                   @default("MANUAL")
-  rules           Json?
-  createdAt       DateTime                 @default(now()) @map("created_at")
-  organization    Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  members         MarketingSegmentMember[]
-  @@unique([organizationId, name])
-  @@map("marketing_segments")
 }
 
 model MarketingSegmentMember {
