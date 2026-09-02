@@ -48,7 +48,7 @@ export interface MediaUploaderProps {
   /** Etiqueta superior opcional */
   label?: string
   /** Variante visual de proporción o modo */
-  variant?: "banner" | "square" | "avatar" | "favicon" | "gallery" | "auto"
+  variant?: "banner" | "square" | "avatar" | "favicon" | "gallery" | "compact" | "auto"
   /** Alias de compatibilidad para variant */
   aspectRatio?: "square" | "banner" | "favicon"
   /** Texto placeholder */
@@ -64,7 +64,7 @@ export interface MediaUploaderProps {
   /** Recurso dueño de la imagen para subida vía API */
   assetTarget?: { organizationId?: string; type: string; resourceId?: string }
   /** Callback si el formulario padre gestiona el archivo localmente (modo creación) */
-  onFileSelect?: (file: File | null) => void
+  onFileSelect?: (file: any) => void
   /** Callback tras subida R2 exitosa */
   onR2UploadComplete?: (publicUrl: string) => Promise<void>
 

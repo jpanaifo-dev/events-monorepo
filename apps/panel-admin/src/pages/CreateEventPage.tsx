@@ -84,37 +84,43 @@ export function CreateEventPage() {
 
     setIsSubmitting(true)
     try {
-      const createdEvent = await addEvent(
-        {
-          name: name.trim(),
-          shortDescription: shortDescription.trim(),
-          about: about.trim() ? { es: about.trim() } : "",
-          status,
-          websiteUrl: websiteUrl.trim() || undefined,
-          contactEmail: contactEmail.trim() || undefined,
-          brandColors: {
-            primary: brandPrimary,
-            secondary: brandSecondary,
-          },
-          socialLinks: {
-            twitter: socialTwitter.trim() || undefined,
-            facebook: socialFacebook.trim() || undefined,
-            linkedin: socialLinkedin.trim() || undefined,
-            instagram: socialInstagram.trim() || undefined,
-          },
+      const createdEventId = await addEvent({
+        organizationId: selectedOrganization.id,
+        name: name.trim(),
+        shortDescription: shortDescription.trim(),
+        about: about.trim() ? { es: about.trim() } : "",
+        status,
+        isActive: true,
+        logoUrl: "",
+        coverUrl: "",
+        settings: {},
+        websiteUrl: websiteUrl.trim(),
+        contactEmail: contactEmail.trim(),
+        brandColors: {
+          primary: brandPrimary,
+          secondary: brandSecondary,
+        },
+        socialLinks: {
+          twitter: socialTwitter.trim(),
+          facebook: socialFacebook.trim(),
+          linkedin: socialLinkedin.trim(),
+          instagram: socialInstagram.trim(),
         },
         coverFile,
-        logoFile
-      )
+        logoFile,
+      })
 
       if (createEdition && editionName.trim()) {
         try {
-          await addEdition(createdEvent.id, {
+          await addEdition({
+            mainEventId: createdEventId,
             name: editionName.trim(),
+            description: "",
+            coverUrl: "",
             startDate: editionStartDate ? new Date(editionStartDate).toISOString() : new Date().toISOString(),
-            endDate: editionEndDate ? new Date(editionEndDate).toISOString() : undefined,
+            endDate: editionEndDate ? new Date(editionEndDate).toISOString() : "",
             isCurrent: editionIsCurrent,
-            location: editionLocation.trim() || undefined,
+            location: editionLocation.trim(),
             modality: editionModality,
           })
         } catch (editionErr) {
@@ -124,7 +130,7 @@ export function CreateEventPage() {
       }
 
       toast.success("Evento creado exitosamente")
-      navigate(`/dashboard/events/${createdEvent.id}/info`)
+      navigate(`/dashboard/events/${createdEventId}/info`)
     } catch (err: any) {
       console.error(err)
       toast.error(err?.message || "Ocurrio un error al crear el evento.")

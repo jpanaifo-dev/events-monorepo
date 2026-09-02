@@ -6,7 +6,7 @@ import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/page-header"
-import { ImageUploadWithPreview } from "@/components/ImageUploadWithPreview"
+import { MediaUploader } from "@/components/MediaUploader"
 import { useSEO } from "@/hooks/use-seo"
 import { Switch } from "@/components/ui/switch"
 import { api } from "@/api/client"
@@ -300,7 +300,7 @@ export function CreateProfilePage() {
                 <p className="text-xs text-muted-foreground">Sube una imagen o proporciona una URL directa.</p>
               </div>
               <div className="md:w-2/3 w-full">
-                <ImageUploadWithPreview
+                <MediaUploader
                   value={avatarUrl}
                   onChange={(newVal) => {
                     setAvatarUrl(newVal)
@@ -309,7 +309,7 @@ export function CreateProfilePage() {
                     }
                   }}
                   onFileSelect={setAvatarFile}
-                  label=""
+                  variant="avatar"
                   folder="avatars"
                   identifier={`profile-${firstName}-${lastName}`}
                 />
