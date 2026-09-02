@@ -31,7 +31,9 @@ const activities = event.editions.flatMap((edition) =>
 );
 const activeEdition =
   event.editions.find((edition) => edition.isCurrent) || event.editions[0];
-const heroImage = activeEdition?.coverUrl || event.coverUrl;
+const heroMedia = event.heroMedia;
+const heroVideo = heroMedia?.mimeType.startsWith("video/") ? heroMedia.url : undefined;
+const heroImage = heroMedia && !heroVideo ? heroMedia.url : activeEdition?.coverUrl || event.coverUrl;
 const eventDescription =
   activeEdition?.description || event.details?.content || event.description;
 const speakers =
@@ -77,6 +79,7 @@ const secondaryForms = forms.filter((form) => form.purpose !== "MAIN");
       class="event-hero"
       style={heroImage ? `background-image: url(${heroImage})` : undefined}
     >
+      {heroVideo && <video class="event-hero-video" autoplay muted loop playsinline poster={activeEdition?.coverUrl || event.coverUrl || undefined}><source src={heroVideo} type={heroMedia?.mimeType} /></video>}
       <div class="event-hero-vignette"></div>
       <div class="tdc-container event-hero-container">
         <div class="event-hero-eyebrow">
@@ -427,6 +430,8 @@ const secondaryForms = forms.filter((form) => form.purpose !== "MAIN");
     background-size: cover;
     overflow: hidden;
   }
+
+  .event-hero-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
   .event-hero-vignette {
     position: absolute;
     inset: 0;

@@ -9,7 +9,6 @@ import { toast } from "sonner"
 import { PageHeader } from "@/components/page-header"
 import { ImageUploadWithPreview } from "@/components/ImageUploadWithPreview"
 import { X } from "lucide-react"
-import { deleteFromR2 } from "@/utils/r2-storage"
 
 const organizationSchema = z.object({
   name: z.string().min(3, "El nombre de la organización debe tener al menos 3 caracteres"),
@@ -414,29 +413,6 @@ export function OrganizationSettingsPage() {
     setIsDeleting(true)
     try {
       const orgId = selectedOrganization.id
-
-      // 1. Delete media from Cloudflare R2
-      if (logoUrl) {
-        try {
-          await deleteFromR2(logoUrl)
-        } catch (e) {
-          console.error("Error deleting logo from R2:", e)
-        }
-      }
-      if (coverUrl) {
-        try {
-          await deleteFromR2(coverUrl)
-        } catch (e) {
-          console.error("Error deleting cover from R2:", e)
-        }
-      }
-      if (faviconUrl) {
-        try {
-          await deleteFromR2(faviconUrl)
-        } catch (e) {
-          console.error("Error deleting favicon from R2:", e)
-        }
-      }
 
       await api.organizations.remove(orgId)
 

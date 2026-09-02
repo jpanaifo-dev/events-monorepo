@@ -3,7 +3,6 @@ import { useNavigate, useParams } from "react-router-dom"
 import { z } from "zod"
 import { useEventStore } from "@/store/event.store"
 import { api } from "@/api/client"
-import { uploadOrganizationAsset } from "@/utils/r2-storage"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
@@ -77,17 +76,11 @@ export function EditEventPage() {
     if (!id) return
     setIsAutoSavingCover(true)
     try {
-      // 1. Subir a Cloudflare R2
-      console.log("[EditEvent] Subiendo portada a R2...")
       if (!event?.organizationId) throw new Error("El evento no tiene una institución asignada.")
-      const publicUrl = await uploadOrganizationAsset(file, { organizationId: event.organizationId, type: "events/cover", resourceId: id })
-      console.log("[EditEvent] Portada subida a R2:", publicUrl)
+      const { url: publicUrl } = await api.media.upload(file, { ownerType: "EVENT", ownerId: id, purpose: "COVER", organizationId: event.organizationId })
 
       await api.events.update(id, { coverUrl: publicUrl })
 
-      console.log("[EditEvent] cover_url guardado exitosamente en main_events")
-
-      // 3. Actualizar estado local + zustand store
       setCoverUrl(publicUrl)
       useEventStore.setState((state) => ({
         events: state.events.map((e) =>
@@ -108,17 +101,11 @@ export function EditEventPage() {
     if (!id) return
     setIsAutoSavingLogo(true)
     try {
-      // 1. Subir a Cloudflare R2
-      console.log("[EditEvent] Subiendo logo a R2...")
       if (!event?.organizationId) throw new Error("El evento no tiene una institución asignada.")
-      const publicUrl = await uploadOrganizationAsset(file, { organizationId: event.organizationId, type: "events/logo", resourceId: id })
-      console.log("[EditEvent] Logo subido a R2:", publicUrl)
+      const { url: publicUrl } = await api.media.upload(file, { ownerType: "EVENT", ownerId: id, purpose: "LOGO", organizationId: event.organizationId })
 
       await api.events.update(id, { logoUrl: publicUrl })
 
-      console.log("[EditEvent] logo_url guardado exitosamente en main_events")
-
-      // 3. Actualizar estado local + zustand store
       setLogoUrl(publicUrl)
       useEventStore.setState((state) => ({
         events: state.events.map((e) =>
@@ -253,7 +240,7 @@ export function EditEventPage() {
                   Nombre del Evento <span className="text-destructive">*</span>
                 </label>
               </div>
-              <div className="md:w-2/3 max-w-md w-full">
+              <div className="md:w-2/3 w-full">
                 <Input
                   id="evt-name"
                   type="text"

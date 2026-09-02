@@ -105,6 +105,31 @@ enum DeliveryStatus {
   SKIPPED
 }
 
+/// Tipo de entidad que puede reutilizar un recurso multimedia.
+enum MediaOwnerType {
+  ORGANIZATION
+  EVENT
+  EDITION
+  PROFILE
+}
+
+/// Uso visual del recurso dentro de una entidad. Un mismo archivo puede tener varios usos.
+enum MediaPurpose {
+  COVER
+  LOGO
+  GALLERY
+  DOCUMENT
+  OTHER
+}
+
+enum MediaOrientation {
+  LANDSCAPE
+  PORTRAIT
+  SQUARE
+  VIDEO
+  OTHER
+}
+
 model AuthUser {
   id                     String               @id @default(uuid()) @db.Uuid
   email                  String               @unique
@@ -177,6 +202,7 @@ model Organization {
   events         MainEvent[]
   subscription   OrganizationSubscription?
   emailTemplates EmailTemplate[]
+  emailSettings  OrganizationEmailSettings?
   marketingContacts MarketingContact[]
   marketingSegments MarketingSegment[]
   marketingCampaigns MarketingCampaign[]
@@ -184,34 +210,7 @@ model Organization {
   emailDeliveries EmailDelivery[]
   marketingEnrollments MarketingEventEnrollment[]
   portal             OrganizationPortal?
-
-  @@map("organizations")
-}
-
-model MarketingContact {
-  id              String                 @id @default(uuid()) @db.Uuid
-  organizationId  String                 @map("organization_id") @db.Uuid
-  profileId       String?                @map("profile_id") @db.Uuid
-  emailFallback   String?                @map("email_fallback")
-  consentStatus   MarketingConsentStatus @default(PENDING_CONFIRMATION) @map("consent_status")
-  consentedAt     DateTime?              @map("consented_at")
-  unsubscribedAt  DateTime?              @map("unsubscribed_at")
-  source          String                 @default("MANUAL")
-  tags            String[]               @default([])
-  createdAt       DateTime               @default(now()) @map("created_at")
-  organization    Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  profile         Profile?               @relation(fields: [profileId], references: [id], onDelete: SetNull)
-  segmentMembers  MarketingSegmentMember[]
-  enrollments     MarketingEventEnrollment[]
-  @@unique([organizationId, profileId])
-  @@unique([organizationId, emailFallback])
-  @@index([organizationId, emailFallback])
-  @@map("marketing_contacts")
-}
-
-model MarketingSegment {
-  id              String                   @id @default(uuid()) @db.Uuid
-  organizationId  String                   @map("organization_id") @db.Uuid
+  mediaAssets        MediaAsset[]
   name            String
   description     String?
   type            String                   @default("MANUAL")
@@ -384,6 +383,43 @@ model Edition {
 
   @@index([mainEventId])
   @@map("editions")
+}
+
+/// Archivo físico almacenado una única vez. La clave permite borrarlo del proveedor
+/// sin inferirla a partir de la URL pública.
+model MediaAsset {
+  id             String      @id @default(uuid()) @db.Uuid
+  organizationId String?     @map("organization_id") @db.Uuid
+  key            String      @unique
+  url            String      @unique
+  filename       String      @map("file_name")
+  mimeType       String      @map("mime_type")
+  sizeBytes      Int         @map("size_bytes")
+  orientation    MediaOrientation @default(OTHER)
+  createdAt      DateTime    @default(now()) @map("created_at")
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  links          MediaLink[]
+
+  @@index([organizationId, createdAt])
+  @@map("media_assets")
+}
+
+/// Asociación polimórfica: el mismo archivo se puede reutilizar en una organización,
+/// evento o edición sin duplicar datos ni volver a subirlo.
+model MediaLink {
+  id        String         @id @default(uuid()) @db.Uuid
+  mediaId   String         @map("media_id") @db.Uuid
+  ownerType MediaOwnerType @map("owner_type")
+  ownerId   String         @map("owner_id") @db.Uuid
+  purpose   MediaPurpose   @default(GALLERY)
+  position  Int            @default(0)
+  isFeatured Boolean       @default(false) @map("is_featured")
+  createdAt DateTime       @default(now()) @map("created_at")
+  media     MediaAsset     @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@unique([mediaId, ownerType, ownerId, purpose])
+  @@index([ownerType, ownerId, purpose, position])
+  @@map("media_links")
 }
 
 model RegistrationForm {
@@ -626,26 +662,58 @@ model Certification {
 }
 
 model EmailTemplate {
-  id             String              @id @default(uuid()) @db.Uuid
-  organizationId String              @map("organization_id") @db.Uuid
-  name           String
-  channel        TemplateChannel     @default(EMAIL)
-  status         EmailTemplateStatus @default(DRAFT)
-  subject        String?
-  senderName     String?             @map("sender_name")
-  senderEmail    String?             @map("sender_email")
-  previewText    String?             @map("preview_text")
-  content        Json?
-  htmlContent    String?             @map("html_content") @db.Text
-  category       String?             @default("CUSTOM")
-  thumbnailUrl   String?             @map("thumbnail_url")
-  tags           String[]            @default([])
-  createdAt      DateTime            @default(now()) @map("created_at")
-  updatedAt      DateTime            @updatedAt @map("updated_at")
-  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  id                 String              @id @default(uuid()) @db.Uuid
+  organizationId     String              @map("organization_id") @db.Uuid
+  name               String
+  channel            TemplateChannel     @default(EMAIL)
+  status             EmailTemplateStatus @default(DRAFT)
+  subject            String?
+  senderName         String?             @map("sender_name")
+  senderEmail        String?             @map("sender_email")
+  previewText        String?             @map("preview_text")
+  content            Json?
+  htmlContent        String?             @map("html_content") @db.Text
+  category           String?             @default("CUSTOM")
+  thumbnailUrl       String?             @map("thumbnail_url")
+  tags               String[]            @default([])
+  useOrgCredentials  Boolean             @default(true) @map("use_org_credentials")
+  customCredentials  Json?               @map("custom_credentials")
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
+  organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, channel, status])
   @@map("email_templates")
+}
+
+model OrganizationEmailSettings {
+  id                    String       @id @default(uuid()) @db.Uuid
+  organizationId        String       @unique @map("organization_id") @db.Uuid
+  defaultProvider       String       @default("RESEND") @map("default_provider") // "RESEND" | "GMAIL_SMTP" | "CUSTOM_SMTP"
+  
+  // Resend Settings
+  resendApiKeyEncrypted String?      @map("resend_api_key_encrypted")
+  resendDomain          String?      @map("resend_domain")
+  resendFromEmail       String?      @map("resend_from_email")
+  resendFromName        String?      @map("resend_from_name")
+
+  // SMTP / Gmail Settings
+  smtpHost              String?      @map("smtp_host")
+  smtpPort              Int?         @default(587) @map("smtp_port")
+  smtpSecure            Boolean      @default(false) @map("smtp_secure")
+  smtpUser              String?      @map("smtp_user")
+  smtpPassEncrypted     String?      @map("smtp_pass_encrypted")
+  smtpFromEmail         String?      @map("smtp_from_email")
+  smtpFromName          String?      @map("smtp_from_name")
+
+  // Verified / configured senders catalog
+  verifiedSenders       Json?        @map("verified_senders")
+  isActive              Boolean      @default(true) @map("is_active")
+  createdAt             DateTime     @default(now()) @map("created_at")
+  updatedAt             DateTime     @updatedAt @map("updated_at")
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("organization_email_settings")
 }
 
 model MarketingAutomation {

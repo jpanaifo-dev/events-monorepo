@@ -12,7 +12,8 @@ export class ApiError extends Error {
 
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers)
-  headers.set("Content-Type", "application/json")
+  // El navegador debe definir el boundary al enviar FormData para las cargas multimedia.
+  if (!(init.body instanceof FormData)) headers.set("Content-Type", "application/json")
   const token = localStorage.getItem("events-api-access-token")
   if (token) headers.set("Authorization", `Bearer ${token}`)
   let response = await fetch(`${API_URL}${path}`, { ...init, headers, credentials: "include" })
@@ -104,6 +105,26 @@ export const api = {
     create: (eventId: string, data: any) => apiFetch<any>(`/events/${eventId}/editions`, { method: "POST", body: JSON.stringify(data) }),
     update: (eventId: string, id: string, data: any) => apiFetch<any>(`/events/${eventId}/editions/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     remove: (eventId: string, id: string) => apiFetch<any>(`/events/${eventId}/editions/${id}`, { method: "DELETE" }),
+  },
+  media: {
+    upload: (file: File, target: { ownerType: "ORGANIZATION" | "EVENT" | "EDITION" | "PROFILE"; ownerId: string; purpose?: "COVER" | "LOGO" | "GALLERY" | "DOCUMENT" | "OTHER"; position?: number; isFeatured?: boolean; orientation?: "LANDSCAPE" | "PORTRAIT" | "SQUARE" | "VIDEO" | "OTHER"; organizationId?: string }) => {
+      const form = new FormData()
+      form.append("file", file)
+      form.append("ownerType", target.ownerType)
+      form.append("ownerId", target.ownerId)
+      if (target.purpose) form.append("purpose", target.purpose)
+      if (target.position !== undefined) form.append("position", String(target.position))
+      if (target.isFeatured !== undefined) form.append("isFeatured", String(target.isFeatured))
+      if (target.orientation) form.append("orientation", target.orientation)
+      if (target.organizationId) form.append("organizationId", target.organizationId)
+      return apiFetch<any>("/media/upload", { method: "POST", body: form })
+    },
+    list: (ownerType: "ORGANIZATION" | "EVENT" | "EDITION" | "PROFILE", ownerId: string) => apiFetch<any[]>(`/media?ownerType=${ownerType}&ownerId=${encodeURIComponent(ownerId)}`),
+    library: (organizationId: string) => apiFetch<any[]>(`/media/library/${encodeURIComponent(organizationId)}`),
+    attach: (mediaId: string, target: { ownerType: "ORGANIZATION" | "EVENT" | "EDITION" | "PROFILE"; ownerId: string; purpose?: string; position?: number; isFeatured?: boolean }) => apiFetch<any>(`/media/${mediaId}/attach`, { method: "POST", body: JSON.stringify(target) }),
+    reorder: (ownerType: "ORGANIZATION" | "EVENT" | "EDITION" | "PROFILE", ownerId: string, items: Array<{ id: string; position: number; isFeatured?: boolean }>) => apiFetch<any[]>("/media/reorder", { method: "POST", body: JSON.stringify({ ownerType, ownerId, items }) }),
+    unlink: (linkId: string) => apiFetch<any>(`/media/links/${linkId}`, { method: "DELETE" }),
+    remove: (mediaId: string) => apiFetch<any>(`/media/${mediaId}`, { method: "DELETE" }),
   },
   participants: {
     list: (editionId: string) => apiFetch<any[]>(`/editions/${editionId}/participants`),

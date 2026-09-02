@@ -5,8 +5,9 @@ import { useEventStore } from "@/store/event.store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ImageUploadWithPreview } from "@/components/ImageUploadWithPreview"
+import { MediaLibraryDialog } from "@/components/MediaLibraryDialog"
 import { toast } from "sonner"
-import { Pencil, Trash2 } from "lucide-react"
+import { ImagePlus, Pencil, Trash2 } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -30,6 +31,8 @@ export function EventInfoSection() {
   const location = useLocation()
   const { events, updateEvent, deleteEvent } = useEventStore()
   const event = events.find((e) => e.id === id)
+  const [galleryOpen, setGalleryOpen] = useState(false)
+  const [galleryCount, setGalleryCount] = useState(0)
 
   useSEO({
     title: event ? `${event.name} - General` : "Detalle de Evento",
@@ -211,10 +214,16 @@ export function EventInfoSection() {
             </label>
             <p className="text-xs text-muted-foreground">Nombre publico del evento.</p>
           </div>
-          <div className="md:w-2/3 max-w-md w-full">
+          <div className="md:w-2/3 w-full">
             <Input id="evt-name" type="text" required value={name} onChange={(e) => setName(e.target.value)} className="bg-background" />
           </div>
         </div>
+
+        {event?.organizationId && <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+          <div className="md:w-1/3 space-y-1"><label className="text-sm font-medium text-foreground">Galería y hero</label><p className="text-xs text-muted-foreground">Añade imágenes o video. Marca una pieza destacada para usarla en el hero público.</p></div>
+          <div className="md:w-2/3 w-full"><p className="mb-2 text-sm text-muted-foreground"><span className="font-medium text-foreground">Archivos · {galleryCount}/10</span> · Puedes agregar un máximo de 10.</p><button type="button" onClick={() => setGalleryOpen(true)} className="flex min-h-48 w-full flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border bg-muted/30 text-muted-foreground transition-colors hover:bg-muted"><span className="flex size-10 items-center justify-center rounded-full bg-muted"><ImagePlus className="size-5" /></span><span className="text-lg font-medium text-foreground">Agregar archivos</span><span className="text-sm">O arrastra y suelta</span></button></div>
+          <MediaLibraryDialog open={galleryOpen} onOpenChange={setGalleryOpen} organizationId={event.organizationId} ownerType="EVENT" ownerId={event.id} multiple maxItems={10} title="Multimedia del evento" onChange={(items) => setGalleryCount(items.length)} />
+        </div>}
 
         <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
           <div className="md:w-1/3 space-y-1">
@@ -223,7 +232,7 @@ export function EventInfoSection() {
             </label>
             <p className="text-xs text-muted-foreground">Un resumen breve para las tarjetas del catalogo.</p>
           </div>
-          <div className="md:w-2/3 max-w-md w-full">
+          <div className="md:w-2/3 w-full">
             <Input id="evt-short-desc" type="text" required value={shortDescription} onChange={(e) => setShortDescription(e.target.value)} className="bg-background" />
           </div>
         </div>
@@ -233,7 +242,7 @@ export function EventInfoSection() {
             <label htmlFor="evt-about" className="text-sm font-medium text-foreground">Descripcion Detallada</label>
             <p className="text-xs text-muted-foreground">Detalla los objetivos, agenda y propuesta de valor.</p>
           </div>
-          <div className="md:w-2/3 max-w-md w-full">
+          <div className="md:w-2/3 w-full">
             <textarea id="evt-about" rows={4} value={about} onChange={(e) => setAbout(e.target.value)} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-1 focus-visible:ring-ring text-foreground" />
           </div>
         </div>
@@ -243,15 +252,14 @@ export function EventInfoSection() {
             <label htmlFor="evt-cover" className="text-sm font-medium text-foreground">Portada del Evento</label>
             <p className="text-xs text-muted-foreground">Imagen de portada del evento.</p>
           </div>
-          <div className="md:w-2/3 max-w-md w-full">
+          <div className="md:w-2/3 w-full">
             <ImageUploadWithPreview
               value={coverUrl}
               onChange={setCoverUrl}
               label=""
               aspectRatio="banner"
-              folder={`events/${event.id}`}
-              identifier="cover"
-              placeholder="Arrastra o pega una imagen de portada"
+              assetTarget={{ organizationId: event.organizationId, type: "events/cover", resourceId: event.id }}
+              placeholder="Arrastra o selecciona una imagen de portada"
             />
           </div>
         </div>
@@ -261,15 +269,14 @@ export function EventInfoSection() {
             <label htmlFor="evt-logo" className="text-sm font-medium text-foreground">Logo del Evento</label>
             <p className="text-xs text-muted-foreground">Logo o marca del evento.</p>
           </div>
-          <div className="md:w-2/3 max-w-md w-full">
+          <div className="md:w-2/3 w-full">
             <ImageUploadWithPreview
               value={logoUrl}
               onChange={setLogoUrl}
               label=""
               aspectRatio="square"
-              folder={`events/${event.id}`}
-              identifier="logo"
-              placeholder="Arrastra o pega el logo"
+              assetTarget={{ organizationId: event.organizationId, type: "events/logo", resourceId: event.id }}
+              placeholder="Arrastra o selecciona el logo"
             />
           </div>
         </div>
@@ -277,7 +284,7 @@ export function EventInfoSection() {
         <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
           <div className="md:w-1/3 space-y-1">
             <label htmlFor="evt-status" className="text-sm font-medium text-foreground">Estado</label>
-            <p className="text-xs text-muted-foreground">Define si estara visible inmediatamente.</p>
+            <p className="text-xs text-muted-foreground">Define si estará visible inmediatamente.</p>
           </div>
           <div className="md:w-2/3 max-w-md w-full">
             <select id="evt-status" value={status} onChange={(e: any) => setStatus(e.target.value)} className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs outline-none focus-visible:ring-1 focus-visible:ring-ring text-foreground">
@@ -299,14 +306,6 @@ export function EventInfoSection() {
         </div>
         <AlertDialog open={contactDialogOpen} onOpenChange={(open) => { setContactDialogOpen(open); if (!open) setEditingContactId(null) }}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>{editingContactId ? "Editar contacto" : "Añadir contacto"}</AlertDialogTitle><AlertDialogDescription>Completa los datos disponibles de esta persona de contacto.</AlertDialogDescription></AlertDialogHeader><div className="grid gap-4 py-4"><div className="space-y-1.5"><label htmlFor="contact-name" className="text-sm font-medium">Nombre <span className="text-destructive">*</span></label><Input id="contact-name" value={newContact.name} onChange={(e) => setNewContact({ ...newContact, name: e.target.value })} /></div><div className="space-y-1.5"><label htmlFor="contact-email" className="text-sm font-medium">Correo electrónico</label><Input id="contact-email" type="email" value={newContact.email} onChange={(e) => setNewContact({ ...newContact, email: e.target.value })} /></div><div className="grid gap-4 sm:grid-cols-2"><div className="space-y-1.5"><label htmlFor="contact-phone" className="text-sm font-medium">Teléfono</label><Input id="contact-phone" value={newContact.phone} onChange={(e) => setNewContact({ ...newContact, phone: e.target.value })} /></div><div className="space-y-1.5"><label htmlFor="contact-role" className="text-sm font-medium">Cargo o rol</label><Input id="contact-role" value={newContact.role} onChange={(e) => setNewContact({ ...newContact, role: e.target.value })} /></div></div></div><AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><Button type="button" onClick={() => void saveContact()}>Guardar contacto</Button></AlertDialogFooter></AlertDialogContent></AlertDialog>
       </section>
-
-      {false && <div className="order-10 border border-border rounded-xl bg-card overflow-hidden shadow-sm mb-6">
-        <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
-          <div className="md:w-1/3 space-y-1"><h2 className="text-sm font-medium text-foreground">Modalidad y ubicación</h2><p className="text-xs text-muted-foreground">Define cómo se realizará el evento y, si aplica, dónde se llevará a cabo.</p></div>
-          <div className="md:w-2/3 max-w-md w-full"><label htmlFor="evt-mode" className="text-sm font-medium">Modalidad</label><select id="evt-mode" value={eventMode} onChange={(e) => setEventMode(e.target.value)} className="mt-2 w-full h-9 rounded-md border border-input bg-background px-3 text-sm"><option value="">Selecciona una modalidad</option><option value="PHYSICAL">Presencial</option><option value="ONLINE">Virtual</option><option value="HYBRID">Híbrido</option></select></div>
-        </div>
-        {eventMode !== "ONLINE" && eventMode && <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4"><div className="md:w-1/3 space-y-1"><label htmlFor="evt-address" className="text-sm font-medium text-foreground">Ubicación</label><p className="text-xs text-muted-foreground">Haz clic en el mapa o arrastra el marcador para seleccionar el punto exacto.</p></div><div className="md:w-2/3 max-w-md w-full space-y-4"><Input id="evt-address" value={venueAddress} onChange={(e) => setVenueAddress(e.target.value)} placeholder="Dirección del evento" className="bg-background" /><div className="grid grid-cols-2 gap-3"><div className="space-y-1.5"><label htmlFor="evt-latitude" className="text-sm font-medium">Latitud</label><Input id="evt-latitude" type="number" step="any" value={latitude} onChange={(e) => setLatitude(e.target.value)} /></div><div className="space-y-1.5"><label htmlFor="evt-longitude" className="text-sm font-medium">Longitud</label><Input id="evt-longitude" type="number" step="any" value={longitude} onChange={(e) => setLongitude(e.target.value)} /></div></div><LocationPickerMap latitude={latitude ? Number(latitude) : undefined} longitude={longitude ? Number(longitude) : undefined} onSelect={({ latitude: nextLatitude, longitude: nextLongitude }) => { setLatitude(nextLatitude.toFixed(6)); setLongitude(nextLongitude.toFixed(6)) }} /></div></div>}
-      </div>}
 
       <h2 className="order-[19] text-lg">Contacto y Enlaces</h2>
       {/* Contacto y Enlaces */}

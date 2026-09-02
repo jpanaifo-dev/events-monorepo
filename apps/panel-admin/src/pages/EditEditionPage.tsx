@@ -237,7 +237,7 @@ export function EditEditionPage() {
                 </label>
                 <p className="text-xs text-muted-foreground">Enlace de la imagen específica de esta edición.</p>
               </div>
-              <div className="md:w-2/3 max-w-md w-full">
+              <div className="md:w-2/3 w-full">
                 <ImageUploadWithPreview
                   value={coverUrl}
                   onChange={setCoverUrl}

@@ -207,9 +207,14 @@ export const STARTER_TEMPLATES = [
   },
 ];
 
+import { MailService } from '../mail/mail.service.js';
+
 @Injectable()
 export class EmailTemplatesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mailService: MailService,
+  ) {}
 
   async list(organizationId: string, search?: string, category?: string) {
     const where: any = { organizationId };

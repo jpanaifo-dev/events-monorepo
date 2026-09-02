@@ -248,6 +248,7 @@ export function ProfileManageInfoSection() {
                 }
               }}
               label=""
+              assetTarget={{ type: "profiles/avatar", resourceId: profileId || "" }}
               folder="avatars"
               identifier={`profile-${firstName}-${lastName}`}
             />

@@ -11,7 +11,6 @@ import { useSEO } from "@/hooks/use-seo"
 import { Switch } from "@/components/ui/switch"
 import { api } from "@/api/client"
 import { CheckCircle2, AlertTriangle, Copy, Check } from "lucide-react"
-import { uploadOrganizationAsset } from "@/utils/r2-storage"
 import { useAuthStore } from "@/store/auth.store"
 
 // Helper to generate a strong random password
@@ -135,7 +134,10 @@ export function CreateProfilePage() {
       if (avatarFile) {
         try {
           if (!selectedOrganization?.id) throw new Error("Selecciona una institución antes de subir un avatar.")
-          const publicUrl = await uploadOrganizationAsset(avatarFile, { organizationId: selectedOrganization.id, type: "profiles/avatar", resourceId: newProfileId })
+          // Los avatares se almacenan en la biblioteca de la institución y se pueden reutilizar.
+          const firstEvent = (await api.events.list(selectedOrganization.id))[0]
+          if (!firstEvent) throw new Error("Crea un evento antes de cargar un avatar desde esta pantalla.")
+          const { url: publicUrl } = await api.media.upload(avatarFile, { ownerType: "EVENT", ownerId: firstEvent.id, purpose: "OTHER", organizationId: selectedOrganization.id })
           await updateProfile(newProfileId, { avatarUrl: publicUrl })
         } catch (uploadErr) {
           console.error("Delayed avatar upload failed:", uploadErr)

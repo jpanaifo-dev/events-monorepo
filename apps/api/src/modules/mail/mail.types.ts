@@ -5,6 +5,25 @@ export interface SendMailOptions {
   text?: string;
   fromName?: string;
   fromEmail?: string;
+  organizationId?: string;
+}
+
+export interface SendCustomMailOptions {
+  to: string | string[];
+  subject: string;
+  html: string;
+  text?: string;
+  provider?: 'RESEND' | 'GMAIL_SMTP' | 'CUSTOM_SMTP';
+  resendApiKey?: string;
+  resendFromEmail?: string;
+  resendFromName?: string;
+  smtpHost?: string;
+  smtpPort?: number;
+  smtpSecure?: boolean;
+  smtpUser?: string;
+  smtpPass?: string;
+  fromName?: string;
+  fromEmail?: string;
 }
 
 export interface MailDeliveryResult {

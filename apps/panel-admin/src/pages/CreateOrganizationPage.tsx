@@ -81,6 +81,9 @@ export function CreateOrganizationPage() {
   const [logoUrl, setLogoUrl] = useState("")
   const [coverUrl, setCoverUrl] = useState("")
   const [faviconUrl, setFaviconUrl] = useState("")
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [coverFile, setCoverFile] = useState<File | null>(null)
+  const [faviconFile, setFaviconFile] = useState<File | null>(null)
 
   const [errors, setErrors] = useState<Partial<Record<keyof OrganizationInput, string>>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -188,7 +191,12 @@ export function CreateOrganizationPage() {
       if (!user?.id) throw new Error("Sesión de usuario no válida.")
 
       // 1. Insert new organization row into database
-      const orgData = await api.organizations.create({ name, slug, description: description || undefined, organizationType: type, emails: currentEmails, logoUrl: logoUrl || undefined, coverUrl: coverUrl || undefined, faviconUrl: faviconUrl || undefined })
+      const orgData = await api.organizations.create({ name, slug, description: description || undefined, organizationType: type, emails: currentEmails, logoUrl: logoUrl.startsWith("blob:") ? undefined : logoUrl || undefined, coverUrl: coverUrl.startsWith("blob:") ? undefined : coverUrl || undefined })
+      const uploadedLogo = logoFile ? (await api.media.upload(logoFile, { ownerType: "ORGANIZATION", ownerId: orgData.id, purpose: "LOGO", organizationId: orgData.id })).url : logoUrl
+      const uploadedCover = coverFile ? (await api.media.upload(coverFile, { ownerType: "ORGANIZATION", ownerId: orgData.id, purpose: "COVER", organizationId: orgData.id })).url : coverUrl
+      if (logoFile || coverFile) await api.organizations.update(orgData.id, { logoUrl: uploadedLogo || undefined, coverUrl: uploadedCover || undefined })
+      // El favicon queda en la biblioteca aunque el modelo institucional actual no tenga un campo dedicado.
+      if (faviconFile) await api.media.upload(faviconFile, { ownerType: "ORGANIZATION", ownerId: orgData.id, purpose: "OTHER", organizationId: orgData.id })
 
       // Assign the creator as Owner of the organization in organization_members
       try {
@@ -519,6 +527,7 @@ export function CreateOrganizationPage() {
                   placeholder="Arrastra tu logotipo aquí, o pega un enlace"
                   folder="organizations"
                   identifier={`${slug || "temp"}-logo`}
+                  onFileSelect={setLogoFile}
                 />
               </div>
             </div>
@@ -538,6 +547,7 @@ export function CreateOrganizationPage() {
                   placeholder="Arrastra tu banner de portada aquí, o pega un enlace"
                   folder="organizations"
                   identifier={`${slug || "temp"}-cover`}
+                  onFileSelect={setCoverFile}
                 />
               </div>
             </div>
@@ -557,6 +567,7 @@ export function CreateOrganizationPage() {
                   placeholder="Arrastra tu favicon aquí, o pega un enlace"
                   folder="organizations"
                   identifier={`${slug || "temp"}-favicon`}
+                  onFileSelect={setFaviconFile}
                 />
               </div>
             </div>

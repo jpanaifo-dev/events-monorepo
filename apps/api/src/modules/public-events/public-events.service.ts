@@ -18,6 +18,12 @@ export class PublicEventsService {
       select: { id: true, eventName: true, description: true, startDate: true, endDate: true, eventMode: true, coverUrl: true, logoUrl: true, venueAddress: true, contactEmail: true, details: { select: { content: true, socialLinks: true, media: true, sponsors: true, faqs: true } }, editions: { orderBy: { isCurrent: 'desc' }, select: { id: true, name: true, description: true, coverUrl: true, isCurrent: true, startDate: true, endDate: true, modality: true, location: true, participants: { select: { profile: { select: { id: true, firstName: true, lastName: true, bio: true, avatarUrl: true } } } }, activities: { select: { id: true, title: true, description: true, startsAt: true, endsAt: true } } } }, registrationForms: { where: { status: 'PUBLISHED' }, select: { title: true, description: true, slug: true, purpose: true, opensAt: true, closesAt: true } } },
     });
     if (!item) throw new NotFoundException('Evento no encontrado');
-    return item;
+    const activeEdition = item.editions.find((edition) => edition.isCurrent) ?? item.editions[0];
+    const heroMedia = await this.prisma.mediaLink.findFirst({
+      where: { OR: [...(activeEdition ? [{ ownerType: 'EDITION' as const, ownerId: activeEdition.id }] : []), { ownerType: 'EVENT', ownerId: item.id }], isFeatured: true },
+      include: { media: { select: { url: true, mimeType: true, orientation: true } } },
+      orderBy: [{ ownerType: 'desc' }, { position: 'asc' }],
+    });
+    return { ...item, heroMedia: heroMedia?.media ?? null };
   }
 }

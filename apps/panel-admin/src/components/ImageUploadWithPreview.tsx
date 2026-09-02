@@ -1,21 +1,23 @@
 import React, { useState, useRef, useEffect } from "react"
-import { Upload, Trash2, Link2, Loader2 } from "lucide-react"
+import { Trash2, Loader2, Images, ImagePlus, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
-import { Input } from "@/components/ui/input"
-import { uploadOrganizationAsset, uploadToR2, deleteFromR2, type OrganizationAssetTarget } from "@/utils/r2-storage"
+import { api } from "@/api/client"
+import { MediaLibraryDialog } from "@/components/MediaLibraryDialog"
+import { Button } from "@/components/ui/button"
 
 interface ImageUploadWithPreviewProps {
   value: string
   onChange: (value: string) => void
-  label: string
+  label?: string
   aspectRatio?: "square" | "banner" | "favicon"
   placeholder?: string
   folder?: string
   identifier?: string
-  assetTarget?: OrganizationAssetTarget
+  showUrlInput?: boolean
+  /** Recurso dueño de la imagen. La carga siempre pasa por el API. */
+  assetTarget?: { organizationId?: string; type: string; resourceId: string }
   onFileSelect?: (file: File) => void
-  /** Llamado SOLO cuando el archivo se subió exitosamente a R2 (modo edición directa).
-   *  Recibe la URL pública de R2. Úsalo para persistir en BD automáticamente. */
+  /** Llamado al completar la carga en el API para persistir la URL de portada heredada. */
   onR2UploadComplete?: (publicUrl: string) => Promise<void>
 }
 
@@ -24,9 +26,9 @@ export function ImageUploadWithPreview({
   onChange,
   label,
   aspectRatio = "square",
-  placeholder = "Arrastra y suelta una imagen aquí, o pega un enlace abajo",
-  folder = "general",
-  identifier = "file",
+  placeholder = "Arrastra o selecciona una imagen",
+  folder: _folder = "general",
+  identifier: _identifier = "file",
   assetTarget,
   onFileSelect,
   onR2UploadComplete
@@ -34,6 +36,7 @@ export function ImageUploadWithPreview({
   const [dragActive, setDragActive] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string>("")
+  const [libraryOpen, setLibraryOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Sync preview with incoming value
@@ -77,18 +80,12 @@ export function ImageUploadWithPreview({
     setPreviewUrl(localUrl) // Show local preview instantly
 
     try {
-      // Attempt to delete old image from R2 if one was present
-      if (value) {
-        try {
-          await deleteFromR2(value)
-        } catch (delErr) {
-          console.warn("Failed to delete old image from R2:", delErr)
-        }
-      }
-
-      // Upload to Cloudflare R2
       try {
-        const publicUrl = assetTarget ? await uploadOrganizationAsset(file, assetTarget) : await uploadToR2(file, folder, identifier)
+        if (!assetTarget) throw new Error("Indica el recurso que recibirá esta imagen.")
+        const normalizedType = assetTarget.type.startsWith("organizations/") ? "ORGANIZATION" : assetTarget.type.startsWith("editions/") ? "EDITION" : "EVENT"
+        const purpose = assetTarget.type.endsWith("/cover") ? "COVER" : assetTarget.type.endsWith("/logo") ? "LOGO" : "GALLERY"
+        const media = await api.media.upload(file, { ownerType: normalizedType, ownerId: assetTarget.resourceId, purpose, organizationId: assetTarget.organizationId })
+        const publicUrl = media.url as string
         // 1. Actualizar URL en el estado del padre
         onChange(publicUrl)
         // 2. Si hay callback de auto-guardado en BD, invocarlo (modo edición)
@@ -97,14 +94,14 @@ export function ImageUploadWithPreview({
             await onR2UploadComplete(publicUrl)
           } catch (dbErr) {
             console.error("onR2UploadComplete failed:", dbErr)
-            toast.error("La imagen se subió a R2 pero no se pudo guardar en la base de datos.")
+            toast.error("La imagen se subió, pero no se pudo guardar su referencia.")
           }
         } else {
           toast.success("Imagen subida exitosamente")
         }
       } catch (uploadErr: any) {
-        console.error("R2 upload failed:", uploadErr)
-        toast.error(`Error al subir la imagen a Cloudflare R2. Verifica que las credenciales y las reglas CORS estén configuradas en R2. Detalle: ${uploadErr.message || uploadErr}`)
+        console.error("Media upload failed:", uploadErr)
+        toast.error(`No se pudo subir la imagen. ${uploadErr.message || uploadErr}`)
         setPreviewUrl(value || "")
       }
     } catch (err: any) {
@@ -135,7 +132,6 @@ export function ImageUploadWithPreview({
   const handleRemove = async (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    const oldUrl = value
     onChange("")
     setPreviewUrl("")
     if (fileInputRef.current) {
@@ -143,37 +139,28 @@ export function ImageUploadWithPreview({
     }
 
     if (onFileSelect) {
-      // If we are in lazy upload mode, notify parent that file is removed
       toast.success("Imagen removida")
       return
     }
 
-    if (oldUrl) {
-      try {
-        await deleteFromR2(oldUrl)
-        toast.success("Imagen eliminada de R2")
-      } catch (err) {
-        console.error("Failed to delete from R2:", err)
-        toast.success("Imagen removida localmente")
-      }
-    } else {
-      toast.success("Imagen removida")
-    }
+    toast.success("Imagen removida")
   }
 
   // Define aspect ratio classes
   const getContainerClass = () => {
-    const base = "relative group border border-dashed rounded-xl overflow-hidden bg-muted/20 flex flex-col items-center justify-center transition-all duration-200 cursor-pointer"
-    const hoverBorder = dragActive ? "border-primary bg-primary/5" : "border-border hover:border-primary hover:bg-muted/30"
+    const base = "relative group border-2 border-dashed rounded-2xl overflow-hidden bg-muted/20 flex flex-col items-center justify-center transition-all duration-200 cursor-pointer"
+    const hoverBorder = dragActive
+      ? "border-primary bg-primary/5 shadow-inner"
+      : "border-border hover:border-primary/60 hover:bg-muted/40"
 
     switch (aspectRatio) {
       case "banner":
-        return `${base} ${hoverBorder} aspect-[21/9] w-full max-w-full`
+        return `${base} ${hoverBorder} aspect-[21/9] w-full min-h-[160px]`
       case "favicon":
         return `${base} ${hoverBorder} size-20 aspect-square max-w-[80px]`
       case "square":
       default:
-        return `${base} ${hoverBorder} size-40 aspect-square max-w-[160px]`
+        return `${base} ${hoverBorder} size-44 aspect-square max-w-[176px]`
     }
   }
 
@@ -189,11 +176,18 @@ export function ImageUploadWithPreview({
     }
   }
 
-  return (
-    <div className="space-y-3 w-full">
-      <label className="text-sm font-medium text-foreground block">{label}</label>
+  const ownerType = assetTarget?.type.startsWith("organizations/") ? "ORGANIZATION" : assetTarget?.type.startsWith("editions/") ? "EDITION" : assetTarget?.type.startsWith("profiles/") ? "PROFILE" : "EVENT"
+  const purpose = assetTarget?.type.endsWith("/cover") ? "COVER" : assetTarget?.type.endsWith("/logo") ? "LOGO" : "GALLERY"
+  const applyFromLibrary = async (url: string) => {
+    onChange(url)
+    if (onR2UploadComplete) await onR2UploadComplete(url)
+  }
 
-      <div className="flex flex-col gap-4 items-start w-full">
+  return (
+    <div className="space-y-2.5 w-full">
+      {label && <label className="text-sm font-medium text-foreground block">{label}</label>}
+
+      <div className="flex flex-col gap-2.5 items-start w-full">
         {/* Dropzone Container */}
         <div
           className={getContainerClass()}
@@ -224,8 +218,19 @@ export function ImageUploadWithPreview({
               <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition-opacity duration-200">
                 <button
                   type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    fileInputRef.current?.click()
+                  }}
+                  className="p-2.5 bg-neutral-900/90 hover:bg-neutral-900 text-white rounded-xl transition-transform hover:scale-105 shadow-md"
+                  title="Cambiar imagen"
+                >
+                  <RefreshCw className="size-4" />
+                </button>
+                <button
+                  type="button"
                   onClick={handleRemove}
-                  className="p-2 bg-destructive/90 hover:bg-destructive text-white rounded-lg transition-transform hover:scale-105"
+                  className="p-2.5 bg-destructive/90 hover:bg-destructive text-white rounded-xl transition-transform hover:scale-105 shadow-md"
                   title="Eliminar imagen"
                 >
                   <Trash2 className="size-4" />
@@ -235,46 +240,70 @@ export function ImageUploadWithPreview({
           ) : (
             <div className="p-4 text-center flex flex-col items-center justify-center space-y-2 select-none">
               {isUploading ? (
-                <Loader2 className="size-6 text-primary animate-spin" />
+                <Loader2 className="size-7 text-primary animate-spin" />
               ) : (
-                <Upload className="size-6 text-muted-foreground group-hover:text-primary transition-colors" />
-              )}
-              {aspectRatio !== "favicon" && (
-                <span className="text-[10px] text-muted-foreground text-center line-clamp-2 max-w-[130px]">
-                  {placeholder}
+                <span className="flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground group-hover:text-primary group-hover:bg-primary/10 transition-colors">
+                  <ImagePlus className="size-5" />
                 </span>
+              )}
+              {aspectRatio !== "favicon" ? (
+                <div className="space-y-0.5">
+                  <span className="text-xs font-semibold text-foreground block">
+                    {placeholder || "Agregar archivo"}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground block">
+                    O arrastra y suelta
+                  </span>
+                </div>
+              ) : (
+                <span className="text-[10px] text-muted-foreground">Favicon</span>
               )}
             </div>
           )}
 
           {isUploading && (
-            <div className="absolute inset-0 bg-background/75 flex items-center justify-center">
-              <div className="flex flex-col items-center gap-1">
-                <Loader2 className="size-5 text-primary animate-spin" />
-                <span className="text-[9px] text-muted-foreground font-medium">Subiendo...</span>
+            <div className="absolute inset-0 bg-background/80 flex items-center justify-center backdrop-blur-xs">
+              <div className="flex flex-col items-center gap-1.5">
+                <Loader2 className="size-6 text-primary animate-spin" />
+                <span className="text-xs text-muted-foreground font-medium">Subiendo imagen...</span>
               </div>
             </div>
           )}
         </div>
 
-        {/* URL Input Area */}
-        <div className="flex-1 w-full space-y-2">
-          <div className="relative">
-            <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-            <Input
-              type="url"
-              placeholder="https://ejemplo.com/imagen.png"
-              value={value.startsWith("data:image") ? "" : value}
-              onChange={(e) => onChange(e.target.value)}
-              className="pl-9 bg-card text-xs"
-              disabled={isUploading}
-            />
+        {/* Action button for Media Library if assetTarget is provided */}
+        {assetTarget && !onFileSelect && (
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 rounded-lg text-xs font-medium border-border"
+              onClick={() => setLibraryOpen(true)}
+            >
+              <Images className="mr-1.5 size-3.5 text-muted-foreground" />
+              Biblioteca multimedia
+            </Button>
           </div>
-          <p className="text-[10px] text-muted-foreground">
-            O si prefieres, pega la dirección directa de una imagen web. Las subidas por arrastre se guardarán en R2.
-          </p>
-        </div>
+        )}
       </div>
+
+      {assetTarget && (
+        <MediaLibraryDialog
+          open={libraryOpen}
+          onOpenChange={setLibraryOpen}
+          organizationId={assetTarget.organizationId || ""}
+          ownerType={ownerType}
+          ownerId={assetTarget.resourceId}
+          purpose={purpose}
+          multiple={false}
+          title={label || "Seleccionar imagen"}
+          onChange={(items) => {
+            const item = items[0]
+            if (item) void applyFromLibrary(item.url)
+          }}
+        />
+      )}
     </div>
   )
 }

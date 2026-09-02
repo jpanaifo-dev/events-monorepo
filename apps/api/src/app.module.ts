@@ -14,6 +14,7 @@ import { RegistrationFormsModule } from './modules/registration-forms/registrati
 import { EmailTemplatesModule } from './modules/email-templates/email-templates.module.js';
 import { MarketingModule } from './modules/marketing/marketing.module.js';
 import { PublicEventsModule } from './modules/public-events/public-events.module.js';
+import { MediaModule } from './modules/media/media.module.js';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { PublicEventsModule } from './modules/public-events/public-events.module
     EmailTemplatesModule,
     MarketingModule,
     PublicEventsModule,
+    MediaModule,
   ],
   controllers: [HealthController],
 })
