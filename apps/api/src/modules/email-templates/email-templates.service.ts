@@ -382,8 +382,6 @@ export class EmailTemplatesService {
       to: recipientEmail,
       subject,
       html: htmlContent,
-      fromEmail: (template as any).senderEmail || undefined,
-      fromName: (template as any).senderName || undefined,
       organizationId,
     });
 
