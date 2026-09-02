@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import { PageHeader } from "@/components/page-header"
-import { ImageUploadWithPreview } from "@/components/ImageUploadWithPreview"
+import { MediaUploader } from "@/components/MediaUploader"
 import { X } from "lucide-react"
 
 const organizationSchema = z.object({
@@ -673,14 +673,14 @@ export function OrganizationSettingsPage() {
               <p className="text-xs text-muted-foreground">Imagen representativa de la organización.</p>
             </div>
             <div className="md:w-2/3 max-w-md w-full">
-              <ImageUploadWithPreview
-                label=""
+              <MediaUploader
                 value={logoUrl}
                 onChange={setLogoUrl}
-                aspectRatio="square"
-                placeholder="Arrastra tu logotipo aquí, o pega un enlace"
+                variant="square"
+                placeholder="Arrastra tu logotipo aquí, o selecciona un archivo"
                 folder={`organizations/${organizationId}/branding/logo`}
                 identifier="logo"
+                assetTarget={{ organizationId, type: "organizations/logo", resourceId: organizationId }}
                 onR2UploadComplete={async (publicUrl) => {
                   await api.organizations.update(organizationId, { logoUrl: publicUrl })
                   const updatedOrganization = { ...selectedOrganization!, logoUrl: publicUrl }
@@ -702,14 +702,14 @@ export function OrganizationSettingsPage() {
               <p className="text-xs text-muted-foreground">Banner de fondo que se mostrará en los eventos y portal.</p>
             </div>
             <div className="md:w-2/3 max-w-md w-full">
-              <ImageUploadWithPreview
-                label=""
+              <MediaUploader
                 value={coverUrl}
                 onChange={setCoverUrl}
-                aspectRatio="banner"
-                placeholder="Arrastra tu banner de portada aquí, o pega un enlace"
+                variant="banner"
+                placeholder="Arrastra tu banner de portada aquí, o selecciona un archivo"
                 folder={`organizations/${organizationId}/branding/cover`}
                 identifier="cover"
+                assetTarget={{ organizationId, type: "organizations/cover", resourceId: organizationId }}
                 onR2UploadComplete={async (publicUrl) => {
                   await api.organizations.update(organizationId, { coverUrl: publicUrl })
                   const updatedOrganization = { ...selectedOrganization!, coverUrl: publicUrl }
@@ -731,14 +731,14 @@ export function OrganizationSettingsPage() {
               <p className="text-xs text-muted-foreground">Icono de página web pequeño (generalmente 1:1).</p>
             </div>
             <div className="md:w-2/3 max-w-md w-full">
-              <ImageUploadWithPreview
-                label=""
+              <MediaUploader
                 value={faviconUrl}
                 onChange={setFaviconUrl}
-                aspectRatio="favicon"
-                placeholder="Arrastra tu favicon aquí, o pega un enlace"
+                variant="favicon"
+                placeholder="Arrastra tu favicon aquí, o selecciona un archivo"
                 folder={`organizations/${organizationId}/branding/favicon`}
                 identifier="favicon"
+                assetTarget={{ organizationId, type: "organizations/favicon", resourceId: organizationId }}
                 onR2UploadComplete={async (publicUrl) => {
                   await api.organizations.update(organizationId, { faviconUrl: publicUrl })
                   const updatedOrganization = { ...selectedOrganization!, faviconUrl: publicUrl }

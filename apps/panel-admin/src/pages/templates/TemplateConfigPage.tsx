@@ -38,7 +38,7 @@ export function TemplateConfigPage() {
   const [name, setName] = useState("Nueva plantilla")
   const [isEditingName, setIsEditingName] = useState(false)
   const [status, setStatus] = useState<"ACTIVE" | "INACTIVE" | "DRAFT">("INACTIVE")
-  const [senderEmail, setSenderEmail] = useState("noreply@asipe.site")
+  const [senderEmail, setSenderEmail] = useState("")
   const [senderName, setSenderName] = useState(selectedOrganization?.name || "IIAP")
   const [subject, setSubject] = useState("")
   const [previewText, setPreviewText] = useState("")
@@ -80,7 +80,7 @@ export function TemplateConfigPage() {
       const data = await api.emailTemplates.get(id)
       setName(data.name || "Plantilla")
       setStatus(data.status || "INACTIVE")
-      setSenderEmail(data.senderEmail || "daylersan@gmail.com")
+      setSenderEmail(data.senderEmail || "")
       setSenderName(data.senderName || selectedOrganization?.name || "IIAP")
       setSubject(data.subject || "")
       setPreviewText(data.previewText || "")
@@ -318,7 +318,7 @@ export function TemplateConfigPage() {
             <Input
               value={senderEmail}
               readOnly
-              placeholder="Remitente predeterminado"
+              placeholder=""
               className="h-11 rounded-xl bg-background border-border text-xs px-4"
             />
 

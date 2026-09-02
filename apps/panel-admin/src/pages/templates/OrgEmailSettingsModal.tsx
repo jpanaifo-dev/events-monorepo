@@ -56,7 +56,7 @@ export function OrgEmailSettingsModal({
   const [resendFromName, setResendFromName] = useState("")
 
   // SMTP / Gmail
-  const [smtpHost, setSmtpHost] = useState("smtp.gmail.com")
+  const [smtpHost, setSmtpHost] = useState("")
   const [smtpPort, setSmtpPort] = useState(587)
   const [smtpSecure, setSmtpSecure] = useState(false)
   const [smtpUser, setSmtpUser] = useState("")
@@ -92,7 +92,7 @@ export function OrgEmailSettingsModal({
       setResendFromEmail(data.resendFromEmail || "")
       setResendFromName(data.resendFromName || selectedOrganization?.name || "Eventos")
 
-      setSmtpHost(data.smtpHost || "smtp.gmail.com")
+      setSmtpHost(data.smtpHost || "")
       setSmtpPort(data.smtpPort || 587)
       setSmtpSecure(!!data.smtpSecure)
       setSmtpUser(data.smtpUser || "")
@@ -325,7 +325,7 @@ export function OrgEmailSettingsModal({
                       type={showApiKey ? "text" : "password"}
                       value={resendApiKey}
                       onChange={(e) => setResendApiKey(e.target.value)}
-                      placeholder="re_xxxxxxxxxxxxxxxxxxxxxxxx"
+                      placeholder=""
                       className="h-10 pr-10 rounded-xl font-mono text-xs bg-muted/20 border-border"
                     />
                     <button
@@ -345,10 +345,10 @@ export function OrgEmailSettingsModal({
                     <Input
                       value={resendDomain}
                       onChange={(e) => setResendDomain(e.target.value)}
-                      placeholder="asipe.site"
+                      placeholder=""
                       className="h-10 rounded-xl text-xs bg-muted/20 border-border"
                     />
-                    <p className="text-[10px] text-muted-foreground">Ej: asipe.site, tudominio.com</p>
+                    <p className="text-[10px] text-muted-foreground">Ingresa el dominio verificado de tu organización.</p>
                   </div>
 
                   <div className="space-y-1.5">
@@ -356,7 +356,7 @@ export function OrgEmailSettingsModal({
                     <Input
                       value={resendFromName}
                       onChange={(e) => setResendFromName(e.target.value)}
-                      placeholder="IIAP / ASIPE Eventos"
+                      placeholder=""
                       className="h-10 rounded-xl text-xs bg-muted/20 border-border"
                     />
                   </div>
@@ -370,11 +370,11 @@ export function OrgEmailSettingsModal({
                   <Input
                     value={resendFromEmail}
                     onChange={(e) => setResendFromEmail(e.target.value)}
-                    placeholder="noreply@asipe.site"
+                    placeholder=""
                     className="h-10 rounded-xl text-xs bg-muted/20 border-border"
                   />
                   <p className="text-[10px] text-muted-foreground">
-                    Debe pertenecer a tu dominio verificado en Resend (o onboarding@resend.dev para pruebas iniciales).
+                    Debe pertenecer al dominio verificado de tu organización.
                   </p>
                 </div>
 
@@ -425,13 +425,13 @@ export function OrgEmailSettingsModal({
                     <Input
                       value={newSenderEmail}
                       onChange={(e) => setNewSenderEmail(e.target.value)}
-                      placeholder="eventos@asipe.site"
+                      placeholder=""
                       className="h-9 rounded-xl text-xs flex-1"
                     />
                     <Input
                       value={newSenderLabel}
                       onChange={(e) => setNewSenderLabel(e.target.value)}
-                      placeholder="Etiqueta (ej. Certificados)"
+                      placeholder=""
                       className="h-9 rounded-xl text-xs sm:w-40"
                     />
                     <Button
@@ -485,7 +485,7 @@ export function OrgEmailSettingsModal({
                     <Input
                       value={smtpUser}
                       onChange={(e) => setSmtpUser(e.target.value)}
-                      placeholder="tucuenta@gmail.com"
+                      placeholder=""
                       className="h-10 rounded-xl text-xs bg-muted/20 border-border"
                     />
                   </div>
@@ -517,7 +517,7 @@ export function OrgEmailSettingsModal({
                     <Input
                       value={smtpHost}
                       onChange={(e) => setSmtpHost(e.target.value)}
-                      placeholder="smtp.gmail.com"
+                      placeholder=""
                       className="h-10 rounded-xl text-xs bg-muted/20 border-border"
                     />
                   </div>
@@ -540,7 +540,7 @@ export function OrgEmailSettingsModal({
                     <Input
                       value={smtpFromName}
                       onChange={(e) => setSmtpFromName(e.target.value)}
-                      placeholder="IIAP Eventos"
+                      placeholder=""
                       className="h-10 rounded-xl text-xs bg-muted/20 border-border"
                     />
                   </div>
@@ -550,7 +550,7 @@ export function OrgEmailSettingsModal({
                     <Input
                       value={smtpFromEmail}
                       onChange={(e) => setSmtpFromEmail(e.target.value)}
-                      placeholder="tucuenta@gmail.com"
+                      placeholder=""
                       className="h-10 rounded-xl text-xs bg-muted/20 border-border"
                     />
                   </div>
@@ -573,7 +573,7 @@ export function OrgEmailSettingsModal({
                   type="email"
                   value={testEmail}
                   onChange={(e) => setTestEmail(e.target.value)}
-                  placeholder="tucorreo@ejemplo.com"
+                  placeholder=""
                   className="h-10 rounded-xl text-xs flex-1 bg-background"
                 />
                 <Button

@@ -4,8 +4,7 @@ import { z } from "zod"
 import { useEventStore } from "@/store/event.store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { ImageUploadWithPreview } from "@/components/ImageUploadWithPreview"
-import { EventGalleryHeroManager } from "@/components/EventGalleryHeroManager"
+import { MediaUploader } from "@/components/MediaUploader"
 import { toast } from "sonner"
 import { Pencil, Trash2 } from "lucide-react"
 import {
@@ -226,10 +225,15 @@ export function EventInfoSection() {
               </p>
             </div>
             <div className="md:w-2/3 w-full">
-              <EventGalleryHeroManager
+              <MediaUploader
+                multiple
                 eventId={event.id}
+                ownerType="EVENT"
+                ownerId={event.id}
                 organizationId={event.organizationId}
+                purpose="GALLERY"
                 maxItems={10}
+                placeholder="Arrastra archivos de galería o selecciónalos"
               />
             </div>
           </div>
@@ -263,11 +267,10 @@ export function EventInfoSection() {
             <p className="text-xs text-muted-foreground">Imagen de portada del evento.</p>
           </div>
           <div className="md:w-2/3 w-full">
-            <ImageUploadWithPreview
+            <MediaUploader
               value={coverUrl}
               onChange={setCoverUrl}
-              label=""
-              aspectRatio="banner"
+              variant="banner"
               assetTarget={{ organizationId: event.organizationId, type: "events/cover", resourceId: event.id }}
               placeholder="Arrastra o selecciona una imagen de portada"
             />
@@ -280,11 +283,10 @@ export function EventInfoSection() {
             <p className="text-xs text-muted-foreground">Logo o marca del evento.</p>
           </div>
           <div className="md:w-2/3 w-full">
-            <ImageUploadWithPreview
+            <MediaUploader
               value={logoUrl}
               onChange={setLogoUrl}
-              label=""
-              aspectRatio="square"
+              variant="square"
               assetTarget={{ organizationId: event.organizationId, type: "events/logo", resourceId: event.id }}
               placeholder="Arrastra o selecciona el logo"
             />

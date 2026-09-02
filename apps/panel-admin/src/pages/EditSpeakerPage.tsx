@@ -14,42 +14,11 @@ import {
   SelectItem,
 } from "@/components/ui/select"
 import { AlertTriangle, Trash2, Plus, Loader2, Edit, Search, ChevronLeft, ChevronRight } from "lucide-react"
-import { ImageUploadWithPreview } from "@/components/ImageUploadWithPreview"
+import { MediaUploader } from "@/components/MediaUploader"
 import { useSEO } from "@/hooks/use-seo"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { api } from "@/api/client"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogFooter,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog"
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogFooter,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogAction,
-  AlertDialogCancel,
-} from "@/components/ui/alert-dialog"
-import { toast } from "sonner"
-
-export function EditSpeakerPage() {
-  const { eventId, speakerId } = useParams<{ eventId: string; speakerId: string }>()
-  const navigate = useNavigate()
-
-  const { speakers, roles, editions, thematicLines, loadRoles, loadThematicLines, updateSpeaker } = useEventStore()
-  const [isLoadingSession, setIsLoadingSession] = useState(false)
-
-  const eventEditions = editions.filter((ed) => ed.mainEventId === eventId)
-  const currentEdition = eventEditions.find((ed) => ed.isCurrent)
-
-  const speaker = speakers.find((s) => s.id === speakerId)
 
   useSEO({
     title: speaker ? `Editar Ponente: ${speaker.firstName} ${speaker.lastName}` : "Editar Ponente",

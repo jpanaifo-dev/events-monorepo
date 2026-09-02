@@ -8,8 +8,7 @@ import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import { PageHeader } from "@/components/page-header"
 import { CalendarDays } from "lucide-react"
-import { ImageUploadWithPreview } from "@/components/ImageUploadWithPreview"
-
+import { MediaUploader } from "@/components/MediaUploader"
 import { useSEO } from "@/hooks/use-seo"
 
 export function CreateEventPage() {
@@ -83,77 +82,66 @@ export function CreateEventPage() {
       return
     }
 
-    if (createEdition && !editionName.trim()) {
-      toast.error("El nombre de la edicion es obligatorio.")
-      return
-    }
-
     setIsSubmitting(true)
     try {
-      const eventId = await addEvent({
-        organizationId: selectedOrganization.id,
-        name: name.trim(),
-        shortDescription: shortDescription.trim(),
-        about: about.trim() ? { es: about.trim() } : "",
-        coverUrl: coverUrl.trim() || "",
-        logoUrl: logoUrl.trim() || "",
-        brandColors: { primary: brandPrimary, secondary: brandSecondary },
-        status,
-        isActive: true,
-        websiteUrl: websiteUrl.trim() || "",
-        contactEmail: contactEmail.trim() || "",
-        socialLinks: {
-          twitter: socialTwitter.trim(),
-          facebook: socialFacebook.trim(),
-          linkedin: socialLinkedin.trim(),
-          instagram: socialInstagram.trim(),
+      const createdEvent = await addEvent(
+        {
+          name: name.trim(),
+          shortDescription: shortDescription.trim(),
+          about: about.trim() ? { es: about.trim() } : "",
+          status,
+          websiteUrl: websiteUrl.trim() || undefined,
+          contactEmail: contactEmail.trim() || undefined,
+          brandColors: {
+            primary: brandPrimary,
+            secondary: brandSecondary,
+          },
+          socialLinks: {
+            twitter: socialTwitter.trim() || undefined,
+            facebook: socialFacebook.trim() || undefined,
+            linkedin: socialLinkedin.trim() || undefined,
+            instagram: socialInstagram.trim() || undefined,
+          },
         },
-        settings: {},
         coverFile,
-        logoFile,
-      })
-
-      const createdEvent = useEventStore.getState().events.find((e) => e.id === eventId)
-      const finalCoverUrl = createdEvent?.coverUrl || ""
+        logoFile
+      )
 
       if (createEdition && editionName.trim()) {
-        await addEdition({
-          mainEventId: eventId,
-          name: editionName.trim(),
-          description: "",
-          coverUrl: finalCoverUrl,
-          startDate: editionStartDate || "",
-          endDate: editionEndDate || "",
-          isCurrent: editionIsCurrent,
-          location: editionLocation,
-          modality: editionModality,
-        })
+        try {
+          await addEdition(createdEvent.id, {
+            name: editionName.trim(),
+            startDate: editionStartDate ? new Date(editionStartDate).toISOString() : new Date().toISOString(),
+            endDate: editionEndDate ? new Date(editionEndDate).toISOString() : undefined,
+            isCurrent: editionIsCurrent,
+            location: editionLocation.trim() || undefined,
+            modality: editionModality,
+          })
+        } catch (editionErr) {
+          console.error("Error creating initial edition:", editionErr)
+          toast.warning("El evento fue creado, pero hubo un error al crear la primera edicion.")
+        }
       }
 
       toast.success("Evento creado exitosamente")
-      navigate(`/dashboard/events/${eventId}/setup`)
+      navigate(`/dashboard/events/${createdEvent.id}/info`)
     } catch (err: any) {
       console.error(err)
-      toast.error("Error al crear el evento. Intentalo de nuevo.")
+      toast.error(err?.message || "Ocurrio un error al crear el evento.")
     } finally {
       setIsSubmitting(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground font-sans flex flex-col">
-      <main className="max-w-4xl mx-auto px-6 py-12 flex-1 w-full pb-28">
-        <div className="mb-10">
-          <PageHeader
-            title="Crear un Nuevo Evento"
-            description="Registra una nueva conferencia, taller o congreso con toda la informacion correspondiente para tus asistentes."
-            showBackButton
-            onBackClick={() => navigate("/dashboard/events")}
-          />
-        </div>
+    <div className="flex flex-col space-y-6 pb-24 max-w-5xl mx-auto">
+      <PageHeader
+        title="Crear Nuevo Evento"
+        description="Define los datos iniciales y apariencia general de tu evento."
+      />
 
+      <main>
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Basic Info */}
           <div className="border border-border rounded-xl bg-card overflow-hidden shadow-sm">
             <div className="p-6 border-b border-border">
               <h2 className="text-sm font-bold uppercase tracking-wider text-primary">Informacion Basica</h2>
@@ -171,7 +159,7 @@ export function CreateEventPage() {
                   id="evt-name"
                   type="text"
                   required
-                  placeholder="Ej. Congreso Anual de Tecnologia 2026"
+                  placeholder="Ej. Cumbre de Innovacion Tecnologica 2026"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="bg-background"
@@ -224,15 +212,14 @@ export function CreateEventPage() {
                 <p className="text-xs text-muted-foreground">Sube la portada oficial o pega un enlace directo.</p>
               </div>
               <div className="md:w-2/3 max-w-md w-full">
-                <ImageUploadWithPreview
+                <MediaUploader
                   value={coverUrl}
                   onChange={(newVal) => {
                     setCoverUrl(newVal)
                     if (!newVal) setCoverFile(null)
                   }}
                   onFileSelect={setCoverFile}
-                  label=""
-                  aspectRatio="banner"
+                  variant="banner"
                   folder="events/temp"
                   identifier="cover"
                 />
@@ -245,15 +232,14 @@ export function CreateEventPage() {
                 <p className="text-xs text-muted-foreground">Sube el logo de la marca o pega un enlace directo.</p>
               </div>
               <div className="md:w-2/3 max-w-md w-full">
-                <ImageUploadWithPreview
+                <MediaUploader
                   value={logoUrl}
                   onChange={(newVal) => {
                     setLogoUrl(newVal)
                     if (!newVal) setLogoFile(null)
                   }}
                   onFileSelect={setLogoFile}
-                  label=""
-                  aspectRatio="square"
+                  variant="square"
                   folder="events/temp"
                   identifier="logo"
                 />
@@ -282,88 +268,7 @@ export function CreateEventPage() {
             </div>
           </div>
 
-          {false && <>
-          {/* Contact & Links */}
-          <div className="border border-border rounded-xl bg-card overflow-hidden shadow-sm">
-            <div className="p-6 border-b border-border">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-primary">Contacto y Enlaces</h2>
-            </div>
-
-            <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
-              <div className="md:w-1/3 space-y-1">
-                <label htmlFor="evt-email" className="text-sm font-medium text-foreground">
-                  Email de Contacto
-                </label>
-                <p className="text-xs text-muted-foreground">Correo para consultas del evento.</p>
-              </div>
-              <div className="md:w-2/3 max-w-md w-full">
-                <Input
-                  id="evt-email"
-                  type="email"
-                  placeholder="contacto@evento.com"
-                  value={contactEmail}
-                  onChange={(e) => setContactEmail(e.target.value)}
-                  className="bg-background"
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
-              <div className="md:w-1/3 space-y-1">
-                <label htmlFor="evt-website" className="text-sm font-medium text-foreground">
-                  Sitio Web
-                </label>
-                <p className="text-xs text-muted-foreground">URL del sitio oficial del evento.</p>
-              </div>
-              <div className="md:w-2/3 max-w-md w-full">
-                <Input
-                  id="evt-website"
-                  type="url"
-                  placeholder="https://evento.com"
-                  value={websiteUrl}
-                  onChange={(e) => setWebsiteUrl(e.target.value)}
-                  className="bg-background"
-                />
-              </div>
-            </div>
-
-            <div className="p-6 space-y-4">
-              <label className="text-sm font-medium text-foreground">Redes Sociales</label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input
-                  type="url"
-                  placeholder="Twitter / X URL"
-                  value={socialTwitter}
-                  onChange={(e) => setSocialTwitter(e.target.value)}
-                  className="bg-background"
-                />
-                <Input
-                  type="url"
-                  placeholder="Facebook URL"
-                  value={socialFacebook}
-                  onChange={(e) => setSocialFacebook(e.target.value)}
-                  className="bg-background"
-                />
-                <Input
-                  type="url"
-                  placeholder="LinkedIn URL"
-                  value={socialLinkedin}
-                  onChange={(e) => setSocialLinkedin(e.target.value)}
-                  className="bg-background"
-                />
-                <Input
-                  type="url"
-                  placeholder="Instagram URL"
-                  value={socialInstagram}
-                  onChange={(e) => setSocialInstagram(e.target.value)}
-                  className="bg-background"
-                />
-              </div>
-            </div>
-          </div>
-          </>}
-
-          {/* Brand Colors */}
+          {/* Colores de Marca */}
           <div className="border border-border rounded-xl bg-card overflow-hidden shadow-sm">
             <div className="p-6 border-b border-border">
               <h2 className="text-sm font-bold uppercase tracking-wider text-primary">Colores de Marca</h2>
@@ -475,41 +380,41 @@ export function CreateEventPage() {
                       </div>
                     </div>
                   </div>
+                </div>
 
-                  <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
-                    <div className="md:w-1/3 space-y-1">
-                      <label className="text-sm font-medium text-foreground">Modalidad de la Edición</label>
-                      <p className="text-xs text-muted-foreground">Formato de realización de esta edición.</p>
-                    </div>
-                    <div className="md:w-2/3 max-w-md w-full">
-                      <select
-                        id="ed-modality"
-                        value={editionModality}
-                        onChange={(e) => setEditionModality(e.target.value)}
-                        className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs outline-none focus-visible:ring-1 focus-visible:ring-ring text-foreground"
-                      >
-                        <option value="presencial">Presencial</option>
-                        <option value="virtual">Virtual</option>
-                        <option value="hibrido">Híbrido</option>
-                      </select>
-                    </div>
+                <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+                  <div className="md:w-1/3 space-y-1">
+                    <label className="text-sm font-medium text-foreground">Modalidad de la Edición</label>
+                    <p className="text-xs text-muted-foreground">Formato de realización de esta edición.</p>
                   </div>
+                  <div className="md:w-2/3 max-w-md w-full">
+                    <select
+                      id="ed-modality"
+                      value={editionModality}
+                      onChange={(e) => setEditionModality(e.target.value)}
+                      className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs outline-none focus-visible:ring-1 focus-visible:ring-ring text-foreground"
+                    >
+                      <option value="presencial">Presencial</option>
+                      <option value="virtual">Virtual</option>
+                      <option value="hibrido">Híbrido</option>
+                    </select>
+                  </div>
+                </div>
 
-                  <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
-                    <div className="md:w-1/3 space-y-1">
-                      <label className="text-sm font-medium text-foreground">Ubicación o Enlace</label>
-                      <p className="text-xs text-muted-foreground">Lugar físico, ciudad o enlace de transmisión.</p>
-                    </div>
-                    <div className="md:w-2/3 max-w-md w-full">
-                      <Input
-                        id="ed-location"
-                        type="text"
-                        placeholder="Ej. Hotel Savoy o Zoom Link"
-                        value={editionLocation}
-                        onChange={(e) => setEditionLocation(e.target.value)}
-                        className="bg-background"
-                      />
-                    </div>
+                <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+                  <div className="md:w-1/3 space-y-1">
+                    <label className="text-sm font-medium text-foreground">Ubicación o Enlace</label>
+                    <p className="text-xs text-muted-foreground">Lugar físico, ciudad o enlace de transmisión.</p>
+                  </div>
+                  <div className="md:w-2/3 max-w-md w-full">
+                    <Input
+                      id="ed-location"
+                      type="text"
+                      placeholder="Ej. Hotel Savoy o Zoom Link"
+                      value={editionLocation}
+                      onChange={(e) => setEditionLocation(e.target.value)}
+                      className="bg-background"
+                    />
                   </div>
                 </div>
 
