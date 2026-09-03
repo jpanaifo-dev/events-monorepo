@@ -29,6 +29,7 @@ export function CreateEditionPage() {
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [coverUrl, setCoverUrl] = useState("")
+  const [metaThumbnailUrl, setMetaThumbnailUrl] = useState("")
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
   const [isSingleDay, setIsSingleDay] = useState(false)
@@ -43,6 +44,7 @@ export function CreateEditionPage() {
   const editionSchema = z.object({
     name: z.string().trim().min(1, "El nombre de la edición es obligatorio."),
     coverUrl: z.string().trim().url("El enlace de portada no es válido.").or(z.literal("")).optional(),
+    metaThumbnailUrl: z.string().trim().url("La imagen para redes no es válida.").or(z.literal("")).optional(),
     startDate: z.string().min(1, "La fecha de inicio es requerida."),
     endDate: z.string(),
   }).refine((data) => /^\d{4}-\d{2}-\d{2}$/.test(data.startDate), { message: "Selecciona una fecha de inicio válida.", path: ["startDate"] }).refine((data) => isSingleDay || data.endDate.length > 0, {
@@ -57,6 +59,7 @@ export function CreateEditionPage() {
     const validation = editionSchema.safeParse({
       name,
       coverUrl,
+      metaThumbnailUrl,
       startDate,
       endDate,
     })
@@ -73,6 +76,7 @@ export function CreateEditionPage() {
         name: name.trim(),
         description: description.trim(),
         coverUrl: coverUrl.trim() || "",
+        metaThumbnailUrl: metaThumbnailUrl.trim() || "",
         startDate,
         endDate: isSingleDay ? "" : endDate,
         isCurrent: status === "active",
@@ -180,6 +184,15 @@ export function CreateEditionPage() {
                   className="bg-background"
                 />
               </div>
+            </div>
+
+            {/* Dates Row */}
+            <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+              <div className="md:w-1/3 space-y-1">
+                <label htmlFor="ed-meta-thumbnail" className="text-sm font-medium text-foreground">Imagen para redes y meta</label>
+                <p className="text-xs text-muted-foreground">Opcional. Recomendado: 1200 × 630 px para la previsualización al compartir.</p>
+              </div>
+              <div className="md:w-2/3 max-w-md w-full"><Input id="ed-meta-thumbnail" type="url" placeholder="https://.../meta-thumbnail.jpg" value={metaThumbnailUrl} onChange={(e) => setMetaThumbnailUrl(e.target.value)} className="bg-background" /></div>
             </div>
 
             {/* Dates Row */}

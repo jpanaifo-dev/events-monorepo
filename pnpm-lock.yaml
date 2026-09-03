@@ -130,6 +130,9 @@ importers:
       '@astrojs/node':
         specifier: ^9.5.1
         version: 9.5.5(astro@5.18.2(@types/node@22.15.3)(jiti@2.7.0)(lightningcss@1.32.0)(rollup@4.63.0)(tsx@4.23.12)(typescript@6.0.3))
+      '@lucide/astro':
+        specifier: ^1.39.0
+        version: 1.39.0(astro@5.18.2(@types/node@22.15.3)(jiti@2.7.0)(lightningcss@1.32.0)(rollup@4.63.0)(tsx@4.23.12)(typescript@6.0.3))
       astro:
         specifier: ^5.16.12
         version: 5.18.2(@types/node@22.15.3)(jiti@2.7.0)(lightningcss@1.32.0)(rollup@4.63.0)(tsx@4.23.12)(typescript@6.0.3)
@@ -1347,6 +1350,11 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@lucide/astro@1.39.0':
+    resolution: {integrity: sha512-PQ5enKx20yNXACZUYgnNn7hG0D/aviYoc5ZtEeW2nguk3ixoTz4IfbSzjf+PlyQLFP0VQohSUExzcAPIaMzXPA==}
+    peerDependencies:
+      astro: ^4 || ^5 || ^6 || ^7
 
   '@lukeed/csprng@1.1.0':
     resolution: {integrity: sha512-Z7C/xXCiGWsg0KuKsHTKJxbWhpI3Vs5GwLfOean7MGyVFGqdRgBbAjOCh6u4bbjPc/8MJ2pZmK/0DLdCbivLDA==}
@@ -6859,6 +6867,10 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
+
+  '@lucide/astro@1.39.0(astro@5.18.2(@types/node@22.15.3)(jiti@2.7.0)(lightningcss@1.32.0)(rollup@4.63.0)(tsx@4.23.12)(typescript@6.0.3))':
+    dependencies:
+      astro: 5.18.2(@types/node@22.15.3)(jiti@2.7.0)(lightningcss@1.32.0)(rollup@4.63.0)(tsx@4.23.12)(typescript@6.0.3)
 
   '@lukeed/csprng@1.1.0': {}
 

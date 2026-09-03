@@ -7,9 +7,11 @@ interface Props {
   description?: string;
   registrationUrl?: string;
   venues?: string[];
+  bare?: boolean;
+  imageUrl?: string;
 }
 
-const { organization, title, description, registrationUrl, venues = [] } = Astro.props;
+const { organization, title, description, registrationUrl, venues = [], bare = false, imageUrl } = Astro.props;
 ---
 <!doctype html>
 <html lang="es">
@@ -17,6 +19,12 @@ const { organization, title, description, registrationUrl, venues = [] } = Astro
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description || organization.description || `Eventos y conferencias oficiales de ${organization.name}`} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description || organization.description || `Eventos y conferencias oficiales de ${organization.name}`} />
+    <meta property="og:type" content="website" />
+    {imageUrl && <meta property="og:image" content={imageUrl} />}
+    <meta name="twitter:card" content={imageUrl ? "summary_large_image" : "summary"} />
+    {imageUrl && <meta name="twitter:image" content={imageUrl} />}
     <title>{title}</title>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -24,6 +32,7 @@ const { organization, title, description, registrationUrl, venues = [] } = Astro
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   </head>
   <body class="tdc-body">
+    {!bare && <>
     <!-- TDC / Stripe Sessions Minimalist Cinematic Header -->
     <header class="tdc-header">
       <div class="tdc-container header-content">
@@ -48,11 +57,13 @@ const { organization, title, description, registrationUrl, venues = [] } = Astro
       </div>
       </div>
     </header>
+    </>}
 
     <main id="main-content">
       <slot />
     </main>
 
+    {!bare && <>
     <!-- TDC Cinematic Dark Footer -->
     <footer class="tdc-footer">
       <div class="tdc-container">
@@ -93,6 +104,7 @@ const { organization, title, description, registrationUrl, venues = [] } = Astro
         </div>
       </div>
     </footer>
+    </>}
 
     <script>
       const root = document.documentElement;

@@ -402,6 +402,7 @@ model Edition {
   location     String?
   description  String?
   coverUrl     String?            @map("cover_url")
+  metaThumbnailUrl String?        @map("meta_thumbnail_url")
   isCurrent    Boolean            @default(false) @map("is_current")
   latitude     Float?
   longitude    Float?

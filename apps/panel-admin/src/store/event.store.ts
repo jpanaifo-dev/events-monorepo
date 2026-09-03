@@ -35,6 +35,7 @@ export interface Edition {
   name: string
   description: string
   coverUrl: string
+  metaThumbnailUrl?: string
   startDate: string
   endDate: string
   isCurrent: boolean
@@ -293,6 +294,7 @@ function mapEdition(row: any): Edition {
     name: typeof row.name === "string" ? row.name : (row.name?.es || row.name?.en || "Edición"),
     description: typeof row.description === "string" ? row.description : (row.description?.es || row.description?.en || ""),
     coverUrl: row.coverUrl || row.cover_url || "",
+    metaThumbnailUrl: row.metaThumbnailUrl || row.meta_thumbnail_url || "",
     startDate: row.start_date || row.startDate || "",
     endDate: row.end_date || row.endDate || "",
     isCurrent: Boolean(row.isCurrent ?? row.is_current),
@@ -692,6 +694,7 @@ export const useEventStore = create<EventState>((set, get) => ({
         name: String(editionData.name),
         ...(editionData.description ? { description: editionData.description } : {}),
         ...(editionData.coverUrl ? { coverUrl: editionData.coverUrl } : {}),
+        ...(editionData.metaThumbnailUrl ? { metaThumbnailUrl: editionData.metaThumbnailUrl } : {}),
         ...(editionData.isCurrent !== undefined ? { isCurrent: editionData.isCurrent } : {}),
         startDate: editionData.startDate,
         ...(editionData.endDate ? { endDate: editionData.endDate } : {}),
@@ -709,6 +712,7 @@ export const useEventStore = create<EventState>((set, get) => ({
         name: String(editionData.name),
         description: editionData.description || "",
         coverUrl: editionData.coverUrl || "",
+        metaThumbnailUrl: editionData.metaThumbnailUrl || "",
         startDate: editionData.startDate || "",
         endDate: editionData.endDate || "",
         isCurrent: editionData.isCurrent,
@@ -742,7 +746,7 @@ export const useEventStore = create<EventState>((set, get) => ({
 
       const currentEdition = get().editions.find((edition) => edition.id === id)
       if (!currentEdition) throw new Error("Edición no encontrada")
-      await api.editions.update(currentEdition.mainEventId, id, { name: updates.name, description: updates.description, coverUrl: updates.coverUrl, startDate: updates.startDate, endDate: updates.endDate, isCurrent: updates.isCurrent, modality: updates.modality, location: updates.location, latitude: updates.latitude, longitude: updates.longitude })
+      await api.editions.update(currentEdition.mainEventId, id, { name: updates.name, description: updates.description, coverUrl: updates.coverUrl, metaThumbnailUrl: updates.metaThumbnailUrl, startDate: updates.startDate, endDate: updates.endDate, isCurrent: updates.isCurrent, modality: updates.modality, location: updates.location, latitude: updates.latitude, longitude: updates.longitude })
 
       set((state) => ({
         editions: state.editions.map((ed) => ed.id === id ? { ...ed, ...updates } : ed)

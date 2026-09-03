@@ -1,6 +1,7 @@
 ---
 import PortalLayout from "../../../layouts/PortalLayout.astro";
 import { portalApi } from "../../../lib/api";
+import MedmindEventDetail from "../../../components/medmind/MedmindEventDetail.astro";
 
 const { institution, eventId } = Astro.params;
 if (!institution || !eventId)
@@ -50,6 +51,7 @@ const heroImage =
       event.coverUrl ||
       listing.organization.coverUrl ||
       defaultFallbackBanner;
+const metaImage = activeEdition?.metaThumbnailUrl || heroImage;
 
 const eventDescription =
   activeEdition?.description || event.details?.content || event.description;
@@ -95,16 +97,32 @@ const mapExternalUrl =
     : eventVenue
       ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(eventVenue)}`
       : "";
+const isMedmind = listing.organization.name.trim().toLowerCase() === "medmind";
 ---
 
 <PortalLayout
   organization={listing.organization}
   title={`${event.eventName}${activeEdition ? ` · ${activeEdition.name}` : ""} · ${listing.organization.name}`}
   description={eventDescription || undefined}
+  imageUrl={metaImage}
+  bare={isMedmind}
   registrationUrl={mainForm
     ? `/${institution}/register/${mainForm.slug}`
     : undefined}
 >
+  {isMedmind ? (
+    <MedmindEventDetail
+      institution={institution}
+      event={event}
+      edition={activeEdition}
+      speakers={speakers}
+      activities={activities}
+      form={mainForm || secondaryForms[0]}
+      heroImage={heroImage}
+      heroVideo={heroVideo}
+      apiUrl={portalApi.apiUrl}
+    />
+  ) : (
   <article class="event-detail-page">
     <!-- ========================================================================= -->
     <!-- 1. CINEMATIC HERO (The Design Conference style)                           -->
@@ -637,6 +655,7 @@ const mapExternalUrl =
       )
     }
   </article>
+  )}
 </PortalLayout>
 
 <script>

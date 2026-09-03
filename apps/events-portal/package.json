@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@astrojs/node": "^9.5.1",
-    "astro": "^5.16.12"
+    "astro": "^5.16.12",
+    "@lucide/astro": "^1.39.0"
   }
 }
