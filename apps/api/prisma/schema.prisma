@@ -191,6 +191,7 @@ model Organization {
   name           String
   slug           String                    @unique
   description    String?
+  organizationType String?                 @map("organization_type")
   logoUrl        String?                   @map("logo_url")
   coverUrl       String?                   @map("cover_url")
   createdAt      DateTime                  @default(now()) @map("created_at")

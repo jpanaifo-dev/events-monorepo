@@ -11,7 +11,7 @@ import { Trash2 } from "lucide-react"
 
 import { useSEO } from "@/hooks/use-seo"
 import { LocationPickerMap } from "@/components/location-picker-map"
-import { ImageUploadWithPreview } from "@/components/ImageUploadWithPreview"
+import { MediaUploader } from "@/components/MediaUploader"
 
 const toDateInputValue = (value: string) => value ? value.slice(0, 10) : ""
 
@@ -238,13 +238,12 @@ export function EditEditionPage() {
                 <p className="text-xs text-muted-foreground">Enlace de la imagen específica de esta edición.</p>
               </div>
               <div className="md:w-2/3 w-full">
-                <ImageUploadWithPreview
+                <MediaUploader
                   value={coverUrl}
                   onChange={setCoverUrl}
-                  label=""
-                  aspectRatio="banner"
+                  variant="banner"
                   assetTarget={selectedOrganization?.id ? { organizationId: selectedOrganization.id, type: "editions/cover", resourceId: editionId } : undefined}
-                  placeholder="Arrastra una portada o pega una URL"
+                  placeholder="Arrastra una portada o selecciona un archivo"
                 />
               </div>
             </div>

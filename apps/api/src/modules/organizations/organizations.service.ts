@@ -20,7 +20,7 @@ export class OrganizationsService {
     }
     return this.prisma.organization.create({ data: { ...data, subscription: { create: { plan: 'FREE', status: 'ACTIVE' } }, members: { create: { profileId: profile.id, accountId: actor.accountId, role: 'OWNER' } } }, include: { subscription: true } });
   }
-  update(id: string, data: Record<string, unknown>) { const allowed = ['name', 'slug', 'description', 'logoUrl', 'coverUrl', 'isActive']; const clean = Object.fromEntries(Object.entries(data).filter(([key]) => allowed.includes(key))); return this.prisma.organization.update({ where: { id }, data: clean }); }
+  update(id: string, data: Record<string, unknown>) { const allowed = ['name', 'slug', 'description', 'organizationType', 'logoUrl', 'coverUrl', 'isActive']; const clean = Object.fromEntries(Object.entries(data).filter(([key]) => allowed.includes(key))); return this.prisma.organization.update({ where: { id }, data: clean }); }
   remove(id: string) { return this.prisma.organization.delete({ where: { id } }); }
   branches(organizationId: string) { return this.prisma.organizationBranch.findMany({ where: { organizationId }, orderBy: { name: 'asc' } }); }
   async addBranch(organizationId: string, data: any) { if (data.isMain) await this.prisma.organizationBranch.updateMany({ where: { organizationId }, data: { isMain: false } }); return this.prisma.organizationBranch.create({ data: { ...data, organizationId } }); }

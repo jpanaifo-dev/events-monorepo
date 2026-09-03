@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import { PageHeader } from "@/components/page-header"
 import { Trash2 } from "lucide-react"
-import { ImageUploadWithPreview } from "@/components/ImageUploadWithPreview"
+import { MediaUploader } from "@/components/MediaUploader"
 
 import { useSEO } from "@/hooks/use-seo"
 
@@ -297,12 +297,11 @@ export function EditEventPage() {
                 )}
               </div>
               <div className="md:w-2/3 max-w-md w-full">
-                <ImageUploadWithPreview
+                <MediaUploader
                   value={coverUrl}
                   onChange={setCoverUrl}
                   onFileSelect={handleCoverFileSelect}
-                  label=""
-                  aspectRatio="banner"
+                  variant="banner"
                   folder={`events/${id}`}
                   identifier="cover"
                 />
@@ -319,12 +318,11 @@ export function EditEventPage() {
                 )}
               </div>
               <div className="md:w-2/3 max-w-md w-full">
-                <ImageUploadWithPreview
+                <MediaUploader
                   value={logoUrl}
                   onChange={setLogoUrl}
                   onFileSelect={handleLogoFileSelect}
-                  label=""
-                  aspectRatio="square"
+                  variant="square"
                   folder={`events/${id}`}
                   identifier="logo"
                 />

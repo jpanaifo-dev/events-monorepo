@@ -4,10 +4,9 @@ import { z } from "zod"
 import { useEventStore } from "@/store/event.store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { ImageUploadWithPreview } from "@/components/ImageUploadWithPreview"
-import { MediaLibraryDialog } from "@/components/MediaLibraryDialog"
+import { MediaUploader } from "@/components/MediaUploader"
 import { toast } from "sonner"
-import { ImagePlus, Pencil, Trash2 } from "lucide-react"
+import { Pencil, Trash2 } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -31,8 +30,6 @@ export function EventInfoSection() {
   const location = useLocation()
   const { events, updateEvent, deleteEvent } = useEventStore()
   const event = events.find((e) => e.id === id)
-  const [galleryOpen, setGalleryOpen] = useState(false)
-  const [galleryCount, setGalleryCount] = useState(0)
 
   useSEO({
     title: event ? `${event.name} - General` : "Detalle de Evento",
@@ -42,7 +39,6 @@ export function EventInfoSection() {
   const [name, setName] = useState("")
   const [shortDescription, setShortDescription] = useState("")
   const [about, setAbout] = useState("")
-  const [coverUrl, setCoverUrl] = useState("")
   const [logoUrl, setLogoUrl] = useState("")
   const [status, setStatus] = useState<"draft" | "published" | "archived">("draft")
   const [isActive, setIsActive] = useState(true)
@@ -72,7 +68,6 @@ export function EventInfoSection() {
       setName(event.name || "")
       setShortDescription(event.shortDescription || "")
       setAbout(typeof event.about === "object" && event.about?.es ? event.about.es : typeof event.about === "string" ? event.about : "")
-      setCoverUrl(event.coverUrl || "")
       setLogoUrl(event.logoUrl || "")
       setStatus(event.status || "draft")
       setIsActive(event.isActive !== false)
@@ -132,7 +127,6 @@ export function EventInfoSection() {
         name: name.trim(),
         shortDescription: shortDescription.trim(),
         about: about.trim() ? { es: about.trim() } : "",
-        coverUrl: coverUrl.trim() || "",
         logoUrl: logoUrl.trim() || "",
         status,
         isActive,
@@ -219,11 +213,28 @@ export function EventInfoSection() {
           </div>
         </div>
 
-        {event?.organizationId && <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
-          <div className="md:w-1/3 space-y-1"><label className="text-sm font-medium text-foreground">Galería y hero</label><p className="text-xs text-muted-foreground">Añade imágenes o video. Marca una pieza destacada para usarla en el hero público.</p></div>
-          <div className="md:w-2/3 w-full"><p className="mb-2 text-sm text-muted-foreground"><span className="font-medium text-foreground">Archivos · {galleryCount}/10</span> · Puedes agregar un máximo de 10.</p><button type="button" onClick={() => setGalleryOpen(true)} className="flex min-h-48 w-full flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border bg-muted/30 text-muted-foreground transition-colors hover:bg-muted"><span className="flex size-10 items-center justify-center rounded-full bg-muted"><ImagePlus className="size-5" /></span><span className="text-lg font-medium text-foreground">Agregar archivos</span><span className="text-sm">O arrastra y suelta</span></button></div>
-          <MediaLibraryDialog open={galleryOpen} onOpenChange={setGalleryOpen} organizationId={event.organizationId} ownerType="EVENT" ownerId={event.id} multiple maxItems={10} title="Multimedia del evento" onChange={(items) => setGalleryCount(items.length)} />
-        </div>}
+        {event?.organizationId && (
+          <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+            <div className="md:w-1/3 space-y-1">
+              <label className="text-sm font-medium text-foreground">Galería y hero</label>
+              <p className="text-xs text-muted-foreground">
+                Añade imágenes o video. Marca una pieza destacada para usarla en el hero público.
+              </p>
+            </div>
+            <div className="md:w-2/3 w-full">
+              <MediaUploader
+                multiple
+                eventId={event.id}
+                ownerType="EVENT"
+                ownerId={event.id}
+                organizationId={event.organizationId}
+                purpose="GALLERY"
+                maxItems={10}
+                placeholder="Arrastra archivos de galería o selecciónalos"
+              />
+            </div>
+          </div>
+        )}
 
         <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
           <div className="md:w-1/3 space-y-1">
@@ -249,32 +260,14 @@ export function EventInfoSection() {
 
         <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
           <div className="md:w-1/3 space-y-1">
-            <label htmlFor="evt-cover" className="text-sm font-medium text-foreground">Portada del Evento</label>
-            <p className="text-xs text-muted-foreground">Imagen de portada del evento.</p>
-          </div>
-          <div className="md:w-2/3 w-full">
-            <ImageUploadWithPreview
-              value={coverUrl}
-              onChange={setCoverUrl}
-              label=""
-              aspectRatio="banner"
-              assetTarget={{ organizationId: event.organizationId, type: "events/cover", resourceId: event.id }}
-              placeholder="Arrastra o selecciona una imagen de portada"
-            />
-          </div>
-        </div>
-
-        <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
-          <div className="md:w-1/3 space-y-1">
             <label htmlFor="evt-logo" className="text-sm font-medium text-foreground">Logo del Evento</label>
             <p className="text-xs text-muted-foreground">Logo o marca del evento.</p>
           </div>
           <div className="md:w-2/3 w-full">
-            <ImageUploadWithPreview
+            <MediaUploader
               value={logoUrl}
               onChange={setLogoUrl}
-              label=""
-              aspectRatio="square"
+              variant="square"
               assetTarget={{ organizationId: event.organizationId, type: "events/logo", resourceId: event.id }}
               placeholder="Arrastra o selecciona el logo"
             />

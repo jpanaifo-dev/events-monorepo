@@ -129,11 +129,9 @@ export function TemplatesListPage() {
             >
               <ShieldCheck className="size-4 text-emerald-600" />
               <span>Configuración de Correo</span>
-              {emailConfigSummary?.domain && (
-                <span className="hidden sm:inline-block px-2 py-0.5 rounded-full text-[10px] bg-emerald-500/10 text-emerald-600 font-mono">
-                  @{emailConfigSummary.domain}
-                </span>
-              )}
+              <span className="hidden sm:inline-block px-2 py-0.5 rounded-full text-[10px] bg-muted text-muted-foreground">
+                {emailConfigSummary?.configured ? "Configurado" : "Pendiente"}
+              </span>
             </Button>
 
             <Button

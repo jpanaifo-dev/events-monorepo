@@ -198,7 +198,11 @@ export function DashboardPage() {
   const archivedEvents = events.filter(e => e.status === "archived").length
 
   const totalSpeakers = speakers.length
-  const totalAttendees = attendees.length
+  // Las inscripciones del dashboard deben representar envíos reales de formularios.
+  // Los participantes administrados internamente (ponentes, invitados, etc.)
+  // pertenecen al directorio, pero no son una inscripción reciente.
+  const registrations = attendees.filter((attendee) => attendee.source === "FORM" && attendee.submissionId)
+  const totalAttendees = registrations.length
 
   // Filter published or draft events sorted chronologically (newest first)
   const upcomingEvents = [...events]
@@ -206,7 +210,7 @@ export function DashboardPage() {
     .slice(0, 3)
 
   // Real-time activity feed: last 5 registrations
-  const recentAttendees = [...attendees]
+  const recentAttendees = [...registrations]
     .sort((a, b) => new Date(b.registrationDate).getTime() - new Date(a.registrationDate).getTime())
     .slice(0, 5)
 

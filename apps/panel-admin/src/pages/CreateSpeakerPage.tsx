@@ -16,7 +16,7 @@ import {
   SelectItem,
 } from "@/components/ui/select"
 import { Check, Loader2, Trash2, Plus } from "lucide-react"
-import { ImageUploadWithPreview } from "@/components/ImageUploadWithPreview"
+import { MediaUploader } from "@/components/MediaUploader"
 import { useSEO } from "@/hooks/use-seo"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
@@ -356,7 +356,7 @@ export function CreateSpeakerPage() {
                 <p className="text-xs text-muted-foreground">Sube una foto de avatar para el ponente o introduce un enlace directo.</p>
               </div>
               <div className="md:w-2/3 max-w-md w-full">
-                <ImageUploadWithPreview
+                <MediaUploader
                   value={avatar}
                   onChange={(newVal) => {
                     setAvatar(newVal)
@@ -365,7 +365,7 @@ export function CreateSpeakerPage() {
                     }
                   }}
                   onFileSelect={setAvatarFile}
-                  label=""
+                  variant="avatar"
                   folder={`events/${eventId}/speakers`}
                   identifier="avatar"
                 />

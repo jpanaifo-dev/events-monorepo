@@ -38,7 +38,9 @@ export class MediaService {
     if (ownerType === 'PROFILE') {
       const profile = await this.prisma.profile.findUnique({ where: { id: ownerId }, select: { organizationId: true } });
       if (!profile) throw new NotFoundException('Perfil no encontrado.');
-      return profile.organizationId ?? undefined;
+      if (profile.organizationId) return profile.organizationId;
+      const participant = await this.prisma.eventParticipant.findFirst({ where: { profileId: ownerId }, select: { edition: { select: { mainEvent: { select: { organizationId: true } } } } } });
+      return participant?.edition.mainEvent.organizationId ?? undefined;
     }
     const edition = await this.prisma.edition.findUnique({ where: { id: ownerId }, select: { mainEvent: { select: { organizationId: true } } } });
     if (!edition) throw new NotFoundException('Edición no encontrada.');

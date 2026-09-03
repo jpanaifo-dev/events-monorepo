@@ -38,7 +38,7 @@ export function TemplateConfigPage() {
   const [name, setName] = useState("Nueva plantilla")
   const [isEditingName, setIsEditingName] = useState(false)
   const [status, setStatus] = useState<"ACTIVE" | "INACTIVE" | "DRAFT">("INACTIVE")
-  const [senderEmail, setSenderEmail] = useState("noreply@asipe.site")
+  const [senderEmail, setSenderEmail] = useState("")
   const [senderName, setSenderName] = useState(selectedOrganization?.name || "IIAP")
   const [subject, setSubject] = useState("")
   const [previewText, setPreviewText] = useState("")
@@ -80,7 +80,7 @@ export function TemplateConfigPage() {
       const data = await api.emailTemplates.get(id)
       setName(data.name || "Plantilla")
       setStatus(data.status || "INACTIVE")
-      setSenderEmail(data.senderEmail || "daylersan@gmail.com")
+      setSenderEmail(data.senderEmail || "")
       setSenderName(data.senderName || selectedOrganization?.name || "IIAP")
       setSubject(data.subject || "")
       setPreviewText(data.previewText || "")
@@ -301,37 +301,9 @@ export function TemplateConfigPage() {
         {/* RIGHT COLUMN: Sender, Subject, Preview Text Fields (Image 2)             */}
         {/* ========================================================================= */}
         <div className="lg:col-span-7 space-y-6">
-          {/* Org Provider & Domain Status Banner */}
-          <div className="p-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="size-9 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-500/20">
-                <ShieldCheck className="size-5" />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-foreground flex items-center gap-2">
-                  <span>Credenciales Institucionales Activas</span>
-                  <span className="text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 px-2 py-0.2 rounded-md">
-                    {orgSettings?.defaultProvider === "GMAIL_SMTP" ? "Gmail / SMTP" : "Resend API"}
-                  </span>
-                </p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  {orgSettings?.resendDomain
-                    ? `Dominio autenticado: @${orgSettings.resendDomain}`
-                    : `Remitente institucional: ${orgSettings?.resendFromEmail || "noreply@asipe.site"}`}
-                </p>
-              </div>
-            </div>
-
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setOpenSettingsModal(true)}
-              className="h-8 rounded-xl text-xs font-semibold shrink-0 border-border bg-background hover:bg-muted"
-            >
-              <ShieldCheck className="size-3.5 text-emerald-600 mr-1.5" />
-              <span>Ajustar credenciales</span>
-            </Button>
+          <div className="p-4 rounded-2xl border border-border bg-muted/30">
+            <p className="text-xs font-semibold text-foreground">Envío de marketing de la organización</p>
+            <p className="text-[11px] text-muted-foreground mt-1">Esta plantilla utilizará la configuración de correo de la organización. Las notificaciones propias del sistema usan la configuración global de la plataforma.</p>
           </div>
 
           {/* Email de remitente * */}
@@ -345,13 +317,13 @@ export function TemplateConfigPage() {
             </label>
             <Input
               value={senderEmail}
-              onChange={(e) => setSenderEmail(e.target.value)}
-              placeholder="ejemplo@tuorganizacion.com"
+              readOnly
+              placeholder=""
               className="h-11 rounded-xl bg-background border-border text-xs px-4"
             />
 
             {/* Quick Senders Chips */}
-            {orgSettings?.verifiedSenders && orgSettings.verifiedSenders.length > 0 && (
+            {false && orgSettings?.verifiedSenders && orgSettings.verifiedSenders.length > 0 && (
               <div className="flex flex-wrap items-center gap-1.5 pt-1">
                 <span className="text-[10px] text-muted-foreground font-medium mr-1">Sugeridos:</span>
                 {orgSettings.verifiedSenders.map((s: any, idx: number) => (

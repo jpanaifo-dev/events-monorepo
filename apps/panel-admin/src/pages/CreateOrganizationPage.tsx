@@ -18,7 +18,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ChevronsUpDown, LogOut, ArrowLeft, X } from "lucide-react"
 import { toast } from "sonner"
-import { ImageUploadWithPreview } from "@/components/ImageUploadWithPreview"
+import { MediaUploader } from "@/components/MediaUploader"
 
 const organizationSchema = z.object({
   name: z.string().min(3, "El nombre de la organización debe tener al menos 3 caracteres"),
@@ -519,12 +519,11 @@ export function CreateOrganizationPage() {
                 <p className="text-xs text-muted-foreground">Imagen representativa de la organización.</p>
               </div>
               <div className="md:w-2/3 max-w-md w-full">
-                <ImageUploadWithPreview
-                  label=""
+                <MediaUploader
                   value={logoUrl}
                   onChange={setLogoUrl}
-                  aspectRatio="square"
-                  placeholder="Arrastra tu logotipo aquí, o pega un enlace"
+                  variant="square"
+                  placeholder="Arrastra tu logotipo aquí, o selecciona un archivo"
                   folder="organizations"
                   identifier={`${slug || "temp"}-logo`}
                   onFileSelect={setLogoFile}
@@ -539,12 +538,11 @@ export function CreateOrganizationPage() {
                 <p className="text-xs text-muted-foreground">Banner de fondo que se mostrará en los eventos y portal.</p>
               </div>
               <div className="md:w-2/3 max-w-md w-full">
-                <ImageUploadWithPreview
-                  label=""
+                <MediaUploader
                   value={coverUrl}
                   onChange={setCoverUrl}
-                  aspectRatio="banner"
-                  placeholder="Arrastra tu banner de portada aquí, o pega un enlace"
+                  variant="banner"
+                  placeholder="Arrastra tu banner de portada aquí, o selecciona un archivo"
                   folder="organizations"
                   identifier={`${slug || "temp"}-cover`}
                   onFileSelect={setCoverFile}
@@ -559,12 +557,11 @@ export function CreateOrganizationPage() {
                 <p className="text-xs text-muted-foreground">Icono de página web pequeño (generalmente 1:1).</p>
               </div>
               <div className="md:w-2/3 max-w-md w-full">
-                <ImageUploadWithPreview
-                  label=""
+                <MediaUploader
                   value={faviconUrl}
                   onChange={setFaviconUrl}
-                  aspectRatio="favicon"
-                  placeholder="Arrastra tu favicon aquí, o pega un enlace"
+                  variant="favicon"
+                  placeholder="Arrastra tu favicon aquí, o selecciona un archivo"
                   folder="organizations"
                   identifier={`${slug || "temp"}-favicon`}
                   onFileSelect={setFaviconFile}

@@ -21,7 +21,7 @@ const { organization, title, description, registrationUrl, venues = [] } = Astro
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   </head>
   <body class="tdc-body">
     <!-- TDC / Stripe Sessions Minimalist Cinematic Header -->
@@ -30,18 +30,17 @@ const { organization, title, description, registrationUrl, venues = [] } = Astro
       <div class="header-left">
         <!-- Organization Brand -->
         <a href={`/${organization.slug}`} class="tdc-brand-link">
-          {organization.logoUrl ? (
+          {organization.logoUrl && (
             <img src={organization.logoUrl} alt={organization.name} class="tdc-logo" />
-          ) : (
-            <span class="tdc-brand-text">{organization.name}</span>
           )}
+          <span class="tdc-brand-text">{organization.name}</span>
         </a>
       </div>
 
       <!-- Center / Right Meta: Local Time & Action Pills -->
       <div class="header-right">
         <a href={registrationUrl || `/${organization.slug}#eventos`} class="tdc-pill-btn primary header-cta">
-          <span>{registrationUrl ? 'Separar mi cupo gratis' : 'Ver eventos'}</span>
+          <span>{registrationUrl ? 'Separar mi cupo gratis' : 'Ver actividades'}</span>
         </a>
         <button type="button" class="tdc-icon-btn theme-toggle" id="theme-toggle" aria-label="Cambiar tema" title="Cambiar tema">
           <svg class="sun-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
@@ -125,9 +124,9 @@ const { organization, title, description, registrationUrl, venues = [] } = Astro
   }
   :global(body) {
     margin: 0;
-    color: #172033;
+    color: #ffffff;
     background-color: #f7f9fc;
-    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -198,22 +197,29 @@ const { organization, title, description, registrationUrl, venues = [] } = Astro
   }
 
   .tdc-brand-link {
-    display: flex;
+    display: inline-flex;
     align-items: center;
+    gap: 0.65rem;
     text-decoration: none;
-    color: #172033;
+    color: #ffffff;
   }
   :global(html.dark) .tdc-brand-link { color: #ffffff; }
+  .tdc-header.is-scrolled .tdc-brand-link { color: #172033; }
+  :global(html.dark) .tdc-header.is-scrolled .tdc-brand-link { color: #ffffff; }
   .tdc-logo {
-    height: 28px;
-    max-width: 180px;
+    height: 38px;
+    max-width: 230px;
     object-fit: contain;
   }
   .tdc-brand-text {
-    font-family: 'Outfit', sans-serif;
-    font-size: 1.05rem;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.88rem;
     font-weight: 600;
     letter-spacing: -0.02em;
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .header-right {
@@ -269,7 +275,7 @@ const { organization, title, description, registrationUrl, venues = [] } = Astro
   @media (max-width: 680px) {
     .tdc-header { height: 64px; padding: 0 1rem; }
     .tdc-logo { max-width: 140px; }
-    .tdc-brand-text { font-size: .9rem; }
+    .tdc-brand-text { font-size: .78rem; max-width: 145px; }
     .tdc-pill-btn { padding: .48rem .75rem; font-size: .76rem; }
   }
 
@@ -290,7 +296,7 @@ const { organization, title, description, registrationUrl, venues = [] } = Astro
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   }
   .footer-org-name {
-    font-family: 'Outfit', sans-serif;
+    font-family: 'Inter', sans-serif;
     font-size: 1.25rem;
     font-weight: 700;
     letter-spacing: 0.04em;
@@ -305,7 +311,7 @@ const { organization, title, description, registrationUrl, venues = [] } = Astro
     max-width: 380px;
   }
   .footer-nav-pane h4, .footer-meta-pane h4 {
-    font-family: 'Outfit', sans-serif;
+    font-family: 'Inter', sans-serif;
     font-size: 0.95rem;
     font-weight: 700;
     color: #ffffff;

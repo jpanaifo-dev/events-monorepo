@@ -14,19 +14,11 @@ import {
   SelectItem,
 } from "@/components/ui/select"
 import { AlertTriangle, Trash2, Plus, Loader2, Edit, Search, ChevronLeft, ChevronRight } from "lucide-react"
-import { ImageUploadWithPreview } from "@/components/ImageUploadWithPreview"
+import { MediaUploader } from "@/components/MediaUploader"
 import { useSEO } from "@/hooks/use-seo"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { api } from "@/api/client"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogFooter,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog"
 import {
   AlertDialog,
   AlertDialogContent,
@@ -37,19 +29,31 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog"
 import { toast } from "sonner"
 
 export function EditSpeakerPage() {
   const { eventId, speakerId } = useParams<{ eventId: string; speakerId: string }>()
   const navigate = useNavigate()
 
-  const { speakers, roles, editions, thematicLines, loadRoles, loadThematicLines, updateSpeaker } = useEventStore()
+  const { speakers, roles, editions, thematicLines, events, loadRoles, loadThematicLines, updateSpeaker } = useEventStore()
   const [isLoadingSession, setIsLoadingSession] = useState(false)
+  const [remoteEditions, setRemoteEditions] = useState<any[]>([])
 
-  const eventEditions = editions.filter((ed) => ed.mainEventId === eventId)
+  const eventEditions = remoteEditions.length ? remoteEditions : editions.filter((ed) => ed.mainEventId === eventId)
   const currentEdition = eventEditions.find((ed) => ed.isCurrent)
 
-  const speaker = speakers.find((s) => s.id === speakerId)
+  const [remoteSpeaker, setRemoteSpeaker] = useState<any | null>(null)
+  const localSpeaker = speakers.find((s) => s.id === speakerId)
+  const speaker = remoteSpeaker || localSpeaker
+  const event = events.find((item) => item.id === eventId)
 
   useSEO({
     title: speaker ? `Editar Ponente: ${speaker.firstName} ${speaker.lastName}` : "Editar Ponente",
@@ -96,6 +100,19 @@ export function EditSpeakerPage() {
       if (!eventId) return
       try {
         const data = await api.content.speakers(eventId)
+        const current = (data || []).find((part: any) => part.id === speakerId)
+        const direct = current || await api.participants.get(speakerId!).catch(() => null)
+        if (direct) setRemoteSpeaker({
+          ...direct,
+          firstName: direct.profile?.firstName || "",
+          lastName: direct.profile?.lastName || "",
+          bio: direct.profile?.bio || "",
+          avatar: direct.profile?.avatarUrl || "",
+          institution: direct.profile?.institution || "",
+          profileId: direct.profileId,
+          editionId: direct.editionId || direct.edition_id || direct.edition?.id || "",
+          roleId: direct.roleId || direct.role_id || "",
+        })
         setAllEventSpeakers((data || []).map((part: any) => ({
           id: part.id,
           name: `${part.profile?.firstName || ""} ${part.profile?.lastName || ""}`.trim() || "Ponente",
@@ -105,7 +122,7 @@ export function EditSpeakerPage() {
       }
     }
     loadAllSpeakers()
-  }, [eventId])
+  }, [eventId, speakerId])
 
   // Sessions List State
   const [sessionsList, setSessionsList] = useState<Array<{
@@ -136,6 +153,7 @@ export function EditSpeakerPage() {
     if (eventId) {
       loadRoles(eventId)
       loadThematicLines(eventId)
+      api.editions.list(eventId).then((rows) => setRemoteEditions((rows || []).map((row: any) => ({ ...row, startDate: row.startDate || "", endDate: row.endDate || "", year: row.startDate ? new Date(row.startDate).getFullYear() : "Sin fecha" })))).catch(() => setRemoteEditions([]))
     }
   }, [eventId, loadRoles, loadThematicLines])
 
@@ -366,8 +384,8 @@ export function EditSpeakerPage() {
     return (
       <div className="min-h-screen bg-background flex flex-col justify-center items-center gap-4 text-center">
         <AlertTriangle className="size-12 text-destructive animate-bounce" />
-        <h3 className="font-bold text-lg">Ponente no encontrado</h3>
-        <p className="text-sm text-muted-foreground">El ponente seleccionado no existe o pertenece a otro evento.</p>
+        <h3 className="font-bold text-lg">Participante no encontrado</h3>
+        <p className="text-sm text-muted-foreground">El participante seleccionado no existe o no pertenece a este evento.</p>
         <Button onClick={() => navigate(`/dashboard/events/${eventId}/speakers`)} variant="outline">
           Volver a Ponentes
         </Button>
@@ -551,7 +569,7 @@ export function EditSpeakerPage() {
                 <p className="text-xs text-muted-foreground">Sube una foto de avatar para el ponente o introduce un enlace directo.</p>
               </div>
               <div className="md:w-2/3 max-w-md w-full">
-                <ImageUploadWithPreview
+                <MediaUploader
                   value={avatar}
                   onChange={async (newUrl) => {
                     setAvatar(newUrl)
@@ -565,7 +583,16 @@ export function EditSpeakerPage() {
                       }
                     }
                   }}
-                  label=""
+                  variant="avatar"
+                  ownerType="PROFILE"
+                  ownerId={speaker?.profileId || speaker?.profile?.id || ""}
+                  organizationId={event?.organizationId || ""}
+                  purpose="OTHER"
+                  assetTarget={event?.organizationId && (speaker?.profileId || speaker?.profile?.id) ? {
+                    organizationId: event.organizationId,
+                    type: "profiles/avatar",
+                    resourceId: speaker.profileId || speaker.profile.id,
+                  } : undefined}
                   folder={`events/${eventId}/speakers`}
                   identifier="avatar"
                 />
