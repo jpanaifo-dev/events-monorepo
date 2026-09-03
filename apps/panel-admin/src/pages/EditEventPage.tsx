@@ -2,14 +2,13 @@ import React, { useState, useEffect } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { z } from "zod"
 import { useEventStore } from "@/store/event.store"
-import { supabase } from "@/utils/supabase"
-import { uploadToR2 } from "@/utils/r2-storage"
+import { api } from "@/api/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import { PageHeader } from "@/components/page-header"
 import { Trash2 } from "lucide-react"
-import { ImageUploadWithPreview } from "@/components/ImageUploadWithPreview"
+import { MediaUploader } from "@/components/MediaUploader"
 
 import { useSEO } from "@/hooks/use-seo"
 
@@ -70,34 +69,18 @@ export function EditEventPage() {
   }, [event, navigate])
 
   // ──────────────────────────────────────────────────────────
-  // Subida DIRECTA: archivo → R2 → Supabase main_events
+  // Subida directa: archivo  R2  backend
   // Se invoca cuando el usuario selecciona/arrastra un archivo
   // ──────────────────────────────────────────────────────────
   const handleCoverFileSelect = async (file: File) => {
     if (!id) return
     setIsAutoSavingCover(true)
     try {
-      // 1. Subir a Cloudflare R2
-      console.log("[EditEvent] Subiendo portada a R2...")
-      const publicUrl = await uploadToR2(file, `events/${id}`, "cover")
-      console.log("[EditEvent] Portada subida a R2:", publicUrl)
+      if (!event?.organizationId) throw new Error("El evento no tiene una institución asignada.")
+      const { url: publicUrl } = await api.media.upload(file, { ownerType: "EVENT", ownerId: id, purpose: "COVER", organizationId: event.organizationId })
 
-      // 2. Guardar URL en tabla main_events de Supabase
-      console.log("[EditEvent] Guardando cover_url en main_events...")
-      const { error } = await supabase
-        .from("main_events")
-        .update({ cover_url: publicUrl, updated_at: new Date().toISOString() })
-        .eq("id", id)
+      await api.events.update(id, { coverUrl: publicUrl })
 
-      if (error) {
-        console.error("[EditEvent] Error Supabase cover_url:", error)
-        toast.error("Error al guardar la portada en la base de datos: " + error.message)
-        return
-      }
-
-      console.log("[EditEvent] cover_url guardado exitosamente en main_events")
-
-      // 3. Actualizar estado local + zustand store
       setCoverUrl(publicUrl)
       useEventStore.setState((state) => ({
         events: state.events.map((e) =>
@@ -118,27 +101,11 @@ export function EditEventPage() {
     if (!id) return
     setIsAutoSavingLogo(true)
     try {
-      // 1. Subir a Cloudflare R2
-      console.log("[EditEvent] Subiendo logo a R2...")
-      const publicUrl = await uploadToR2(file, `events/${id}`, "logo")
-      console.log("[EditEvent] Logo subido a R2:", publicUrl)
+      if (!event?.organizationId) throw new Error("El evento no tiene una institución asignada.")
+      const { url: publicUrl } = await api.media.upload(file, { ownerType: "EVENT", ownerId: id, purpose: "LOGO", organizationId: event.organizationId })
 
-      // 2. Guardar URL en tabla main_events de Supabase
-      console.log("[EditEvent] Guardando logo_url en main_events...")
-      const { error } = await supabase
-        .from("main_events")
-        .update({ logo_url: publicUrl, updated_at: new Date().toISOString() })
-        .eq("id", id)
+      await api.events.update(id, { logoUrl: publicUrl })
 
-      if (error) {
-        console.error("[EditEvent] Error Supabase logo_url:", error)
-        toast.error("Error al guardar el logo en la base de datos: " + error.message)
-        return
-      }
-
-      console.log("[EditEvent] logo_url guardado exitosamente en main_events")
-
-      // 3. Actualizar estado local + zustand store
       setLogoUrl(publicUrl)
       useEventStore.setState((state) => ({
         events: state.events.map((e) =>
@@ -273,7 +240,7 @@ export function EditEventPage() {
                   Nombre del Evento <span className="text-destructive">*</span>
                 </label>
               </div>
-              <div className="md:w-2/3 max-w-md w-full">
+              <div className="md:w-2/3 w-full">
                 <Input
                   id="evt-name"
                   type="text"
@@ -330,12 +297,11 @@ export function EditEventPage() {
                 )}
               </div>
               <div className="md:w-2/3 max-w-md w-full">
-                <ImageUploadWithPreview
+                <MediaUploader
                   value={coverUrl}
                   onChange={setCoverUrl}
                   onFileSelect={handleCoverFileSelect}
-                  label=""
-                  aspectRatio="banner"
+                  variant="banner"
                   folder={`events/${id}`}
                   identifier="cover"
                 />
@@ -352,12 +318,11 @@ export function EditEventPage() {
                 )}
               </div>
               <div className="md:w-2/3 max-w-md w-full">
-                <ImageUploadWithPreview
+                <MediaUploader
                   value={logoUrl}
                   onChange={setLogoUrl}
                   onFileSelect={handleLogoFileSelect}
-                  label=""
-                  aspectRatio="square"
+                  variant="square"
                   folder={`events/${id}`}
                   identifier="logo"
                 />

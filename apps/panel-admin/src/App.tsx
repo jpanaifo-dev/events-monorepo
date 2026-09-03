@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import { useThemeStore } from "./store/theme.store"
 import { Toaster } from "sonner"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { SessionManager } from "./components/session-manager"
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -27,6 +28,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AppRouter />
+        <SessionManager />
         <Toaster position="top-right" richColors closeButton />
       </TooltipProvider>
     </QueryClientProvider>

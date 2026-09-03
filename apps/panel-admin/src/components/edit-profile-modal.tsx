@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react"
 import { z } from "zod"
 import { useAuthStore } from "@/store/auth.store"
-import { supabase } from "@/utils/supabase"
+import { api } from "@/api/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
@@ -31,24 +31,18 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
     async function loadProfile() {
       if (!user?.id) return
       try {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", user.id)
-          .maybeSingle()
-
-        if (error) throw error
+        const data = await api.profiles.get(user.id)
 
         if (data) {
-          setFirstName(data.first_name || "")
-          setLastName(data.last_name || "")
+          setFirstName(data.firstName || "")
+          setLastName(data.lastName || "")
           setPhone(data.phone || "")
           setBio(data.bio || "")
           setInstitution(data.institution || "")
           setDedication(data.dedication || "")
-          setAvatarUrl(data.avatar_url || "")
-          setIdentityDocumentType(data.identity_document_type || "")
-          setIdentityDocumentNumber(data.identity_document_number || "")
+          setAvatarUrl(data.avatarUrl || "")
+          setIdentityDocumentType(data.identityDocumentType || "")
+          setIdentityDocumentNumber(data.identityDocumentNumber || "")
         }
       } catch (err) {
         console.error("Error loading user profile:", err)
@@ -90,23 +84,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
     setIsSubmitting(true)
 
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .upsert({
-          id: user.id,
-          first_name: firstName,
-          last_name: lastName,
-          phone,
-          bio,
-          institution,
-          dedication,
-          avatar_url: avatarUrl,
-          identity_document_type: identityDocumentType || null,
-          identity_document_number: identityDocumentNumber || null,
-          updated_at: new Date().toISOString()
-        })
-
-      if (error) throw error
+      await api.profiles.update(user.id, { firstName, lastName, phone, bio, institution, dedication, avatarUrl, identityDocumentType: identityDocumentType || null, identityDocumentNumber: identityDocumentNumber || null })
 
       // Update local state store
       setUser({

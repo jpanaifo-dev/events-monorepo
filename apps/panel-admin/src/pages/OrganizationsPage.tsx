@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuthStore } from "@/store/auth.store"
 import { useEventStore } from "@/store/event.store"
-import { supabase } from "@/utils/supabase"
+import { api } from "@/api/client"
 import { Search, Plus, Layers, ChevronsUpDown, LogOut, User } from "lucide-react"
 import { ZynqroLogo } from "@/components/zynqro-logo"
 import { Button } from "@/components/ui/button"
@@ -51,74 +51,17 @@ export function OrganizationsPage() {
     if (!user?.id) return
     setIsLoadingList(true)
     try {
-      // 1. Fetch organization memberships for the current user profile
-      const { data: memberData, error: memberError } = await supabase
-        .from("organization_members")
-        .select(`
-          role,
-          organization:organizations (
-            id,
-            organization_name,
-            organization_type,
-            organization_email,
-            description,
-            status,
-            slug,
-            logo_url
-          )
-        `)
-        .eq("profile_id", user.id)
-
-      if (memberError) {
-        // Fallback to fetching all organizations if organization_members table does not exist
-        if (memberError.code === "P0001" || memberError.message.includes("does not exist")) {
-          console.warn("organization_members table does not exist, falling back to all organizations.")
-          const { data: orgsData, error: orgsError } = await supabase
-            .from("organizations")
-            .select(`
-              id,
-              organization_name,
-              organization_type,
-              organization_email,
-              description,
-              status,
-              slug,
-              logo_url
-            `)
-          if (orgsError) throw orgsError
-
-          const formatted = (orgsData || []).map((org: any) => ({
-            id: org.id,
-            name: org.organization_name,
-            slug: org.slug || org.organization_name.toLowerCase().replace(/\s+/g, "-"),
-            description: org.description || "",
-            isActive: org.status === "active",
-            type: org.organization_type || "Organización",
-            logoUrl: org.logo_url || "",
-            plan: org.organization_type || "Free Plan",
-            projectsCount: 0
-          }))
-          setOrganizations(formatted)
-          return
-        }
-        throw memberError
-      }
-
-      // Map to Organization model
-      const orgs = (memberData || [])
-        .map((item: any) => item.organization)
-        .filter(Boolean)
-
-      const formatted = orgs.map((org: any) => ({
+      const orgs = await api.organizations.list()
+      const formatted = (orgs || []).map((org: any) => ({
         id: org.id,
-        name: org.organization_name,
-        slug: org.slug || org.organization_name.toLowerCase().replace(/\s+/g, "-"),
+        name: org.name,
+        slug: org.slug || org.name.toLowerCase().replace(/\s+/g, "-"),
         description: org.description || "",
-        isActive: org.status === "active",
-        type: org.organization_type || "Organización",
-        logoUrl: org.logo_url || "",
-        plan: org.organization_type || "Free Plan",
-        projectsCount: 0
+        isActive: org.isActive !== false,
+        type: org.organizationType || "Organización",
+        logoUrl: org.logoUrl || "",
+        plan: org.organizationType || "Free Plan",
+        projectsCount: org._count?.events || 0
       }))
       setOrganizations(formatted)
     } catch (err) {
@@ -139,7 +82,6 @@ export function OrganizationsPage() {
   }
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
     logout()
     navigate("/login", { replace: true })
   }

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { z } from "zod"
 import { useEventStore } from "@/store/event.store"
+import { useAuthStore } from "@/store/auth.store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
@@ -9,14 +10,29 @@ import { PageHeader } from "@/components/page-header"
 import { Trash2 } from "lucide-react"
 
 import { useSEO } from "@/hooks/use-seo"
+import { LocationPickerMap } from "@/components/location-picker-map"
+import { MediaUploader } from "@/components/MediaUploader"
+
+const toDateInputValue = (value: string) => value ? value.slice(0, 10) : ""
 
 export function EditEditionPage() {
   const { eventId, editionId } = useParams<{ eventId: string; editionId: string }>()
   const navigate = useNavigate()
-  const { events, editions, updateEdition, deleteEdition } = useEventStore()
+  const { events, editions, updateEdition, deleteEdition, loadData, loadEditions } = useEventStore()
+  const { selectedOrganization } = useAuthStore()
+  const [isLoadingEdition, setIsLoadingEdition] = useState(true)
 
   const event = events.find((e) => e.id === eventId)
   const edition = editions.find((ed) => ed.id === editionId)
+
+  useEffect(() => {
+    if (!eventId || !editionId) return
+    setIsLoadingEdition(true)
+    Promise.all([
+      selectedOrganization?.id && !events.some((item) => item.id === eventId) ? loadData(selectedOrganization.id) : Promise.resolve(),
+      loadEditions(eventId),
+    ]).finally(() => setIsLoadingEdition(false))
+  }, [eventId, editionId, selectedOrganization?.id])
 
   useSEO({
     title: edition ? `Editar Edición: ${edition.name}` : "Editar Edición",
@@ -29,11 +45,15 @@ export function EditEditionPage() {
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [coverUrl, setCoverUrl] = useState("")
+  const [metaThumbnailUrl, setMetaThumbnailUrl] = useState("")
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
+  const [isSingleDay, setIsSingleDay] = useState(false)
   const [status, setStatus] = useState<"active" | "planned">("planned")
   const [location, setLocation] = useState("")
   const [modality, setModality] = useState("presencial")
+  const [latitude, setLatitude] = useState("")
+  const [longitude, setLongitude] = useState("")
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -44,22 +64,30 @@ export function EditEditionPage() {
       setName(edition.name || "")
       setDescription(edition.description || "")
       setCoverUrl(edition.coverUrl || "")
-      setStartDate(edition.startDate || "")
-      setEndDate(edition.endDate || "")
+      setMetaThumbnailUrl(edition.metaThumbnailUrl || "")
+      setStartDate(toDateInputValue(edition.startDate || ""))
+      setEndDate(toDateInputValue(edition.endDate || ""))
+      setIsSingleDay(!edition.endDate || edition.endDate === edition.startDate)
       setStatus(edition.isCurrent ? "active" : "planned")
       setLocation(edition.location || "")
       setModality(edition.modality || "presencial")
-    } else {
+      setLatitude(edition.latitude?.toString() || "")
+      setLongitude(edition.longitude?.toString() || "")
+    } else if (!isLoadingEdition) {
       toast.error("Edición no encontrada.")
-      navigate(`/dashboard/events/${eventId}`)
+      navigate(`/dashboard/events/${eventId}/editions`)
     }
   }, [edition, eventId, navigate])
 
   const editionSchema = z.object({
     name: z.string().trim().min(1, "El nombre de la edición es obligatorio."),
     coverUrl: z.string().trim().url("El enlace de portada no es válido.").or(z.literal("")).optional(),
+    metaThumbnailUrl: z.string().trim().url("La imagen para redes no es válida.").or(z.literal("")).optional(),
     startDate: z.string().min(1, "La fecha de inicio es requerida."),
-    endDate: z.string().min(1, "La fecha de fin es requerida."),
+    endDate: z.string(),
+  }).refine((data) => /^\d{4}-\d{2}-\d{2}$/.test(data.startDate), { message: "Selecciona una fecha de inicio válida.", path: ["startDate"] }).refine((data) => isSingleDay || data.endDate.length > 0, {
+    message: "La fecha de fin es requerida para una edición de varios días.",
+    path: ["endDate"],
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -69,6 +97,7 @@ export function EditEditionPage() {
     const validation = editionSchema.safeParse({
       name,
       coverUrl,
+      metaThumbnailUrl,
       startDate,
       endDate,
     })
@@ -84,15 +113,18 @@ export function EditEditionPage() {
         name: name.trim(),
         description: description.trim(),
         coverUrl: coverUrl.trim() || "",
+        metaThumbnailUrl: metaThumbnailUrl.trim() || "",
         startDate,
-        endDate,
+        endDate: isSingleDay ? "" : endDate,
         isCurrent: status === "active",
         location,
         modality,
+        latitude: modality === "virtual" ? null : (latitude ? Number(latitude) : undefined),
+        longitude: modality === "virtual" ? null : (longitude ? Number(longitude) : undefined),
       })
 
       toast.success("Edición actualizada exitosamente")
-      navigate(`/dashboard/events/${eventId}`)
+      navigate(`/dashboard/events/${eventId}/editions`)
     } catch (err: any) {
       console.error(err)
       toast.error("Error al actualizar la edición. Inténtalo de nuevo.")
@@ -143,7 +175,7 @@ export function EditEditionPage() {
             title="Editar Edición"
             description={`Modifica los detalles, años o imagen de portada de la edición del evento ${event.name}.`}
             showBackButton
-            onBackClick={() => navigate(`/dashboard/events/${eventId}`)}
+            onBackClick={() => navigate(`/dashboard/events/${eventId}/editions`)}
             actionButton={
               <Button
                 type="button"
@@ -210,15 +242,25 @@ export function EditEditionPage() {
                 </label>
                 <p className="text-xs text-muted-foreground">Enlace de la imagen específica de esta edición.</p>
               </div>
-              <div className="md:w-2/3 max-w-md w-full">
-                <Input
-                  id="ed-cover"
-                  type="url"
-                  placeholder="https://ejemplo.com/edicion-cover.jpg"
+              <div className="md:w-2/3 w-full">
+                <MediaUploader
                   value={coverUrl}
-                  onChange={(e) => setCoverUrl(e.target.value)}
-                  className="bg-background"
+                  onChange={setCoverUrl}
+                  variant="banner"
+                  assetTarget={selectedOrganization?.id ? { organizationId: selectedOrganization.id, type: "editions/cover", resourceId: editionId } : undefined}
+                  placeholder="Arrastra una portada o selecciona un archivo"
                 />
+              </div>
+            </div>
+
+            {/* Dates Row */}
+            <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+              <div className="md:w-1/3 space-y-1">
+                <label className="text-sm font-medium text-foreground">Imagen para redes y meta</label>
+                <p className="text-xs text-muted-foreground">Se usa en la vista previa al compartir la página. Recomendado: 1200 × 630 px.</p>
+              </div>
+              <div className="md:w-2/3 w-full">
+                <MediaUploader value={metaThumbnailUrl} onChange={setMetaThumbnailUrl} variant="banner" assetTarget={selectedOrganization?.id ? { organizationId: selectedOrganization.id, type: "editions/cover", resourceId: editionId } : undefined} placeholder="Sube o selecciona la imagen para redes" />
               </div>
             </div>
 
@@ -231,33 +273,50 @@ export function EditEditionPage() {
                 <p className="text-xs text-muted-foreground">Cuándo se llevará a cabo esta edición.</p>
               </div>
               <div className="md:w-2/3 max-w-md w-full">
-                <div className="grid grid-cols-2 gap-4">
+                <label className="mb-4 flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-muted/30 p-3 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={isSingleDay}
+                    onChange={(e) => {
+                      setIsSingleDay(e.target.checked)
+                      if (e.target.checked) setEndDate("")
+                    }}
+                    className="mt-0.5 size-4 accent-primary"
+                  />
+                  <span>
+                    <span className="block font-medium text-foreground">Edición de un solo día</span>
+                    <span className="block text-xs text-muted-foreground">Solo se registrará la fecha de inicio.</span>
+                  </span>
+                </label>
+                <div className={`grid gap-4 ${isSingleDay ? "grid-cols-1" : "grid-cols-2"}`}>
                   <div className="space-y-1.5">
                     <label htmlFor="ed-start" className="text-[10px] font-bold uppercase text-muted-foreground">
-                      Fecha Inicio
+                      Fecha Inicio (dd/mm/aaaa)
                     </label>
                     <Input
                       id="ed-start"
                       type="date"
+                      lang="es-PE"
                       required
                       value={startDate}
                       onChange={(e) => setStartDate(e.target.value)}
                       className="bg-background"
                     />
                   </div>
-                  <div className="space-y-1.5">
+                  {!isSingleDay && <div className="space-y-1.5">
                     <label htmlFor="ed-end" className="text-[10px] font-bold uppercase text-muted-foreground">
-                      Fecha Fin
+                      Fecha Fin (dd/mm/aaaa)
                     </label>
                     <Input
                       id="ed-end"
                       type="date"
+                      lang="es-PE"
                       required
                       value={endDate}
                       onChange={(e) => setEndDate(e.target.value)}
                       className="bg-background"
                     />
-                  </div>
+                  </div>}
                 </div>
               </div>
             </div>
@@ -274,7 +333,14 @@ export function EditEditionPage() {
                 <select
                   id="ed-modality"
                   value={modality}
-                  onChange={(e) => setModality(e.target.value)}
+                  onChange={(e) => {
+                    const nextModality = e.target.value
+                    setModality(nextModality)
+                    if (nextModality === "virtual") {
+                      setLatitude("")
+                      setLongitude("")
+                    }
+                  }}
                   className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs outline-none focus-visible:ring-1 focus-visible:ring-ring text-foreground"
                 >
                   <option value="presencial">Presencial</option>
@@ -288,19 +354,24 @@ export function EditEditionPage() {
             <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
               <div className="md:w-1/3 space-y-1">
                 <label htmlFor="ed-location" className="text-sm font-medium text-foreground">
-                  Ubicación o Enlace
+                  {modality === "virtual" ? "Enlace de transmisión" : modality === "hibrido" ? "Ubicación y enlace" : "Ubicación"}
                 </label>
-                <p className="text-xs text-muted-foreground">Lugar físico, ciudad o enlace de transmisión.</p>
+                <p className="text-xs text-muted-foreground">{modality === "virtual" ? "Enlace para conectarse de forma remota." : modality === "hibrido" ? "Indica el lugar físico y el enlace de transmisión." : "Lugar físico donde se realizará esta edición."}</p>
               </div>
               <div className="md:w-2/3 max-w-md w-full">
                 <Input
                   id="ed-location"
                   type="text"
-                  placeholder="Ej. Hotel Savoy o Zoom Link"
+                  placeholder={modality === "virtual" ? "https://..." : modality === "hibrido" ? "Lugar · https://..." : "Ej. Auditorio principal"}
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                   className="bg-background"
                 />
+                {modality !== "virtual" && <div className="mt-3 grid grid-cols-2 gap-3">
+                  <Input type="number" step="any" placeholder="Latitud" value={latitude} onChange={(e) => setLatitude(e.target.value)} />
+                  <Input type="number" step="any" placeholder="Longitud" value={longitude} onChange={(e) => setLongitude(e.target.value)} />
+                </div>}
+                {modality !== "virtual" && <LocationPickerMap latitude={latitude ? Number(latitude) : undefined} longitude={longitude ? Number(longitude) : undefined} onSelect={({ latitude: lat, longitude: lng }) => { setLatitude(lat.toFixed(6)); setLongitude(lng.toFixed(6)) }} />}
               </div>
             </div>
 
@@ -327,7 +398,7 @@ export function EditEditionPage() {
           </div>
 
           {/* Form Action Footer */}
-          <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-border bg-background/80 px-8 py-4 backdrop-blur-md">
+          <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 px-4 py-4 backdrop-blur-md sm:px-8">
             <div className="max-w-4xl mx-auto flex justify-end gap-3 w-full">
               <Button
                 type="button"

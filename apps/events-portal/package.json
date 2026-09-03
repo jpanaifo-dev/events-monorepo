@@ -1,0 +1,16 @@
+{
+  "name": "events-portal",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node ./node_modules/astro/astro.js dev",
+    "build": "node ./node_modules/astro/astro.js build",
+    "preview": "node ./node_modules/astro/astro.js preview"
+  },
+  "dependencies": {
+    "@astrojs/node": "^9.5.1",
+    "astro": "^5.16.12",
+    "@lucide/astro": "^1.39.0"
+  }
+}

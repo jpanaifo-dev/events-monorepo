@@ -13,9 +13,7 @@ import {
 } from "@/components/ui/select"
 import { useSEO } from "@/hooks/use-seo"
 import { Shield, Key, AlertTriangle, CheckCircle2, Copy, Check } from "lucide-react"
-import { createSessionlessClient } from "@/utils/supabase-sessionless"
-import { sendEmailWithResend } from "@/utils/resend"
-import { supabase } from "@/utils/supabase"
+import { api } from "@/api/client"
 
 // Helper to generate a strong random password
 function generateRandomPassword(length = 12) {
@@ -37,8 +35,7 @@ export function ProfileManageAccountSection() {
     description: "Administra las credenciales de acceso, roles y tipo de cuenta del perfil."
   })
 
-  const [globalRole, setGlobalRole] = useState("user")
-  const [accountType, setAccountType] = useState("basic")
+  const [globalRole, setGlobalRole] = useState("USER")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isCreatingAccount, setIsCreatingAccount] = useState(false)
   
@@ -48,8 +45,7 @@ export function ProfileManageAccountSection() {
 
   useEffect(() => {
     if (targetProfile) {
-      setGlobalRole(targetProfile.globalRole || "user")
-      setAccountType(targetProfile.accountType || "basic")
+      setGlobalRole(targetProfile.globalRole || "USER")
     }
   }, [targetProfile])
 
@@ -59,10 +55,11 @@ export function ProfileManageAccountSection() {
 
     setIsSubmitting(true)
     try {
-      await updateProfile(profileId, {
-        globalRole,
-        accountType,
-      })
+      if (!targetProfile?.authId) {
+        toast.error("Este perfil no tiene una cuenta de acceso. Crea una cuenta antes de asignar un rol global.")
+        return
+      }
+      await api.auth.updateUser(targetProfile.authId, { role: globalRole as "USER" | "ADMIN" | "SUPER_ADMIN" })
       toast.success("Configuración de cuenta actualizada correctamente")
     } catch (err: any) {
       console.error(err)
@@ -79,37 +76,8 @@ export function ProfileManageAccountSection() {
     const originalEmail = targetProfile.email
 
     try {
-      // 1. Temporarily clear the email in the public profiles table to bypass trigger unique constraint
-      await updateProfile(profileId, { email: null })
-
-      // 2. Create Supabase Auth user session-lessly to avoid logging out the administrator
-      const tempClient = createSessionlessClient()
-      const { data, error } = await tempClient.auth.signUp({
-        email: originalEmail,
-        password: generatedPassword,
-        options: {
-          data: {
-            first_name: targetProfile.firstName,
-            last_name: targetProfile.lastName,
-          }
-        }
-      })
-
-      if (error) {
-        // Restore email if auth signup fails
-        await updateProfile(profileId, { email: originalEmail })
-        throw error
-      }
-
-      if (!data.user) {
-        await updateProfile(profileId, { email: originalEmail })
-        throw new Error("No se pudo obtener el usuario registrado en el sistema de autenticación.")
-      }
-
-      const newAuthId = data.user.id
-
-      // 3. Delete the profile automatically created by the Supabase Auth database trigger
-      await supabase.from("profiles").delete().eq("id", newAuthId)
+      const data = await api.auth.adminCreate({ email: originalEmail, password: generatedPassword, firstName: targetProfile.firstName, lastName: targetProfile.lastName })
+      const newAuthId = data.id
 
       // 4. Link the authId and restore the email in the original profile record
       await updateProfile(profileId, {
@@ -117,38 +85,16 @@ export function ProfileManageAccountSection() {
         email: originalEmail
       })
 
-      // 5. Send credentials email with Resend
-      const emailSubject = "Tus credenciales de acceso a la plataforma Zynqro"
-      const emailHtml = `
-        <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-          <h2 style="color: #e11d48;">¡Tu cuenta de Zynqro ha sido creada!</h2>
-          <p>Hola <strong>${targetProfile.firstName} ${targetProfile.lastName}</strong>,</p>
-          <p>Se ha configurado una cuenta de acceso para tu perfil en la plataforma.</p>
-          <div style="background-color: #f9f9f9; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #ddd;">
-            <p style="margin: 5px 0;"><strong>Usuario (Correo):</strong> ${originalEmail}</p>
-            <p style="margin: 5px 0;"><strong>Contraseña temporal:</strong> <code style="font-size: 1.1em; color: #1e293b; font-weight: bold; background: #e2e8f0; padding: 2px 6px; border-radius: 4px;">${generatedPassword}</code></p>
-          </div>
-          <p style="color: #64748b; font-size: 0.9em;">* Por razones de seguridad, te sugerimos ingresar a la plataforma y cambiar esta contraseña temporal a la mayor brevedad posible.</p>
-          <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
-          <p style="font-size: 0.8em; color: #94a3b8; text-align: center;">Zynqro Events Platform</p>
-        </div>
-      `
-      const emailResult = await sendEmailWithResend(originalEmail, emailSubject, emailHtml)
-
       // 6. Open UI Modal overlay so the administrator can copy details
       setCredentialsModal({
         email: originalEmail,
         password: generatedPassword,
       })
 
-      if (!emailResult.success) {
-        toast.warning(`Cuenta de autenticación creada, pero el correo no se pudo enviar: ${emailResult.error || "API Key no configurada"}`)
-      } else {
-        toast.success("Cuenta de autenticación creada con éxito y correo enviado.")
-      }
+      toast.success(data.emailSent ? "Cuenta creada y credenciales enviadas por correo." : "Cuenta creada; el correo no está configurado en el servidor.")
     } catch (err: any) {
       console.error("Error creating auth account:", err)
-      toast.error(err.message || "Ocurrió un error al registrar la cuenta en Supabase Auth.")
+      toast.error(err.message || "Ocurrió un error al registrar la cuenta de acceso.")
     } finally {
       setIsCreatingAccount(false)
     }
@@ -190,7 +136,7 @@ export function ProfileManageAccountSection() {
       <div className="border-b border-border pb-3">
         <h3 className="text-lg font-bold">Gestión de Acceso y Cuenta</h3>
         <p className="text-xs text-muted-foreground">
-          Controla las credenciales de acceso, privilegios de rol global y suscripciones de plan.
+          Controla las credenciales de acceso y el rol global. Los planes se administran por institución.
         </p>
       </div>
 
@@ -208,7 +154,7 @@ export function ProfileManageAccountSection() {
               <div className="space-y-1">
                 <p className="text-sm font-medium text-foreground">Cuenta Vinculada Activa</p>
                 <p className="text-xs text-muted-foreground">
-                  Este perfil ya tiene un usuario de acceso vinculado en Supabase Auth (UID: <code className="bg-muted px-1 py-0.5 rounded text-[10px]">{targetProfile.authId}</code>).
+                  Este perfil ya tiene un usuario de acceso vinculado (UID: <code className="bg-muted px-1 py-0.5 rounded text-[10px]">{targetProfile.authId}</code>).
                 </p>
               </div>
             </div>
@@ -219,7 +165,7 @@ export function ProfileManageAccountSection() {
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-foreground">Sin Cuenta de Acceso</p>
                   <p className="text-xs text-muted-foreground">
-                    Este perfil no posee actualmente un usuario asignado en Supabase Auth. El usuario no podrá iniciar sesión en la plataforma.
+                    Este perfil no posee actualmente un usuario asignado. El usuario no podrá iniciar sesión en la plataforma.
                   </p>
                 </div>
               </div>
@@ -268,33 +214,14 @@ export function ProfileManageAccountSection() {
                   <SelectValue placeholder="Selecciona un rol" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="user">Usuario Regular</SelectItem>
-                  <SelectItem value="admin">Administrador del Sistema</SelectItem>
-                  <SelectItem value="developer">Developer</SelectItem>
+                  <SelectItem value="USER">Usuario</SelectItem>
+                  <SelectItem value="ADMIN">Administrador del Sistema</SelectItem>
+                  <SelectItem value="SUPER_ADMIN">Super administrador</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
-          {/* Account Type Select */}
-          <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border bg-blue-500/[0.01]">
-            <div className="md:w-1/3 space-y-1">
-              <label htmlFor="accountType" className="text-sm font-medium text-blue-500">Tipo de Plan / Cuenta</label>
-              <p className="text-xs text-muted-foreground">Configura los límites de organización y planes.</p>
-            </div>
-            <div className="md:w-2/3 max-w-md w-full">
-              <Select value={accountType} onValueChange={setAccountType}>
-                <SelectTrigger id="accountType" disabled={isSubmitting}>
-                  <SelectValue placeholder="Selecciona un tipo de cuenta" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="basic">Gratuito</SelectItem>
-                  <SelectItem value="premium">Premium</SelectItem>
-                  <SelectItem value="enterprise">Enterprise</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
 
           {/* Form Actions Footer */}
           <div className="bg-muted/10 px-6 py-4 flex justify-end gap-3">

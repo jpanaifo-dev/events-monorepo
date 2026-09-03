@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAdminProfilesStore } from "@/store/admin-profiles.store"
-import { Search, SlidersHorizontal, UserCheck, Eye, EyeOff, Plus, ExternalLink } from "lucide-react"
+import { Search, SlidersHorizontal, UserCheck, Eye, EyeOff, Plus, ExternalLink, Trash2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -15,10 +15,13 @@ import {
 } from "@/components/ui/select"
 import { useSEO } from "@/hooks/use-seo"
 import { DataTable, type ColumnDef } from "@/components/ui/data-table"
+import { useAuthStore } from "@/store/auth.store"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 
 export function ProfilesPage() {
   const navigate = useNavigate()
-  const { profiles, isLoading, loadAllProfiles } = useAdminProfilesStore()
+  const { profiles, isLoading, loadAllProfiles, deleteProfile } = useAdminProfilesStore()
+  const selectedOrganization = useAuthStore((state) => state.selectedOrganization)
 
   useSEO({
     title: "Directorio de Perfiles Registrados",
@@ -26,13 +29,12 @@ export function ProfilesPage() {
   })
 
   useEffect(() => {
-    loadAllProfiles()
-  }, [loadAllProfiles])
+    loadAllProfiles(selectedOrganization?.id)
+  }, [loadAllProfiles, selectedOrganization?.id])
 
   // Filter states
   const [searchQuery, setSearchQuery] = useState("")
   const [roleFilter, setRoleFilter] = useState("all")
-  const [accountTypeFilter, setAccountTypeFilter] = useState("all")
 
   // Filter logic
   const filteredProfiles = profiles.filter((p) => {
@@ -43,9 +45,7 @@ export function ProfilesPage() {
       email.includes(searchQuery.toLowerCase())
 
     const matchesRole = roleFilter === "all" || p.globalRole === roleFilter
-    const matchesAccount = accountTypeFilter === "all" || p.accountType === accountTypeFilter
-
-    return matchesSearch && matchesRole && matchesAccount
+    return matchesSearch && matchesRole
   })
 
   const formatDate = (dateStr: string) => {
@@ -60,22 +60,13 @@ export function ProfilesPage() {
   const getRoleBadge = (role: string) => {
     switch (role) {
       case "admin":
+      case "ADMIN":
         return <Badge className="bg-rose-500/10 text-rose-500 border-rose-500/20 font-bold">Admin</Badge>
-      case "developer":
-        return <Badge className="bg-violet-500/10 text-violet-500 border-violet-500/20 font-bold">Developer</Badge>
+      case "super_admin":
+      case "SUPER_ADMIN":
+        return <Badge className="bg-violet-500/10 text-violet-500 border-violet-500/20 font-bold">Super administrador</Badge>
       default:
         return <Badge className="bg-slate-500/10 text-slate-500 border-slate-500/20">Usuario</Badge>
-    }
-  }
-
-  const getAccountBadge = (type: string) => {
-    switch (type) {
-      case "enterprise":
-        return <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20 font-bold">Enterprise</Badge>
-      case "premium":
-        return <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20 font-bold">Premium</Badge>
-      default:
-        return <Badge className="bg-slate-500/10 text-slate-500 border-slate-500/20">Gratuito</Badge>
     }
   }
 
@@ -125,10 +116,6 @@ export function ProfilesPage() {
       cell: (p) => getRoleBadge(p.globalRole)
     },
     {
-      header: "Plan / Cuenta",
-      cell: (p) => getAccountBadge(p.accountType)
-    },
-    {
       header: "Estado",
       cell: (p) => p.isPublic ? (
         <span className="inline-flex items-center gap-1.5 text-xs text-emerald-500 font-semibold">
@@ -152,20 +139,18 @@ export function ProfilesPage() {
       headerClassName: "text-right",
       className: "text-right",
       cell: (p) => (
-        <Button
-          asChild
-          variant="outline"
-          className="text-xs h-8 px-3 font-semibold gap-1.5"
-        >
-          <a
-            href={`/dashboard/profiles/${p.id}/info`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <span>Gestionar</span>
-            <ExternalLink className="size-3" />
-          </a>
-        </Button>
+        <div className="flex justify-end gap-1">
+          <Button asChild variant="ghost" size="icon" className="size-8" title="Gestionar perfil">
+            <a href={`/dashboard/profiles/${p.id}/info`}><ExternalLink className="size-4" /></a>
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="size-8 text-destructive hover:text-destructive" title="Eliminar perfil"><Trash2 className="size-4" /></Button></AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader><AlertDialogTitle>¿Eliminar este perfil?</AlertDialogTitle><AlertDialogDescription>Se eliminará el perfil de la institución y sus datos asociados. Esta acción no se puede deshacer.</AlertDialogDescription></AlertDialogHeader>
+              <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => void deleteProfile(p.id)}>Eliminar perfil</AlertDialogAction></AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       )
     }
   ]
@@ -206,27 +191,13 @@ export function ProfilesPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos los roles</SelectItem>
-                <SelectItem value="user">Usuario</SelectItem>
-                <SelectItem value="admin">Administrador</SelectItem>
-                <SelectItem value="developer">Developer</SelectItem>
+                <SelectItem value="USER">Usuario</SelectItem>
+                <SelectItem value="ADMIN">Administrador</SelectItem>
+                <SelectItem value="SUPER_ADMIN">Super administrador</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground font-medium whitespace-nowrap">Cuenta:</span>
-            <Select value={accountTypeFilter} onValueChange={setAccountTypeFilter}>
-              <SelectTrigger className="w-[140px] h-9 text-xs">
-                <SelectValue placeholder="Todas las cuentas" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas las cuentas</SelectItem>
-                <SelectItem value="basic">Gratuito</SelectItem>
-                <SelectItem value="premium">Premium</SelectItem>
-                <SelectItem value="enterprise">Enterprise</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
         </div>
       </div>
 

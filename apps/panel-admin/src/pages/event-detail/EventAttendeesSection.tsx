@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react"
+import { toast } from "sonner"
 import { useParams, useNavigate } from "react-router-dom"
 import { useEventStore } from "@/store/event.store"
 import { Plus, Trash2, UserCheck, Check, ExternalLink } from "lucide-react"
@@ -16,20 +18,43 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useSEO } from "@/hooks/use-seo"
 import { PageHeader } from "@/components/page-header"
+import { api } from "@/api/client"
 
 export function EventAttendeesSection() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { events, editions, attendees, toggleAttendeeCheckIn, deleteAttendee } = useEventStore()
+  const { events, editions, attendees, toggleAttendeeCheckIn, deleteAttendee, loadData } = useEventStore()
+  const [forms, setForms] = useState<any[]>([])
+  const [formFilter, setFormFilter] = useState("ALL")
 
   const event = events.find((e) => e.id === id)
   const eventAttendees = attendees.filter((at) => at.eventId === id)
+  const filteredAttendees = eventAttendees.filter((attendee) => formFilter === "ALL" || (formFilter === "MANUAL" ? attendee.source !== "FORM" : attendee.sourceFormId === formFilter))
   const eventEditions = editions.filter((ed) => ed.mainEventId === id)
 
   useSEO({
     title: event ? `${event.name} - Participantes` : "Participantes de Evento",
     description: `Administración de la lista de asistentes inscritos, entradas de cortesía, VIP, generales y control de asistencia (check-in) para el evento ${event?.name || ""}.`
   })
+
+  useEffect(() => {
+    if (!id) return
+    api.registrationForms.list(id).then(setForms).catch(() => setForms([]))
+  }, [id])
+
+  const removeAttendee = async (attendee: any) => {
+    try {
+      if (attendee.source === "FORM" && attendee.submissionId) {
+        await api.registrationForms.removeSubmission(attendee.submissionId)
+        if (event?.organizationId) await loadData(event.organizationId)
+      } else {
+        await deleteAttendee(attendee.id)
+      }
+      toast.success("Inscripción eliminada")
+    } catch (error: any) {
+      toast.error(error?.message || "No se pudo eliminar la inscripción")
+    }
+  }
 
 
   const columns: ColumnDef<any>[] = [
@@ -75,6 +100,16 @@ export function EventAttendeesSection() {
       }
     },
     {
+      header: "Origen",
+      className: "p-3",
+      headerClassName: "p-3",
+      cell: (at) => (
+        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${at.source === "FORM" ? "bg-sky-500/10 text-sky-700 dark:text-sky-300" : "bg-muted text-muted-foreground"}`}>
+          {at.source === "FORM" ? `${at.sourceFormPurpose === "MAIN" ? "Registro principal" : "Formulario"}: ${at.sourceFormTitle}` : "Manual"}
+        </span>
+      )
+    },
+    {
       header: "Ticket",
       className: "p-3",
       headerClassName: "p-3",
@@ -104,7 +139,7 @@ export function EventAttendeesSection() {
       className: "p-3 text-center",
       headerClassName: "p-3 text-center",
       cell: (at) => (
-        <button
+        at.source === "FORM" ? <span className="text-xs text-muted-foreground">—</span> : <button
           onClick={() => toggleAttendeeCheckIn(at.id)}
           className={`p-1.5 rounded-full border transition-colors inline-flex ${at.checkedIn ? "bg-primary/10 border-primary/30 text-primary" : "bg-muted/40 border-border/80 text-muted-foreground/60 hover:text-foreground"}`}
         >
@@ -150,7 +185,7 @@ export function EventAttendeesSection() {
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={() => deleteAttendee(at.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                <AlertDialogAction onClick={() => removeAttendee(at)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                   Sí, eliminar
                 </AlertDialogAction>
               </AlertDialogFooter>
@@ -174,12 +209,21 @@ export function EventAttendeesSection() {
         }
       />
 
-      {eventAttendees.length === 0 ? (
+      <div className="flex items-center gap-3">
+        <label className="text-xs font-medium text-muted-foreground">Mostrar inscripciones:</label>
+        <select value={formFilter} onChange={(event) => setFormFilter(event.target.value)} className="h-9 rounded-lg border border-border bg-background px-3 text-xs text-foreground">
+          <option value="ALL">Todos los orígenes</option>
+          <option value="MANUAL">Participantes manuales</option>
+          {forms.map((form) => <option key={form.id} value={form.id}>{form.purpose === "MAIN" ? "Registro principal" : "Formulario"}: {form.title}</option>)}
+        </select>
+      </div>
+
+      {filteredAttendees.length === 0 ? (
         <div className="p-8 text-center text-muted-foreground text-sm border border-dashed border-border rounded-lg">
           No hay participantes inscritos.
         </div>
       ) : (
-        <DataTable columns={columns} data={eventAttendees} containerClassName="border border-border rounded-xl" />
+        <DataTable columns={columns} data={filteredAttendees} containerClassName="border border-border rounded-xl" />
       )}
     </div>
   )

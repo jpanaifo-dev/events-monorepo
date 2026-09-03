@@ -1,0 +1,1580 @@
+---
+import PortalLayout from "../../../layouts/PortalLayout.astro";
+import { portalApi } from "../../../lib/api";
+import MedmindEventDetail from "../../../components/medmind/MedmindEventDetail.astro";
+
+const { institution, eventId } = Astro.params;
+if (!institution || !eventId)
+  return new Response("No encontrado", { status: 404 });
+
+let listing;
+let event;
+try {
+  [listing, event] = await Promise.all([
+    portalApi.events(institution),
+    portalApi.event(institution, eventId),
+  ]);
+} catch {
+  return new Response("Evento no encontrado", { status: 404 });
+}
+
+const shortDate = new Intl.DateTimeFormat("es-PE", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+
+const timeOnly = new Intl.DateTimeFormat("es-PE", {
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+const activities = event.editions.flatMap((edition) =>
+  edition.activities.map((a) => ({
+    ...a,
+    editionName: edition.name,
+    location: edition.location,
+  })),
+);
+const activeEdition =
+  event.editions.find((edition) => edition.isCurrent) || event.editions[0];
+const heroMedia = event.heroMedia;
+const heroVideo = heroMedia?.mimeType.startsWith("video/")
+  ? heroMedia.url
+  : undefined;
+const defaultFallbackBanner =
+  "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=2000&q=80";
+const heroImage =
+  heroMedia && !heroVideo
+    ? heroMedia.url
+    : activeEdition?.coverUrl ||
+      event.coverUrl ||
+      listing.organization.coverUrl ||
+      defaultFallbackBanner;
+const metaImage = activeEdition?.metaThumbnailUrl || heroImage;
+
+const eventDescription =
+  activeEdition?.description || event.details?.content || event.description;
+const speakers =
+  activeEdition?.participants
+    .map((participant) => participant.profile)
+    .filter(Boolean) || [];
+
+const forms = event.registrationForms || [];
+const mainForm = forms.find((form) => form.purpose === "MAIN");
+const secondaryForms = forms.filter((form) => form.purpose !== "MAIN");
+
+const startDateObj = activeEdition?.startDate
+  ? new Date(activeEdition.startDate)
+  : event.startDate
+    ? new Date(event.startDate)
+    : null;
+const endDateObj = activeEdition?.endDate
+  ? new Date(activeEdition.endDate)
+  : event.endDate
+    ? new Date(event.endDate)
+    : null;
+
+const modalityRaw = activeEdition?.modality || event.eventMode || "PRESENCIAL";
+const modalityText = modalityRaw.toUpperCase();
+const isPresencial = modalityText !== "VIRTUAL" && modalityText !== "ONLINE";
+
+const eventLat = activeEdition?.latitude ?? event.latitude ?? null;
+const eventLng = activeEdition?.longitude ?? event.longitude ?? null;
+const eventVenue = activeEdition?.location || event.venueAddress || null;
+const hasMapData = isPresencial && (eventLat !== null || !!eventVenue);
+
+const mapEmbedUrl =
+  eventLat !== null && eventLng !== null
+    ? `https://www.openstreetmap.org/export/embed.html?bbox=${eventLng - 0.008}%2C${eventLat - 0.005}%2C${eventLng + 0.008}%2C${eventLat + 0.005}&layer=mapnik&marker=${eventLat}%2C${eventLng}`
+    : eventVenue
+      ? `https://maps.google.com/maps?q=${encodeURIComponent(eventVenue)}&t=&z=15&ie=UTF8&iwloc=&output=embed`
+      : "";
+
+const mapExternalUrl =
+  eventLat !== null && eventLng !== null
+    ? `https://www.google.com/maps/search/?api=1&query=${eventLat},${eventLng}`
+    : eventVenue
+      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(eventVenue)}`
+      : "";
+const isMedmind = listing.organization.name.trim().toLowerCase() === "medmind";
+---
+
+<PortalLayout
+  organization={listing.organization}
+  title={`${event.eventName}${activeEdition ? ` · ${activeEdition.name}` : ""} · ${listing.organization.name}`}
+  description={eventDescription || undefined}
+  imageUrl={metaImage}
+  bare={isMedmind}
+  registrationUrl={mainForm
+    ? `/${institution}/register/${mainForm.slug}`
+    : undefined}
+>
+  {isMedmind ? (
+    <MedmindEventDetail
+      institution={institution}
+      event={event}
+      edition={activeEdition}
+      speakers={speakers}
+      activities={activities}
+      form={mainForm || secondaryForms[0]}
+      heroImage={heroImage}
+      heroVideo={heroVideo}
+      apiUrl={portalApi.apiUrl}
+    />
+  ) : (
+  <article class="event-detail-page">
+    <!-- ========================================================================= -->
+    <!-- 1. CINEMATIC HERO (The Design Conference style)                           -->
+    <!-- ========================================================================= -->
+    <header class="tdc-hero">
+      <div
+        class="tdc-hero-bg"
+        style={heroImage
+          ? `background-image: url(${heroImage})`
+          : listing.organization.coverUrl
+            ? `background-image: url(${listing.organization.coverUrl})`
+            : undefined}
+      >
+        {
+          heroVideo && (
+            <video
+              class="tdc-hero-video"
+              autoplay
+              muted
+              loop
+              playsinline
+              poster={heroImage}
+            >
+              <source src={heroVideo} type={heroMedia?.mimeType} />
+            </video>
+          )
+        }
+      </div>
+      <div class="tdc-hero-vignette"></div>
+
+      <div class="tdc-container tdc-hero-container">
+        <div class="tdc-hero-center">
+          <div class="tdc-tag-row">
+            <span class="tdc-badge-pill outline">{modalityText}</span>
+            {activeEdition?.name && <span class="tdc-badge-pill light">{activeEdition.name}</span>}
+            {startDateObj && <span class="tdc-badge-pill dark">{shortDate.format(startDateObj)}</span>}
+          </div>
+
+          <h1 class="tdc-hero-headline">
+            {event.eventName}
+          </h1>
+
+          <div class="tdc-hero-interactive-row">
+            <div class="tdc-hero-actions">
+              {
+                mainForm ? (
+                  <a
+                    href={`/${institution}/register/${mainForm.slug}`}
+                    class="tdc-action-pill"
+                  >
+                    <span>Inscribirme ahora</span>
+                    <svg
+                      width="15"
+                      height="15"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d="M5 12h14" />
+                      <path d="m12 5 7 7-7 7" />
+                    </svg>
+                  </a>
+                ) : (
+                  <a href="#detalles" class="tdc-action-pill">
+                    <span>Ver detalles</span>
+                    <svg
+                      width="15"
+                      height="15"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                    >
+                      <path d="M5 12h14" />
+                      <path d="m12 5 7 7-7 7" />
+                    </svg>
+                  </a>
+                )
+              }
+            </div>
+
+            {
+              startDateObj && (
+                <div
+                  class="tdc-hero-countdown-prominent"
+                  data-event-date={startDateObj.toISOString()}
+                >
+                  <div class="countdown-eyebrow">
+                    <span class="countdown-pulse-dot"></span>
+                    <span class="cd-tag">TIEMPO RESTANTE</span>
+                  </div>
+                  <div class="cd-boxes">
+                    <div class="cd-box">
+                      <strong class="cd-num" data-unit="days">00</strong>
+                      <span class="cd-lbl">DÍAS</span>
+                    </div>
+                    <span class="cd-div">:</span>
+                    <div class="cd-box">
+                      <strong class="cd-num" data-unit="hours">00</strong>
+                      <span class="cd-lbl">HORAS</span>
+                    </div>
+                    <span class="cd-div">:</span>
+                    <div class="cd-box">
+                      <strong class="cd-num" data-unit="minutes">00</strong>
+                      <span class="cd-lbl">MIN</span>
+                    </div>
+                    <span class="cd-div">:</span>
+                    <div class="cd-box">
+                      <strong class="cd-num" data-unit="seconds">00</strong>
+                      <span class="cd-lbl">SEG</span>
+                    </div>
+                  </div>
+                </div>
+              )
+            }
+          </div>
+        </div>
+
+        <!-- Hero Bottom Meta Bar -->
+        <div class="tdc-hero-bottom-bar">
+          <span class="bottom-credit"
+            >Organizado por: <strong>{listing.organization.name}</strong></span
+          >
+          <span class="bottom-tag"
+            >{
+              activeEdition?.location ||
+                event.venueAddress ||
+                `${activeEdition?.modality || event.eventMode || 'Presencial'} · Sede oficial`
+            }</span
+          >
+        </div>
+      </div>
+    </header>
+
+    <!-- Breadcrumb after the detail hero -->
+    <div class="event-breadcrumb-bar">
+      <div class="tdc-container">
+        <a href={`/${institution}`} class="back-link">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="m15 18-6-6 6-6"></path>
+          </svg>
+          <span>Volver al portal de {listing.organization.name}</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- 2. OVERVIEW & KEY SPECIFICATIONS (Keep Competitive & Connected style)     -->
+    <!-- ========================================================================= -->
+    <section class="event-overview-section" id="detalles">
+      <div class="tdc-container">
+        <div class="overview-split-grid">
+          <!-- Left Column: Story & Narrative -->
+          <div class="overview-story">
+            <span class="section-tag">INFORMACIÓN & OBJETIVOS</span>
+            <h2 class="tdc-massive-heading">Propuesta de la edición</h2>
+            <div class="rich-desc">
+              <p>
+                {
+                  eventDescription ||
+                    "Te damos la bienvenida a esta experiencia oficial diseñada para conectar con especialistas líderes, adquirir herramientas prácticas e impulsar tu desarrollo profesional."
+                }
+              </p>
+            </div>
+          </div>
+
+          <!-- Right Column: Structured Specifications Table -->
+          <div class="overview-specs-panel">
+            <div class="spec-block">
+              <span class="spec-label">FECHAS</span>
+              <p class="spec-value">
+                {
+                  startDateObj
+                    ? shortDate.format(startDateObj)
+                    : "Por confirmar"
+                }
+                {
+                  endDateObj && endDateObj.getTime() !== startDateObj?.getTime()
+                    ? ` — ${shortDate.format(endDateObj)}`
+                    : ""
+                }
+              </p>
+            </div>
+
+            <div class="spec-block">
+              <span class="spec-label">HORARIO ESTIMADO</span>
+              <p class="spec-value">
+                {
+                  startDateObj
+                    ? `${timeOnly.format(startDateObj)} hrs`
+                    : "Horario por definir"
+                }
+              </p>
+            </div>
+
+            <div class="spec-block">
+              <span class="spec-label">MODALIDAD DE PARTICIPACIÓN</span>
+              <p class="spec-value">
+                {
+                  activeEdition?.modality ||
+                    event.eventMode ||
+                    "Presencial y transmisión en vivo"
+                }
+              </p>
+            </div>
+
+            {
+              (activeEdition?.location || event.venueAddress) && (
+                <div class="spec-block spec-block-location">
+                  <span class="spec-label">SEDE / UBICACIÓN</span>
+                  <p class="spec-value">
+                    {activeEdition?.location || event.venueAddress}
+                  </p>
+                  {hasMapData && (
+                    <div class="mini-map-wrapper">
+                      <iframe
+                        title={`Ubicación de ${event.eventName}`}
+                        width="100%"
+                        height="150"
+                        class="mini-map-iframe"
+                        loading="lazy"
+                        allowfullscreen
+                        src={mapEmbedUrl}
+                      ></iframe>
+                      <div class="mini-map-footer">
+                        {eventLat !== null && eventLng !== null && (
+                          <span class="mini-coords">{eventLat.toFixed(4)}, {eventLng.toFixed(4)}</span>
+                        )}
+                        {mapExternalUrl && (
+                          <a
+                            href={mapExternalUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="mini-map-link"
+                          >
+                            <span>Abrir en Maps</span>
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                              <polyline points="15 3 21 3 21 9"></polyline>
+                              <line x1="10" y1="14" x2="21" y2="3"></line>
+                            </svg>
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            }
+
+            <div class="spec-block">
+              <span class="spec-label">INSCRIPCIONES</span>
+              <p class="spec-value">
+                {
+                  mainForm
+                    ? "Habilitadas mediante registro oficial"
+                    : "Disponibles próximamente"
+                }
+              </p>
+            </div>
+
+            <div class="spec-block">
+              <span class="spec-label">ORGANIZADO POR</span>
+              <p class="spec-value">{listing.organization.name}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- 3. PRESENTATIONS & TALKS (CYPHERCON Presentations Reference style)        -->
+    <!-- ========================================================================= -->
+    {
+      activities.length > 0 && (
+        <section class="event-presentations-section" id="presentaciones">
+          <div class="tdc-container">
+            <div class="section-header-row">
+              <div>
+                <span class="section-tag">SESIONES & CHARLAS</span>
+                <h2 class="tdc-massive-heading">Presentaciones & Sesiones</h2>
+              </div>
+              {speakers.length > 0 && (
+                <a href="#ponentes" class="accent-pill-link">
+                  <span>Ver Ponentes</span>
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                  >
+                    <path d="M5 12h14" />
+                    <path d="m12 5 7 7-7 7" />
+                  </svg>
+                </a>
+              )}
+            </div>
+
+            <div class="presentations-grid">
+              {activities.map((act, index) => (
+                <article class="presentation-card">
+                  <div class="presentation-card-header">
+                    <span class="pres-badge">SESIÓN 0{index + 1}</span>
+                    {act.startsAt && (
+                      <span class="pres-time">
+                        {timeOnly.format(new Date(act.startsAt))} hrs
+                      </span>
+                    )}
+                    {act.location && (
+                      <span class="pres-location">{act.location}</span>
+                    )}
+                  </div>
+
+                  <h3 class="presentation-title">{act.title}</h3>
+                  <p class="presentation-desc">
+                    {act.description ||
+                      "Sesión temática con análisis técnico, casos de estudio y espacio para preguntas."}
+                  </p>
+
+                  <div class="presentation-footer">
+                    <span class="presentation-tag">
+                      {act.editionName || event.eventName}
+                    </span>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+      )
+    }
+
+    <!-- ========================================================================= -->
+    <!-- 4. MEET OUR SPEAKERS (Meet our Speakers Reference style)                  -->
+    <!-- ========================================================================= -->
+    {
+      speakers.length > 0 && (
+        <section class="event-speakers-section" id="ponentes">
+          <div class="tdc-container">
+            <div class="section-header-row">
+              <div>
+                <span class="section-tag purple">EXPOSITORES & EXPERTOS</span>
+                <h2 class="tdc-massive-heading">Conoce a los Ponentes</h2>
+              </div>
+              <span class="section-count-pill">
+                {speakers.length}{" "}
+                {speakers.length === 1 ? "expositor" : "expositores"}
+              </span>
+            </div>
+
+            <div class="speakers-grid">
+              {speakers.map((speaker) => (
+                <article class="speaker-card">
+                  <div class="speaker-photo-wrap">
+                    {speaker.avatarUrl ? (
+                      <img
+                        src={speaker.avatarUrl}
+                        alt={[speaker.firstName, speaker.lastName]
+                          .filter(Boolean)
+                          .join(" ")}
+                        class="speaker-photo"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div class="speaker-photo-placeholder">
+                        <span>
+                          {speaker.firstName?.[0] || "P"}
+                          {speaker.lastName?.[0] || ""}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div class="speaker-info">
+                    <h3 class="speaker-name">
+                      {[speaker.firstName, speaker.lastName]
+                        .filter(Boolean)
+                        .join(" ") || "Ponente"}
+                    </h3>
+                    <p class="speaker-bio">
+                      {speaker.bio ||
+                        "Expositor invitado en esta edición oficial."}
+                    </p>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+      )
+    }
+
+    <!-- ========================================================================= -->
+    <!-- 5. REGISTRATION FORMS / PASSES                                            -->
+    <!-- ========================================================================= -->
+    <section class="event-registration-section" id="inscripciones">
+      <div class="tdc-container">
+        <div class="section-header-row">
+          <div>
+            <span class="section-tag">ACCESO OFICIAL</span>
+            <h2 class="tdc-massive-heading">Inscripciones & Entradas</h2>
+          </div>
+        </div>
+
+        {
+          mainForm && (
+            <a
+              href={`/${institution}/register/${mainForm.slug}`}
+              class="main-registration-panel"
+            >
+              <div class="main-reg-left">
+                <span class="ticket-badge">REGISTRO PRINCIPAL</span>
+                <h3 class="main-reg-title">{mainForm.title}</h3>
+                <p class="main-reg-desc">
+                  {mainForm.description ||
+                    "Completa tu inscripción oficial como participante para obtener tu pase de ingreso."}
+                </p>
+              </div>
+              <div class="main-registration-action">
+                <span class="action-circle-btn">
+                  <svg
+                    width="15"
+                    height="15"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                  >
+                    <path d="M5 12h14" />
+                    <path d="m12 5 7 7-7 7" />
+                  </svg>
+                </span>
+                <span class="action-text">Completar inscripción</span>
+              </div>
+            </a>
+          )
+        }
+
+        {
+          secondaryForms.length > 0 ? (
+            <div class="reg-forms-grid">
+              {secondaryForms.map((f) => (
+                <a
+                  href={`/${institution}/register/${f.slug}`}
+                  class="reg-ticket-card"
+                >
+                  <div class="ticket-header">
+                    <span class="ticket-badge">FORMULARIO ESPECIALIZADO</span>
+                    <h3 class="ticket-title">{f.title}</h3>
+                    <p class="ticket-desc">
+                      {f.description ||
+                        "Formulario de registro habilitado para este segmento de participación."}
+                    </p>
+                  </div>
+
+                  <div class="ticket-footer">
+                    <div class="ticket-action-row">
+                      <span class="action-circle-btn">
+                        <svg
+                          width="15"
+                          height="15"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2.5"
+                        >
+                          <path d="M5 12h14" />
+                          <path d="m12 5 7 7-7 7" />
+                        </svg>
+                      </span>
+                      <span class="action-text">Completar registro</span>
+                    </div>
+                  </div>
+                </a>
+              ))}
+            </div>
+          ) : (
+            !mainForm && (
+              <div class="empty-reg-box">
+                <h3>Inscripciones próximamente</h3>
+                <p>
+                  El registro oficial para este evento estará habilitado en
+                  breve.
+                </p>
+              </div>
+            )
+          )
+        }
+      </div>
+    </section>
+
+    {
+      mainForm && (
+        <aside class="registration-banner" id="registration-banner">
+          <div class="banner-content">
+            <span class="banner-text">
+              Las inscripciones para <strong>{event.eventName}</strong> se
+              encuentran abiertas.
+            </span>
+            <div class="banner-actions">
+              <a
+                href={`/${institution}/register/${mainForm.slug}`}
+                class="banner-btn"
+              >
+                Inscribirme
+              </a>
+              <button
+                type="button"
+                aria-label="Cerrar aviso"
+                data-close-banner
+                class="banner-close"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        </aside>
+      )
+    }
+  </article>
+  )}
+</PortalLayout>
+
+<script>
+  // Countdown Timer Script (Days, Hours, Minutes, Seconds)
+  document
+    .querySelectorAll<HTMLElement>("[data-event-date]")
+    .forEach((node) => {
+      const target = new Date(node.dataset.eventDate || "").getTime();
+      const daysEl = node.querySelector<HTMLElement>('[data-unit="days"]');
+      const hoursEl = node.querySelector<HTMLElement>('[data-unit="hours"]');
+      const minEl = node.querySelector<HTMLElement>('[data-unit="minutes"]');
+      const secEl = node.querySelector<HTMLElement>('[data-unit="seconds"]');
+
+      const tick = () => {
+        const remaining = Math.max(0, target - Date.now());
+        const days = Math.floor(remaining / 864e5);
+        const hours = Math.floor((remaining % 864e5) / 36e5);
+        const minutes = Math.floor((remaining % 36e5) / 6e4);
+        const seconds = Math.floor((remaining % 6e4) / 1e3);
+
+        if (daysEl) daysEl.textContent = String(days).padStart(2, "0");
+        if (hoursEl) hoursEl.textContent = String(hours).padStart(2, "0");
+        if (minEl) minEl.textContent = String(minutes).padStart(2, "0");
+        if (secEl) secEl.textContent = String(seconds).padStart(2, "0");
+      };
+      tick();
+      setInterval(tick, 1000);
+    });
+
+  document
+    .querySelector("[data-close-banner]")
+    ?.addEventListener("click", () =>
+      document.querySelector("#registration-banner")?.remove(),
+    );
+</script>
+
+<style>
+  .event-detail-page {
+    background: #080a0d;
+    min-height: 100vh;
+    color: #f1f5f9;
+    font-family: "Inter", sans-serif;
+  }
+
+  /* Breadcrumb Navigation */
+  .event-breadcrumb-bar {
+    padding: 1.25rem 0;
+    background: transparent;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: none;
+  }
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #94a3b8;
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+  .back-link:hover {
+    color: #ffffff;
+  }
+
+  /* ========================================================================= */
+  /* 1. CINEMATIC HERO (The Design Conference style - Same as Portal Home)     */
+  /* ========================================================================= */
+  .tdc-hero {
+    position: relative;
+    min-height: min(720px, 86vh);
+    display: flex;
+    align-items: flex-end;
+    background-color: #0c0e12;
+    overflow: hidden;
+    padding: 6rem 0 3.5rem;
+  }
+  .tdc-hero-bg {
+    position: absolute;
+    inset: 0;
+    background-position: center;
+    background-size: cover;
+    opacity: 0.55;
+    transform: scale(1.02);
+  }
+  .tdc-hero-video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .tdc-hero-vignette {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(
+        circle at center,
+        rgba(12, 14, 18, 0.3) 0%,
+        rgba(12, 14, 18, 0.95) 100%
+      ),
+      linear-gradient(180deg, rgba(12, 14, 18, 0.3) 0%, #0c0e12 100%);
+  }
+  .tdc-hero-container {
+    position: relative;
+    z-index: 10;
+    width: min(100% - 2rem, 1320px);
+    margin-inline: auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    min-height: 480px;
+  }
+  .tdc-hero-center {
+    max-width: 900px;
+    margin: 0 0 2.5rem;
+  }
+  .tdc-tag-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .tdc-badge-pill {
+    font-family: "Inter", sans-serif;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    padding: 0.35rem 0.75rem;
+    border-radius: 9999px;
+  }
+  .tdc-badge-pill.light {
+    background: #ffffff;
+    color: #000000;
+  }
+  .tdc-badge-pill.dark {
+    background: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+  .tdc-badge-pill.outline {
+    background: transparent;
+    color: rgba(255, 255, 255, 0.86);
+    border: 1px solid rgba(255, 255, 255, 0.32);
+  }
+  .tdc-hero-headline {
+    font-family: "Inter", sans-serif;
+    font-size: clamp(2.35rem, 5vw, 4.3rem);
+    font-weight: 800;
+    line-height: 1.02;
+    letter-spacing: -0.05em;
+    color: #ffffff;
+    margin-bottom: 1.5rem;
+  }
+  .tdc-hero-interactive-row {
+    display: flex;
+    align-items: center;
+    gap: 2.5rem;
+    flex-wrap: wrap;
+  }
+
+  /* Borderless Prominent Countdown */
+  .tdc-hero-countdown-prominent {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    background: transparent;
+    border: none;
+    padding: 0;
+    box-shadow: none;
+  }
+  .countdown-eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+  }
+  .countdown-pulse-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+    box-shadow: 0 0 10px #22c55e;
+    animation: pulseGlow 2s infinite ease-in-out;
+  }
+  @keyframes pulseGlow {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.85); }
+  }
+  .cd-tag {
+    font-family: "Inter", sans-serif;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    color: rgba(255, 255, 255, 0.65);
+    text-transform: uppercase;
+  }
+  .cd-boxes {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+  }
+  .cd-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 44px;
+  }
+  .cd-num {
+    font-family: monospace;
+    font-size: clamp(2.35rem, 4.2vw, 3.4rem);
+    font-weight: 800;
+    color: #ffffff;
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+  .cd-lbl {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.6);
+    letter-spacing: 0.1em;
+    margin-top: 0.35rem;
+  }
+  .cd-div {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.35);
+    margin-bottom: 0.85rem;
+  }
+  .tdc-action-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    background: #ffffff;
+    color: #000000;
+    padding: 0.85rem 1.6rem;
+    border-radius: 9999px;
+    font-family: "Inter", sans-serif;
+    font-weight: 600;
+    font-size: 0.92rem;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    box-shadow: none;
+  }
+  .tdc-action-pill:hover {
+    background: #e2e8f0;
+    transform: translateY(-2px);
+  }
+  .tdc-hero-bottom-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 1.5rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.6);
+  }
+  .bottom-credit strong {
+    color: #ffffff;
+  }
+  .bottom-tag {
+    font-family: "Inter", sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    color: #ffffff;
+  }
+
+  /* ========================================================================= */
+  /* 2. OVERVIEW & SPECIFICATIONS & MINI MAP                                   */
+  /* ========================================================================= */
+  .event-overview-section {
+    padding: 6rem 0 5rem;
+    background: #0d1117;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .section-tag {
+    font-family: "Inter", sans-serif;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    color: #818cf8;
+    display: block;
+    margin-bottom: 0.75rem;
+    text-transform: uppercase;
+  }
+  .section-tag.purple {
+    color: #c084fc;
+  }
+  .overview-split-grid {
+    display: grid;
+    grid-template-columns: 1.3fr 1fr;
+    gap: 4.5rem;
+    align-items: flex-start;
+  }
+
+  /* Minimal Side Map Widget */
+  .mini-map-wrapper {
+    margin-top: 0.85rem;
+    width: 100%;
+    max-width: 340px;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: #11141a;
+  }
+  .mini-map-iframe {
+    display: block;
+    width: 100%;
+    height: 145px;
+    border: none;
+  }
+  .mini-map-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.5rem 0.85rem;
+    background: #0a0d12;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .mini-coords {
+    color: #94a3b8;
+    font-size: 0.72rem;
+    font-family: monospace;
+  }
+  .mini-map-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: #ffffff;
+    font-size: 0.74rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: color 0.15s ease;
+  }
+  .mini-map-link:hover {
+    color: #818cf8;
+    text-decoration: underline;
+  }
+
+  /* Shared massive editorial heading matching Portal Home */
+  .tdc-massive-heading {
+    font-family:
+      "Inter",
+      -apple-system,
+      BlinkMacSystemFont,
+      sans-serif;
+    font-size: clamp(2rem, 4vw, 4.1rem);
+    font-weight: 700;
+    line-height: 0.98;
+    letter-spacing: -0.065em;
+    color: #ffffff;
+    margin-bottom: 1.5rem;
+  }
+  .rich-desc p {
+    font-size: 1.05rem;
+    color: #cbd5e1;
+    line-height: 1.8;
+    white-space: pre-line;
+  }
+
+  /* Structured Specifications Panel */
+  .overview-specs-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding-left: 2.5rem;
+    border-left: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .spec-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+  .spec-label {
+    font-family: "Inter", sans-serif;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: #64748b;
+    text-transform: uppercase;
+  }
+  .spec-value {
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: #e2e8f0;
+    line-height: 1.45;
+  }
+
+  /* ========================================================================= */
+  /* 3. PRESENTATIONS & TALKS (Borderless Clean Style)                         */
+  /* ========================================================================= */
+  .event-presentations-section {
+    padding: 6rem 0;
+    background: #080a0d;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .section-header-row {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 3rem;
+  }
+  .accent-pill-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: #a855f7;
+    color: #ffffff;
+    font-family: "Inter", sans-serif;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0.45rem 1rem;
+    border-radius: 9999px;
+    text-decoration: none;
+    transition: all 0.2s ease;
+  }
+  .accent-pill-link:hover {
+    background: #c084fc;
+    transform: translateY(-1px);
+  }
+  .presentations-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 2.5rem;
+  }
+  .presentation-card {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.2s ease;
+  }
+  .presentation-card:hover {
+    transform: translateY(-3px);
+  }
+  .presentation-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .pres-badge {
+    font-family: "Inter", sans-serif;
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 0.2rem 0.55rem;
+    border-radius: 4px;
+    background: rgba(168, 85, 247, 0.15);
+    color: #d8b4fe;
+    border: 1px solid rgba(168, 85, 247, 0.25);
+  }
+  .pres-time,
+  .pres-location {
+    font-size: 0.78rem;
+    color: #94a3b8;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 0.2rem 0.55rem;
+    border-radius: 4px;
+  }
+  .presentation-title {
+    font-family: "Inter", sans-serif;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #ffffff;
+    line-height: 1.35;
+    margin-bottom: 0.45rem;
+    transition: color 0.2s ease;
+  }
+  :global(html:not(.dark)) .presentation-title {
+    color: #0f172a;
+  }
+  .presentation-desc {
+    font-size: 0.88rem;
+    color: #94a3b8;
+    line-height: 1.55;
+    margin-bottom: 1.25rem;
+  }
+  .presentation-footer {
+    margin-top: auto;
+    padding-top: 0.75rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+  }
+  .presentation-tag {
+    font-size: 0.78rem;
+    color: #64748b;
+  }
+
+  /* ========================================================================= */
+  /* 4. SPEAKERS SECTION (Meet our Speakers Reference style)                   */
+  /* ========================================================================= */
+  .event-speakers-section {
+    padding: 6rem 0;
+    background: #0b0e14;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .section-count-pill {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 0.35rem 0.85rem;
+    border-radius: 9999px;
+  }
+  .speakers-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 2rem 1.5rem;
+  }
+  .speaker-card {
+    display: flex;
+    flex-direction: column;
+  }
+  .speaker-photo-wrap {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    border-radius: 20px;
+    overflow: hidden;
+    background: #151a22;
+    margin-bottom: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .speaker-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+  }
+  .speaker-card:hover .speaker-photo {
+    transform: scale(1.04);
+  }
+  .speaker-photo-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "Inter", sans-serif;
+    font-size: 2rem;
+    font-weight: 600;
+    color: #818cf8;
+    background: #151a22;
+  }
+  .speaker-name {
+    font-family: "Inter", sans-serif;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #ffffff;
+    margin-bottom: 0.3rem;
+  }
+  .speaker-bio {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    line-height: 1.45;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* ========================================================================= */
+  /* 5. REGISTRATION FORMS SECTION                                             */
+  /* ========================================================================= */
+  .event-registration-section {
+    padding: 6rem 0 8rem;
+    background: #080a0d;
+  }
+  .main-registration-panel {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2rem;
+    margin-bottom: 2.5rem;
+    padding: 2.25rem 2.5rem;
+    border-radius: 24px;
+    background: #11141a;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+    text-decoration: none;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    transition:
+      transform 0.2s,
+      border-color 0.2s,
+      box-shadow 0.2s;
+  }
+  .main-registration-panel:hover {
+    transform: translateY(-2px);
+    border-color: rgba(255, 255, 255, 0.25);
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.3);
+  }
+  .ticket-badge {
+    display: inline-block;
+    font-family: "Inter", sans-serif;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: #818cf8;
+    margin-bottom: 0.4rem;
+  }
+  .main-reg-title {
+    font-family: "Inter", sans-serif;
+    font-size: 1.45rem;
+    font-weight: 600;
+    margin: 0.25rem 0;
+    color: #ffffff;
+  }
+  .main-reg-desc {
+    color: #94a3b8;
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+  .main-registration-action,
+  .ticket-action-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-shrink: 0;
+  }
+  .action-circle-btn {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: #0f172a;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.25s ease;
+  }
+  .action-text {
+    font-family: "Inter", sans-serif;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #ffffff;
+    transition: color 0.2s ease;
+  }
+  :global(html:not(.dark)) .action-text {
+    color: #0f172a;
+  }
+  .main-registration-panel:hover .action-circle-btn,
+  .reg-ticket-card:hover .action-circle-btn {
+    background: #ffffff;
+    color: #0f172a;
+    border-color: #ffffff;
+    transform: translateX(4px);
+  }
+  .reg-forms-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 2.5rem;
+  }
+  .reg-ticket-card {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    text-decoration: none;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.2s ease;
+  }
+  .reg-ticket-card:hover {
+    transform: translateY(-2px);
+  }
+  .ticket-title {
+    font-family: "Inter", sans-serif;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #ffffff;
+    margin-bottom: 0.45rem;
+  }
+  :global(html:not(.dark)) .ticket-title {
+    color: #0f172a;
+  }
+  .ticket-desc {
+    font-size: 0.88rem;
+    color: #64748b;
+    line-height: 1.5;
+    margin-bottom: 1.25rem;
+  }
+  .empty-reg-box {
+    padding: 3.5rem 1.5rem;
+    text-align: center;
+    background: #0e1218;
+    border-radius: 14px;
+    border: 1px dashed rgba(255, 255, 255, 0.12);
+    max-width: 540px;
+    margin: 0 auto;
+  }
+  .empty-reg-box h3 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: #ffffff;
+    margin-bottom: 0.35rem;
+  }
+  .empty-reg-box p {
+    font-size: 0.85rem;
+    color: #94a3b8;
+  }
+
+  /* Fixed Registration Banner */
+  .registration-banner {
+    position: fixed;
+    z-index: 110;
+    left: 1rem;
+    right: 1rem;
+    bottom: 1rem;
+    max-width: 600px;
+    margin-inline: auto;
+    background: #0f172a;
+    color: #f8fafc;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    padding: 0.85rem 1.25rem;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+    animation: slideUp 0.3s ease;
+  }
+  @keyframes slideUp {
+    from {
+      transform: translateY(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+  .banner-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .banner-text {
+    font-size: 0.85rem;
+    color: #e2e8f0;
+  }
+  .banner-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+  .banner-btn {
+    background: #facc15;
+    color: #0f172a;
+    padding: 0.45rem 0.9rem;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.8rem;
+  }
+  .banner-close {
+    border: 0;
+    background: transparent;
+    color: #94a3b8;
+    font-size: 1.3rem;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0 0.25rem;
+  }
+  .banner-close:hover {
+    color: #ffffff;
+  }
+
+  /* ========================================================================= */
+  /* RESPONSIVE BREAKPOINTS                                                    */
+  /* ========================================================================= */
+  @media (max-width: 900px) {
+    .overview-split-grid {
+      grid-template-columns: 1fr;
+      gap: 3rem;
+    }
+    .overview-specs-panel {
+      padding-left: 0;
+      border-left: none;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      padding-top: 2rem;
+    }
+    .main-registration-panel {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 1.25rem;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .speakers-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.25rem 1rem;
+    }
+    .registration-banner {
+      left: 0.5rem;
+      right: 0.5rem;
+      bottom: 0.5rem;
+    }
+  }
+
+  /* ========================================================================= */
+  /* LIGHT THEME (html:not(.dark)) ADAPTATIONS                                 */
+  /* ========================================================================= */
+  :global(html:not(.dark)) .event-detail-page {
+    background: #f8fafc;
+    color: #1e293b;
+  }
+  :global(html:not(.dark)) .event-breadcrumb-bar {
+    background: #ffffff;
+    border-color: #e2e8f0;
+  }
+  :global(html:not(.dark)) .back-link {
+    color: #64748b;
+  }
+  :global(html:not(.dark)) .back-link:hover {
+    color: #0f172a;
+  }
+
+  /* Overview & Specs in light theme */
+  :global(html:not(.dark)) .event-overview-section {
+    background: #f1f5f9;
+    border-color: #e2e8f0;
+  }
+  :global(html:not(.dark)) .tdc-massive-heading,
+  :global(html:not(.dark)) .overview-heading,
+  :global(html:not(.dark)) .speaker-name,
+  :global(html:not(.dark)) .main-reg-title,
+  :global(html:not(.dark)) .empty-reg-box h3 {
+    color: #0f172a;
+  }
+  :global(html:not(.dark)) .rich-desc p {
+    color: #475569;
+  }
+  :global(html:not(.dark)) .overview-specs-panel {
+    border-color: #cbd5e1;
+  }
+  :global(html:not(.dark)) .spec-label {
+    color: #64748b;
+  }
+  :global(html:not(.dark)) .spec-value {
+    color: #1e293b;
+  }
+
+  /* Presentations in light theme */
+  :global(html:not(.dark)) .event-presentations-section {
+    background: #ffffff;
+    border-color: #e2e8f0;
+  }
+  :global(html:not(.dark)) .pres-time,
+  :global(html:not(.dark)) .pres-location {
+    background: #e2e8f0;
+    color: #475569;
+  }
+  :global(html:not(.dark)) .presentation-desc {
+    color: #64748b;
+  }
+  :global(html:not(.dark)) .presentation-footer {
+    border-color: #e2e8f0;
+    color: #94a3b8;
+  }
+
+  /* Speakers in light theme */
+  :global(html:not(.dark)) .event-speakers-section {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+  }
+  :global(html:not(.dark)) .speaker-photo-wrap {
+    background: #e2e8f0;
+    border-color: #cbd5e1;
+  }
+  :global(html:not(.dark)) .speaker-bio {
+    color: #64748b;
+  }
+  :global(html:not(.dark)) .section-count-pill {
+    background: #e2e8f0;
+    border-color: #cbd5e1;
+    color: #475569;
+  }
+
+  /* Registration in light theme */
+  :global(html:not(.dark)) .event-registration-section {
+    background: #ffffff;
+  }
+  :global(html:not(.dark)) .main-registration-panel {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+  }
+  :global(html:not(.dark)) .main-reg-desc,
+  :global(html:not(.dark)) .ticket-desc {
+    color: #64748b;
+  }
+  :global(html:not(.dark)) .empty-reg-box {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+  }
+  :global(html:not(.dark)) .empty-reg-box p {
+    color: #64748b;
+  }
+
+  /* Mini Map in light theme */
+  :global(html:not(.dark)) .mini-map-wrapper {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+  }
+  :global(html:not(.dark)) .mini-map-footer {
+    background: #f1f5f9;
+    border-color: #e2e8f0;
+  }
+  :global(html:not(.dark)) .mini-coords {
+    color: #64748b;
+  }
+  :global(html:not(.dark)) .mini-map-link {
+    color: #4f46e5;
+  }
+  :global(html:not(.dark)) .mini-map-link:hover {
+    color: #3730a3;
+  }
+</style>

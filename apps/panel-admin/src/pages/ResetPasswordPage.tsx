@@ -9,7 +9,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { supabase } from "@/utils/supabase"
+import { api } from "@/api/client"
 import { Eye, EyeOff } from "lucide-react"
 import { ZynqroLogo } from "@/components/zynqro-logo"
 import { useSEO } from "@/hooks/use-seo"
@@ -86,18 +86,12 @@ export function ResetPasswordPage() {
     }
 
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: password,
-      })
-
-      if (error) {
-        setFormError(error.message || "Error al actualizar la contraseña.")
-      } else {
-        // Sign out of the recovery session cleanly
-        await supabase.auth.signOut()
-        toast.success("Tu contraseña ha sido restablecida correctamente.")
-        navigate("/login", { replace: true })
-      }
+      const token = new URLSearchParams(window.location.search).get("token") || ""
+      await api.auth.resetPassword(token, password)
+      localStorage.removeItem("events-api-access-token")
+      localStorage.removeItem("events-api-refresh-token")
+      toast.success("Tu contraseña ha sido restablecida correctamente.")
+      navigate("/login", { replace: true })
     } catch (err: any) {
       console.error(err)
       setFormError("Ocurrió un error inesperado. Inténtalo de nuevo.")

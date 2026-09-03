@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import { useSEO } from "@/hooks/use-seo"
-import { ImageUploadWithPreview } from "@/components/ImageUploadWithPreview"
+import { MediaUploader } from "@/components/MediaUploader"
 import { Skeleton } from "@/components/ui/skeleton"
 
 export function ProfileManageInfoSection() {
@@ -233,7 +233,7 @@ export function ProfileManageInfoSection() {
             <p className="text-xs text-muted-foreground">Sube una imagen o proporciona una URL directa.</p>
           </div>
           <div className="md:w-2/3 max-w-md w-full">
-            <ImageUploadWithPreview
+            <MediaUploader
               value={avatarUrl}
               onChange={async (newUrl) => {
                 setAvatarUrl(newUrl)
@@ -247,7 +247,8 @@ export function ProfileManageInfoSection() {
                   }
                 }
               }}
-              label=""
+              variant="avatar"
+              assetTarget={{ type: "profiles/avatar", resourceId: profileId || "" }}
               folder="avatars"
               identifier={`profile-${firstName}-${lastName}`}
             />

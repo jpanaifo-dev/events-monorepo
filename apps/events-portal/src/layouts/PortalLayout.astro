@@ -1,0 +1,407 @@
+---
+import type { PortalOrganization } from '../lib/api';
+
+interface Props {
+  organization: PortalOrganization;
+  title: string;
+  description?: string;
+  registrationUrl?: string;
+  venues?: string[];
+  bare?: boolean;
+  imageUrl?: string;
+}
+
+const { organization, title, description, registrationUrl, venues = [], bare = false, imageUrl } = Astro.props;
+---
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description || organization.description || `Eventos y conferencias oficiales de ${organization.name}`} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description || organization.description || `Eventos y conferencias oficiales de ${organization.name}`} />
+    <meta property="og:type" content="website" />
+    {imageUrl && <meta property="og:image" content={imageUrl} />}
+    <meta name="twitter:card" content={imageUrl ? "summary_large_image" : "summary"} />
+    {imageUrl && <meta name="twitter:image" content={imageUrl} />}
+    <title>{title}</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  </head>
+  <body class="tdc-body">
+    {!bare && <>
+    <!-- TDC / Stripe Sessions Minimalist Cinematic Header -->
+    <header class="tdc-header">
+      <div class="tdc-container header-content">
+      <div class="header-left">
+        <!-- Organization Brand -->
+        <a href={`/${organization.slug}`} class="tdc-brand-link">
+          {organization.logoUrl && (
+            <img src={organization.logoUrl} alt={organization.name} class="tdc-logo" />
+          )}
+          <span class="tdc-brand-text">{organization.name}</span>
+        </a>
+      </div>
+
+      <!-- Center / Right Meta: Local Time & Action Pills -->
+      <div class="header-right">
+        <a href={registrationUrl || `/${organization.slug}#eventos`} class="tdc-pill-btn primary header-cta">
+          <span>{registrationUrl ? 'Separar mi cupo gratis' : 'Ver actividades'}</span>
+        </a>
+        <button type="button" class="tdc-icon-btn theme-toggle" id="theme-toggle" aria-label="Cambiar tema" title="Cambiar tema">
+          <svg class="sun-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+        </button>
+      </div>
+      </div>
+    </header>
+    </>}
+
+    <main id="main-content">
+      <slot />
+    </main>
+
+    {!bare && <>
+    <!-- TDC Cinematic Dark Footer -->
+    <footer class="tdc-footer">
+      <div class="tdc-container">
+        <div class="footer-grid">
+          <div class="footer-brand-pane">
+            <span class="footer-org-name">{organization.name.toUpperCase()}</span>
+            <p class="footer-desc">
+              {organization.description || 'Portal oficial de experiencias, conferencias magistrales, congresos y talleres.'}
+            </p>
+          </div>
+
+          <div class="footer-nav-pane">
+            <h4>Navegación</h4>
+            <ul>
+              <li><a href={`/${organization.slug}#eventos`}>Eventos publicados</a></li>
+              <li><a href={`/${organization.slug}#destacado`}>Experiencia destacada</a></li>
+              <li><a href={`/${organization.slug}#eventos`}>Talleres y sesiones</a></li>
+            </ul>
+          </div>
+
+          <div class="footer-meta-pane">
+            <h4>Portal Institucional</h4>
+            <p class="portal-note">Recibe próximas actividades y novedades directamente en tu correo.</p>
+            <form class="newsletter-form" aria-label="Suscripción a novedades">
+              <input type="email" placeholder="Tu correo electrónico" disabled />
+              <button type="button" disabled>Próximamente</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="footer-bar">
+          <p>© {new Date().getFullYear()} {organization.name}. Todos los derechos reservados.</p>
+          <div class="footer-bar-links">
+            <a href={`/${organization.slug}#eventos`}>Eventos</a>
+            <span>·</span>
+            <a href={`/${organization.slug}`}>Inicio</a>
+          </div>
+        </div>
+      </div>
+    </footer>
+    </>}
+
+    <script>
+      const root = document.documentElement;
+      const savedTheme = localStorage.getItem('events-portal-theme');
+      const preferredTheme = savedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      root.classList.toggle('dark', preferredTheme === 'dark');
+      document.getElementById('theme-toggle')?.addEventListener('click', () => {
+        const next = root.classList.contains('dark') ? 'light' : 'dark';
+        root.classList.toggle('dark', next === 'dark');
+        localStorage.setItem('events-portal-theme', next);
+      });
+      const header = document.querySelector('.tdc-header');
+      const updateHeader = () => header?.classList.toggle('is-scrolled', window.scrollY > 16);
+      updateHeader();
+      window.addEventListener('scroll', updateHeader, { passive: true });
+    </script>
+  </body>
+</html>
+
+<style>
+  :global(*) {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+  :global(html) {
+    scroll-behavior: smooth;
+    background-color: #f7f9fc;
+  }
+  :global(body) {
+    margin: 0;
+    color: #ffffff;
+    background-color: #f7f9fc;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  :global(html.dark) { background-color: #0c0e12; color-scheme: dark; }
+  :global(html.dark body) { color: #f1f5f9; background-color: #0c0e12; }
+  :global(.tdc-container) {
+    width: min(100% - 2rem, 1320px);
+    margin-inline: auto;
+  }
+
+  /* ---------------------------------------------------- */
+  /* HEADER                                               */
+  /* ---------------------------------------------------- */
+  .tdc-header {
+    height: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 4vw;
+    background: transparent;
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid transparent;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    z-index: 100;
+  }
+  .tdc-header.is-scrolled { background: rgba(255, 255, 255, 0.96); border-bottom-color: #e4e9f0; box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08); }
+  :global(html.dark) .tdc-header.is-scrolled { background: rgba(12, 14, 18, 0.9); border-bottom-color: rgba(255, 255, 255, 0.08); }
+  .header-content { height: 100%; display: flex; align-items: center; justify-content: space-between; }
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+  }
+
+  .tdc-icon-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #f2f5f9;
+    border: 1px solid #dfe6ef;
+    color: #20314a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    transition: all 0.2s ease;
+  }
+  :global(html.dark) .tdc-icon-btn { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.12); color: #ffffff; }
+  .tdc-icon-btn:hover {
+    background: rgba(255, 255, 255, 0.16);
+    border-color: rgba(255, 255, 255, 0.25);
+    transform: scale(1.05);
+  }
+  .tdc-icon-btn.action {
+    background: #ffffff;
+    color: #000000;
+    border: none;
+  }
+  .tdc-icon-btn.action:hover {
+    background: #e2e8f0;
+    transform: scale(1.05);
+  }
+
+  .tdc-brand-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.65rem;
+    text-decoration: none;
+    color: #ffffff;
+  }
+  :global(html.dark) .tdc-brand-link { color: #ffffff; }
+  .tdc-header.is-scrolled .tdc-brand-link { color: #172033; }
+  :global(html.dark) .tdc-header.is-scrolled .tdc-brand-link { color: #ffffff; }
+  .tdc-logo {
+    height: 38px;
+    max-width: 230px;
+    object-fit: contain;
+  }
+  .tdc-brand-text {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.88rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .tdc-time-pill {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #53657e;
+    padding: 0.45rem 0.85rem;
+    background: #f7f9fc;
+    border-radius: 9999px;
+    border: 1px solid #e1e7ef;
+  }
+  :global(html.dark) .tdc-time-pill { color: rgba(255,255,255,.7); background: rgba(255,255,255,.04); border-color: rgba(255,255,255,.08); }
+
+  .tdc-pill-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 1.15rem;
+    border-radius: 9999px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-decoration: none;
+    transition: all 0.2s ease;
+  }
+  .tdc-pill-btn.secondary {
+    background: #f2f5f9;
+    color: #243752;
+    border: 1px solid #dfe6ef;
+  }
+  :global(html.dark) .tdc-pill-btn.secondary { background: rgba(255,255,255,.1); color: #fff; border-color: rgba(255,255,255,.12); }
+  .tdc-pill-btn.secondary:hover {
+    background: rgba(255, 255, 255, 0.18);
+  }
+  .tdc-pill-btn.primary {
+    background: #ffffff;
+    color: #000000;
+  }
+  .tdc-pill-btn.primary:hover {
+    background: #e2e8f0;
+    transform: translateY(-1px);
+  }
+  .header-cta { white-space: nowrap; }
+
+  @media (max-width: 680px) {
+    .tdc-header { height: 64px; padding: 0 1rem; }
+    .tdc-logo { max-width: 140px; }
+    .tdc-brand-text { font-size: .78rem; max-width: 145px; }
+    .tdc-pill-btn { padding: .48rem .75rem; font-size: .76rem; }
+  }
+
+  /* ---------------------------------------------------- */
+  /* FOOTER                                               */
+  /* ---------------------------------------------------- */
+  .tdc-footer {
+    background: #edf2f7;
+    border-top: 1px solid #dfe6ef;
+    padding: 5rem 0 3rem;
+  }
+  :global(html.dark) .tdc-footer { background: #080a0d; border-top-color: rgba(255,255,255,.08); }
+  .footer-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1.5fr;
+    gap: 4rem;
+    padding-bottom: 3.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .footer-org-name {
+    font-family: 'Inter', sans-serif;
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: #ffffff;
+    display: block;
+    margin-bottom: 1rem;
+  }
+  .footer-desc {
+    color: #94a3b8;
+    font-size: 0.88rem;
+    line-height: 1.65;
+    max-width: 380px;
+  }
+  .footer-nav-pane h4, .footer-meta-pane h4 {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #ffffff;
+    margin-bottom: 1.25rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .footer-nav-pane ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .footer-nav-pane a {
+    color: #94a3b8;
+    font-size: 0.88rem;
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+  .footer-nav-pane a:hover {
+    color: #ffffff;
+  }
+  .portal-badge {
+    display: inline-block;
+    padding: 0.35rem 0.75rem;
+    background: rgba(99, 102, 241, 0.15);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    color: #a5b4fc;
+    font-family: monospace;
+    font-size: 0.82rem;
+    border-radius: 6px;
+    margin-bottom: 0.75rem;
+  }
+  .portal-note {
+    font-size: 0.82rem;
+    color: #64748b;
+    line-height: 1.5;
+  }
+  .newsletter-form { display: flex; gap: .5rem; max-width: 340px; }
+  .newsletter-form input { min-width: 0; flex: 1; border: 1px solid #d8e0ea; border-radius: 6px; padding: .6rem .7rem; background: transparent; color: inherit; }
+  .newsletter-form button { border: 0; border-radius: 6px; padding: .6rem .7rem; background: #d8e0ea; color: #64748b; cursor: not-allowed; font: inherit; font-size: .78rem; }
+  :global(html.dark) .newsletter-form input { border-color: rgba(255,255,255,.16); }
+  :global(html.dark) .newsletter-form button { background: rgba(255,255,255,.12); color: #94a3b8; }
+  .footer-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 2rem;
+    font-size: 0.82rem;
+    color: #64748b;
+  }
+  .footer-bar-links {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .footer-bar-links a {
+    color: #94a3b8;
+    text-decoration: none;
+  }
+  .footer-bar-links a:hover {
+    color: #ffffff;
+  }
+  :global(html:not(.dark)) .footer-grid { border-bottom-color: #d8e0ea; }
+  :global(html:not(.dark)) .footer-org-name,
+  :global(html:not(.dark)) .footer-nav-pane h4,
+  :global(html:not(.dark)) .footer-meta-pane h4 { color: #23344d; }
+  :global(html:not(.dark)) .footer-desc,
+  :global(html:not(.dark)) .footer-nav-pane a,
+  :global(html:not(.dark)) .footer-bar,
+  :global(html:not(.dark)) .footer-bar-links a { color: #586a82; }
+  :global(html:not(.dark)) .footer-nav-pane a:hover,
+  :global(html:not(.dark)) .footer-bar-links a:hover { color: #1e4d82; }
+
+  @media (max-width: 850px) {
+    .footer-grid {
+      grid-template-columns: 1fr;
+      gap: 2.5rem;
+    }
+  }
+</style>

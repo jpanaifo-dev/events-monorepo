@@ -91,6 +91,7 @@ function slugify(text: string): string {
 
 import { useSEO } from "@/hooks/use-seo"
 import { PageHeader } from "@/components/page-header"
+import { toast } from "sonner"
 
 export function EventRolesSection() {
   const { id } = useParams<{ id: string }>()
@@ -106,9 +107,12 @@ export function EventRolesSection() {
     description: `Configura los roles personalizados de participación, credenciales, colores identificativos y privilegios para el evento ${event?.name || ""}.`
   })
 
-  const availableSuggestions = SUGGESTIONS.filter(
-    (sug) => !eventRoles.some((r) => r.slug.trim().toLowerCase() === sug.slug.trim().toLowerCase())
-  )
+  const availableSuggestions = SUGGESTIONS.filter((sug) => !eventRoles.some((role) => {
+    const identities = [role.slug, role.name?.es, role.name?.en]
+      .filter(Boolean)
+      .map((value) => slugify(String(value)))
+    return identities.includes(sug.slug) || identities.includes(slugify(sug.nameEs)) || identities.includes(slugify(sug.nameEn))
+  }))
 
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -255,6 +259,15 @@ export function EventRolesSection() {
     }
   }
 
+  const handleDeleteRole = async (roleId: string) => {
+    try {
+      await deleteRole(roleId)
+      toast.success("Rol eliminado con éxito.")
+    } catch (error: any) {
+      toast.error(error?.message || "No se pudo eliminar el rol.")
+    }
+  }
+
   const columns: ColumnDef<any>[] = [
     {
       header: "Nombre",
@@ -348,13 +361,13 @@ export function EventRolesSection() {
               <AlertDialogHeader>
                 <AlertDialogTitle>¿Eliminar rol de participante?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Se eliminará el rol "{role.name.es}" ({role.slug}). Esto removerá la asociación en los participantes que lo utilicen. Esta acción no se puede deshacer.
+                  No podrás eliminar este rol si tiene participantes o ponentes asignados. Primero reasigna esos registros a otro rol.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
                 <AlertDialogAction
-                  onClick={() => deleteRole(role.id)}
+                  onClick={() => handleDeleteRole(role.id)}
                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 >
                   Sí, eliminar

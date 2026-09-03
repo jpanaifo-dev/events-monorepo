@@ -1,5 +1,5 @@
 import { create } from "zustand"
-import { supabase } from "@/utils/supabase"
+import { api } from "@/api/client"
 import type {
   CertificateTemplate,
   ParticipantCertificate,
@@ -47,14 +47,8 @@ export const useCertificateStore = create<CertificateState>((set, get) => ({
     }
     set({ isLoading: true })
     try {
-      const { data, error } = await supabase
-        .from("certificate_templates")
-        .select("*")
-        .in("edition_id", editionIds)
-        .order("created_at", { ascending: false })
-
-      if (error) throw error
-      set({ templates: data || [] })
+      const data = await api.certificates.templates()
+      set({ templates: data as CertificateTemplate[] })
     } catch (err) {
       console.error("Error loading certificate templates:", err)
     } finally {
@@ -69,14 +63,8 @@ export const useCertificateStore = create<CertificateState>((set, get) => ({
     }
     set({ isLoading: true })
     try {
-      const { data, error } = await supabase
-        .from("participant_certificates")
-        .select("*")
-        .in("participant_id", participantIds)
-        .order("issued_at", { ascending: false })
-
-      if (error) throw error
-      set({ certificates: data || [] })
+      const data = (await Promise.all(participantIds.map((id) => api.certificates.list(id)))).flat()
+      set({ certificates: data as ParticipantCertificate[] })
     } catch (err) {
       console.error("Error loading participant certificates:", err)
     } finally {
@@ -91,14 +79,8 @@ export const useCertificateStore = create<CertificateState>((set, get) => ({
     }
     set({ isLoading: true })
     try {
-      const { data, error } = await supabase
-        .from("certificate_tracking_logs")
-        .select("*")
-        .in("certificate_id", certificateIds)
-        .order("created_at", { ascending: false })
-
-      if (error) throw error
-      set({ logs: data || [] })
+      const data = (await Promise.all(certificateIds.map((id) => api.certificates.logs(id)))).flat()
+      set({ logs: data as CertificateTrackingLog[] })
     } catch (err) {
       console.error("Error loading certificate tracking logs:", err)
     } finally {
@@ -109,73 +91,12 @@ export const useCertificateStore = create<CertificateState>((set, get) => ({
   loadGlobalData: async (organizationId) => {
     set({ isLoading: true })
     try {
-      // 1. Get events for this organization
-      const { data: eventsData, error: eventsError } = await supabase
-        .from("main_events")
-        .select("id")
-        .eq("organization_id", organizationId)
-
-      if (eventsError) throw eventsError
-      const eventIds = (eventsData || []).map((e) => e.id)
-      if (eventIds.length === 0) {
-        set({ templates: [], certificates: [], logs: [] })
-        return
-      }
-
-      // 2. Get editions for these events
-      const { data: editionsData, error: editionsError } = await supabase
-        .from("editions")
-        .select("id")
-        .in("main_event_id", eventIds)
-
-      if (editionsError) throw editionsError
-      const editionIds = (editionsData || []).map((ed) => ed.id)
-      if (editionIds.length === 0) {
-        set({ templates: [], certificates: [], logs: [] })
-        return
-      }
-
-      // 3. Get all templates for these editions
-      const { data: templatesData, error: templatesError } = await supabase
-        .from("certificate_templates")
-        .select("*")
-        .in("edition_id", editionIds)
-
-      if (templatesError) throw templatesError
-
-      // 4. Get all participants of these editions to find certificates
-      const { data: participantsData, error: participantsError } = await supabase
-        .from("event_participants")
-        .select("id")
-        .in("edition_id", editionIds)
-
-      if (participantsError) throw participantsError
-      const participantIds = (participantsData || []).map((p) => p.id)
-
-      let certificatesData: any[] = []
-      let logsData: any[] = []
-
-      if (participantIds.length > 0) {
-        const { data: certs, error: certsError } = await supabase
-          .from("participant_certificates")
-          .select("*")
-          .in("participant_id", participantIds)
-
-        if (certsError) throw certsError
-        certificatesData = certs || []
-
-        const certIds = certificatesData.map((c) => c.id)
-        if (certIds.length > 0) {
-          const { data: trackLogs, error: trackLogsError } = await supabase
-            .from("certificate_tracking_logs")
-            .select("*")
-            .in("certificate_id", certIds)
-            .order("created_at", { ascending: false })
-
-          if (trackLogsError) throw trackLogsError
-          logsData = trackLogs || []
-        }
-      }
+      const eventsData = await api.events.list(organizationId)
+      const editionsData = (await Promise.all((eventsData || []).map((event: any) => api.editions.list(event.id)))).flat()
+      const templatesData = await api.certificates.templates()
+      const participantsData = (await Promise.all((editionsData || []).map((edition: any) => api.participants.list(edition.id)))).flat()
+      const certificatesData = (await Promise.all(participantsData.map((participant: any) => api.certificates.list(participant.id)))).flat()
+      const logsData = (await Promise.all(certificatesData.map((certificate: any) => api.certificates.logs(certificate.id)))).flat()
 
       set({
         templates: templatesData || [],
@@ -190,13 +111,7 @@ export const useCertificateStore = create<CertificateState>((set, get) => ({
   },
 
   addTemplate: async (template) => {
-    const { data, error } = await supabase
-      .from("certificate_templates")
-      .insert([template])
-      .select()
-
-    if (error) throw error
-    const newTemplate = data[0] as CertificateTemplate
+    const newTemplate = await api.certificates.createTemplate(template) as CertificateTemplate
     set((state) => ({
       templates: [newTemplate, ...state.templates]
     }))
@@ -212,12 +127,7 @@ export const useCertificateStore = create<CertificateState>((set, get) => ({
     delete (cleanUpdates as any).id
     delete (cleanUpdates as any).created_at
 
-    const { error } = await supabase
-      .from("certificate_templates")
-      .update(cleanUpdates)
-      .eq("id", id)
-
-    if (error) throw error
+    await api.certificates.updateTemplate(id, cleanUpdates)
 
     set((state) => ({
       templates: state.templates.map((t) =>
@@ -227,12 +137,7 @@ export const useCertificateStore = create<CertificateState>((set, get) => ({
   },
 
   deleteTemplate: async (id) => {
-    const { error } = await supabase
-      .from("certificate_templates")
-      .delete()
-      .eq("id", id)
-
-    if (error) throw error
+    await api.certificates.removeTemplate(id)
 
     set((state) => ({
       templates: state.templates.filter((t) => t.id !== id)
@@ -268,16 +173,12 @@ export const useCertificateStore = create<CertificateState>((set, get) => ({
         validations_count: 0,
         pdf_file_url: null,
       }
+      void payload
 
       try {
-        const { data, error } = await supabase
-          .from("participant_certificates")
-          .insert([payload])
-          .select()
-
-        if (error) throw error
-        if (data && data[0]) {
-          newCertificates.push(data[0] as ParticipantCertificate)
+        const created = await api.certificates.issue(part.id, templateId)
+        if (created) {
+          newCertificates.push(created as ParticipantCertificate)
           successCount++
         }
       } catch (err: any) {
@@ -296,12 +197,7 @@ export const useCertificateStore = create<CertificateState>((set, get) => ({
   },
 
   toggleRevocation: async (certificateId, isRevoked) => {
-    const { error } = await supabase
-      .from("participant_certificates")
-      .update({ is_revoked: isRevoked })
-      .eq("id", certificateId)
-
-    if (error) throw error
+    await api.certificates.update(certificateId, { status: isRevoked ? "REVOKED" : "ISSUED" })
 
     set((state) => ({
       certificates: state.certificates.map((c) =>
@@ -316,13 +212,6 @@ export const useCertificateStore = create<CertificateState>((set, get) => ({
     if (!cert) return
 
     const newCount = (cert.downloads_count || 0) + 1
-
-    const { error } = await supabase
-      .from("participant_certificates")
-      .update({ downloads_count: newCount })
-      .eq("id", certificateId)
-
-    if (error) throw error
 
     // Update local state count
     set((state) => ({
@@ -346,13 +235,6 @@ export const useCertificateStore = create<CertificateState>((set, get) => ({
 
     const newCount = (cert.validations_count || 0) + 1
 
-    const { error } = await supabase
-      .from("participant_certificates")
-      .update({ validations_count: newCount })
-      .eq("id", certificateId)
-
-    if (error) throw error
-
     // Update local state count
     set((state) => ({
       certificates: state.certificates.map((c) =>
@@ -370,23 +252,11 @@ export const useCertificateStore = create<CertificateState>((set, get) => ({
   },
 
   createTrackingLog: async (certificateId, actionType, ipAddress = "127.0.0.1", userAgent = "browser") => {
-    const payload = {
-      certificate_id: certificateId,
-      action_type: actionType,
-      ip_address: ipAddress,
-      user_agent: userAgent
-    }
-
-    const { data, error } = await supabase
-      .from("certificate_tracking_logs")
-      .insert([payload])
-      .select()
-
-    if (error) throw error
-
-    if (data && data[0]) {
+    void userAgent
+    const created = await api.certificates.addLog(certificateId, { action: actionType, ipAddress })
+    if (created) {
       set((state) => ({
-        logs: [data[0] as CertificateTrackingLog, ...state.logs]
+        logs: [created as CertificateTrackingLog, ...state.logs]
       }))
     }
   }

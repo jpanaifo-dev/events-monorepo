@@ -22,7 +22,7 @@ import {
   Edit
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { ImageUploadWithPreview } from "@/components/ImageUploadWithPreview"
+import { MediaUploader } from "@/components/MediaUploader"
 import { toast } from "sonner"
 import QRCode from "qrcode"
 import { useSearchParams } from "react-router-dom"
@@ -1201,11 +1201,11 @@ export function CertificateDesignEditor({
                 <h3 className={`font-bold text-xs uppercase tracking-wider ${isDark ? "text-slate-400" : "text-slate-500"}`}>Fondo del Certificado</h3>
                 <p className={`text-[10px] leading-normal ${isDark ? "text-slate-500" : "text-slate-600"}`}>Carga la plantilla de diseño base sin los textos dinámicos.</p>
                 <div className={`p-3 rounded-xl border ${isDark ? "bg-slate-900/60 border-slate-800/80" : "bg-slate-50 border-slate-200"}`}>
-                  <ImageUploadWithPreview
+                  <MediaUploader
                     label="Imagen de Fondo"
                     value={bgUrl}
                     onChange={setBgUrl}
-                    aspectRatio="banner"
+                    variant="banner"
                     folder="certificates"
                     identifier="bg"
                     placeholder="Sube el archivo base"

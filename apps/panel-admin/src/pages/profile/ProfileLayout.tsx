@@ -14,7 +14,6 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ChevronsUpDown, LogOut } from "lucide-react"
-import { supabase } from "@/utils/supabase"
 import { PageHeader } from "@/components/page-header"
 
 export function ProfileLayout() {
@@ -29,7 +28,8 @@ export function ProfileLayout() {
   }, [user?.id, loadProfileData])
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
+    localStorage.removeItem("events-api-access-token")
+    localStorage.removeItem("events-api-refresh-token")
     logout()
     navigate("/login", { replace: true })
   }
