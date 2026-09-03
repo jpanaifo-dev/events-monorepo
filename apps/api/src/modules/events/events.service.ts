@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { EventStatus } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service.js';
 
 @Injectable()
@@ -6,14 +7,23 @@ export class EventsService {
   constructor(private readonly prisma: PrismaService) {}
   list(organizationId?: string) { return this.prisma.mainEvent.findMany({ where: organizationId ? { organizationId } : undefined, include: { editions: true, details: true, thematicLines: true }, orderBy: { startDate: 'desc' } }); }
   async get(id: string) { const event = await this.prisma.mainEvent.findUnique({ where: { id }, include: { editions: { include: { activities: true, participants: true, tickets: true } }, details: true, thematicLines: true } }); if (!event) throw new NotFoundException('Evento no encontrado'); return event; }
-  create(data: Record<string, any>) { return this.prisma.mainEvent.create({ data: { eventName: data.eventName, startDate: new Date(data.startDate), organizationId: data.organizationId, description: data.description, coverUrl: data.coverUrl, logoUrl: data.logoUrl, contactEmail: data.contactEmail } }); }
-  update(id: string, data: Record<string, unknown>) {
-    const input: Record<string, unknown> = {};
-    for (const key of ['eventName', 'description', 'coverUrl', 'logoUrl', 'organizationId', 'eventMode', 'contactEmail', 'venueAddress', 'latitude', 'longitude']) if (data[key] !== undefined) input[key] = data[key];
-    if (data.status !== undefined) input.status = String(data.status).toUpperCase();
-    if (typeof data.startDate === 'string') input.startDate = new Date(data.startDate);
-    if (typeof data.endDate === 'string') input.endDate = new Date(data.endDate);
-    return this.prisma.mainEvent.update({ where: { id }, data: input });
+  create(data: Record<string, any>) { return this.prisma.mainEvent.create({ data: { eventName: data.eventName, startDate: new Date(data.startDate), organizationId: data.organizationId, description: data.description, coverUrl: data.coverUrl, logoUrl: data.logoUrl, contactEmail: data.contactEmail, status: (data.status ? String(data.status).toUpperCase() : 'DRAFT') as EventStatus } }); }
+  async update(id: string, data: Record<string, unknown>) {
+    const { detailContent, ...eventData } = data;
+    const input: any = {};
+    for (const key of ['eventName', 'description', 'coverUrl', 'logoUrl', 'organizationId', 'contactEmail', 'venueAddress', 'latitude', 'longitude']) if (eventData[key] !== undefined) input[key] = eventData[key];
+    if (eventData.eventMode !== undefined) {
+      const mode = String(eventData.eventMode).trim().toUpperCase();
+      input.eventMode = ['PHYSICAL', 'ONLINE', 'HYBRID'].includes(mode) ? mode : null;
+    }
+    if (eventData.status !== undefined) input.status = String(eventData.status).toUpperCase();
+    if (typeof eventData.startDate === 'string') input.startDate = new Date(eventData.startDate);
+    if (typeof eventData.endDate === 'string') input.endDate = new Date(eventData.endDate);
+    const event = await this.prisma.mainEvent.update({ where: { id }, data: input });
+    if (typeof detailContent === 'string') {
+      await this.prisma.eventDetail.upsert({ where: { eventId: id }, create: { eventId: id, content: detailContent || null }, update: { content: detailContent || null } });
+    }
+    return event;
   }
   remove(id: string) { return this.prisma.mainEvent.delete({ where: { id } }); }
   async getSetup(eventId: string) {

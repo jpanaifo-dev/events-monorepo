@@ -9,49 +9,70 @@ import {
   HelpCircle,
   AlertCircle,
   Smile,
-  Code2,
   Sparkles,
   Check,
-  CheckCircle2,
   LayoutTemplate,
+  ShieldCheck,
+  Send,
 } from "lucide-react"
 import { toast } from "sonner"
 import { api } from "@/api/client"
 import { useAuthStore } from "@/store/auth.store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
 import { TemplatePickerModal } from "./TemplatePickerModal"
+import { OrgEmailSettingsModal } from "./OrgEmailSettingsModal"
 
 export function TemplateConfigPage() {
   const { templateId } = useParams<{ templateId: string }>()
   const navigate = useNavigate()
-  const { selectedOrganization } = useAuthStore()
+  const { selectedOrganization, user } = useAuthStore()
 
   const isNew = !templateId || templateId === "new"
 
   const [loading, setLoading] = useState(!isNew)
   const [saving, setSaving] = useState(false)
+  const [testing, setTesting] = useState(false)
 
   // Template Data
   const [name, setName] = useState("Nueva plantilla")
   const [isEditingName, setIsEditingName] = useState(false)
   const [status, setStatus] = useState<"ACTIVE" | "INACTIVE" | "DRAFT">("INACTIVE")
-  const [senderEmail, setSenderEmail] = useState("daylersan@gmail.com")
+  const [senderEmail, setSenderEmail] = useState("")
   const [senderName, setSenderName] = useState(selectedOrganization?.name || "IIAP")
   const [subject, setSubject] = useState("")
   const [previewText, setPreviewText] = useState("")
   const [content, setContent] = useState<any[] | null>(null)
   const [category, setCategory] = useState("CUSTOM")
 
+  // Org email settings
+  const [orgSettings, setOrgSettings] = useState<any | null>(null)
+  const [openSettingsModal, setOpenSettingsModal] = useState(false)
+
   // Modal Gallery
   const [openPicker, setOpenPicker] = useState(false)
 
   useEffect(() => {
+    if (selectedOrganization?.id) {
+      loadOrgSettings(selectedOrganization.id)
+    }
     if (!isNew && templateId) {
       loadTemplate(templateId)
     }
-  }, [templateId, isNew])
+  }, [templateId, isNew, selectedOrganization?.id])
+
+  const loadOrgSettings = async (orgId: string) => {
+    try {
+      const data = await api.emailSettings.get(orgId)
+      setOrgSettings(data)
+      if (isNew && data.resendFromEmail) {
+        setSenderEmail(data.resendFromEmail)
+        if (data.resendFromName) setSenderName(data.resendFromName)
+      }
+    } catch {
+      // ignore
+    }
+  }
 
   const loadTemplate = async (id: string) => {
     try {
@@ -59,7 +80,7 @@ export function TemplateConfigPage() {
       const data = await api.emailTemplates.get(id)
       setName(data.name || "Plantilla")
       setStatus(data.status || "INACTIVE")
-      setSenderEmail(data.senderEmail || "daylersan@gmail.com")
+      setSenderEmail(data.senderEmail || "")
       setSenderName(data.senderName || selectedOrganization?.name || "IIAP")
       setSubject(data.subject || "")
       setPreviewText(data.previewText || "")
@@ -280,25 +301,50 @@ export function TemplateConfigPage() {
         {/* RIGHT COLUMN: Sender, Subject, Preview Text Fields (Image 2)             */}
         {/* ========================================================================= */}
         <div className="lg:col-span-7 space-y-6">
+          <div className="p-4 rounded-2xl border border-border bg-muted/30">
+            <p className="text-xs font-semibold text-foreground">Envío de marketing de la organización</p>
+            <p className="text-[11px] text-muted-foreground mt-1">Esta plantilla utilizará la configuración de correo de la organización. Las notificaciones propias del sistema usan la configuración global de la plataforma.</p>
+          </div>
+
           {/* Email de remitente * */}
           <div className="space-y-2">
-            <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
-              Email de remitente <span className="text-rose-500">*</span>
-              <HelpCircle className="size-3.5 text-muted-foreground cursor-pointer" />
+            <label className="text-xs font-bold text-foreground flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                Email de remitente <span className="text-rose-500">*</span>
+                <HelpCircle className="size-3.5 text-muted-foreground cursor-pointer" />
+              </span>
+              <span className="text-[10px] text-muted-foreground">Heredado del dominio institucional</span>
             </label>
             <Input
               value={senderEmail}
-              onChange={(e) => setSenderEmail(e.target.value)}
-              placeholder="ejemplo@tuorganizacion.com"
+              readOnly
+              placeholder=""
               className="h-11 rounded-xl bg-background border-border text-xs px-4"
             />
-            {/* Domain authentication notice (Image 2) */}
-            <div className="flex items-start gap-2 p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-700 dark:text-rose-400 text-[11px] leading-tight">
-              <AlertCircle className="size-3.5 shrink-0 mt-0.5" />
-              <span>
-                Tu dominio no está autenticado con DKIM/SPF. Para garantizar la entrega sin caer en spam, el envío se procesa mediante los servidores seguros configurados.
-              </span>
-            </div>
+
+            {/* Quick Senders Chips */}
+            {false && orgSettings?.verifiedSenders && orgSettings.verifiedSenders.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                <span className="text-[10px] text-muted-foreground font-medium mr-1">Sugeridos:</span>
+                {orgSettings.verifiedSenders.map((s: any, idx: number) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setSenderEmail(s.email)
+                      if (s.name) setSenderName(s.name)
+                    }}
+                    className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all font-mono ${
+                      senderEmail === s.email
+                        ? "bg-primary text-primary-foreground border-primary font-bold shadow-xs"
+                        : "bg-muted/40 text-muted-foreground hover:text-foreground border-border hover:bg-muted"
+                    }`}
+                  >
+                    {s.email}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Nombre de remitente * */}
@@ -376,6 +422,17 @@ export function TemplateConfigPage() {
         open={openPicker}
         onOpenChange={setOpenPicker}
         onSelectTemplate={handleSelectFromPicker}
+      />
+
+      {/* Org Email Settings Modal */}
+      <OrgEmailSettingsModal
+        open={openSettingsModal}
+        onOpenChange={setOpenSettingsModal}
+        onSaved={() => {
+          if (selectedOrganization?.id) {
+            loadOrgSettings(selectedOrganization.id)
+          }
+        }}
       />
     </div>
   )

@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
 import { IsDateString, IsOptional, IsString, MinLength } from 'class-validator';
 import { EditionsService } from './editions.service.js';
-class EditionDto { @IsString() @MinLength(2) name!: string; @IsOptional() @IsDateString() startDate?: string; @IsOptional() @IsDateString() endDate?: string; @IsOptional() @IsString() modality?: string; @IsOptional() @IsString() location?: string; }
+class EditionDto { @IsString() @MinLength(2) name!: string; @IsOptional() @IsDateString() startDate?: string; @IsOptional() @IsDateString() endDate?: string; @IsOptional() @IsString() modality?: string; @IsOptional() @IsString() location?: string; @IsOptional() @IsString() description?: string; @IsOptional() @IsString() coverUrl?: string; @IsOptional() @IsString() metaThumbnailUrl?: string; @IsOptional() isCurrent?: boolean; @IsOptional() latitude?: number; @IsOptional() longitude?: number; }
 class ActivityDto { @IsString() @MinLength(2) title!: string; @IsOptional() @IsString() description?: string; @IsOptional() @IsDateString() startsAt?: string; @IsOptional() @IsDateString() endsAt?: string; }
 @Controller('events/:eventId/editions')
 export class EditionsController {

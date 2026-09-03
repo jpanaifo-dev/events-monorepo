@@ -11,6 +11,7 @@ import {
   Search,
   Users,
   Crown,
+  Star,
 } from "lucide-react"
 import { toast } from "sonner"
 import { api } from "@/api/client"
@@ -19,6 +20,7 @@ import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { EmptyState } from "@/components/ui/empty-state"
 import {
   Dialog,
   DialogContent,
@@ -39,7 +41,7 @@ import {
 export function EventFormsSection() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { editions } = useEventStore()
+  const { editions, events } = useEventStore()
 
   const [forms, setForms] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -51,6 +53,10 @@ export function EventFormsSection() {
   const [title, setTitle] = useState("")
   const [slug, setSlug] = useState("")
   const [editionId, setEditionId] = useState("")
+  const [purpose, setPurpose] = useState<"MAIN" | "PARTICIPANT" | "WAITLIST" | "OTHER">("PARTICIPANT")
+  const [opensAt, setOpensAt] = useState("")
+  const [closesAt, setClosesAt] = useState("")
+  const [maxSubmissions, setMaxSubmissions] = useState("")
   const [isCreating, setIsCreating] = useState(false)
 
   // Delete dialog state
@@ -58,6 +64,7 @@ export function EventFormsSection() {
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
   const eventEditions = editions.filter((edition) => edition.mainEventId === id)
+  const eventName = events.find((event) => event.id === id)?.name
 
   const loadForms = async () => {
     if (!id) return
@@ -132,6 +139,10 @@ export function EventFormsSection() {
         status: "DRAFT",
         description: formType === "POPUP" ? "Formulario tipo ventana emergente" : "Formulario de página completa",
         allowEditionSelection: false,
+        purpose,
+        opensAt: opensAt || undefined,
+        closesAt: closesAt || undefined,
+        maxSubmissions: maxSubmissions ? Number(maxSubmissions) : undefined,
         fields: defaultFields,
       })
 
@@ -140,6 +151,10 @@ export function EventFormsSection() {
       setTitle("")
       setSlug("")
       setEditionId("")
+      setPurpose("PARTICIPANT")
+      setOpensAt("")
+      setClosesAt("")
+      setMaxSubmissions("")
       navigate(`/dashboard/events/${id}/forms/${newForm.id}`)
     } catch (error: any) {
       toast.error(error?.message || "Error al crear el formulario.")
@@ -160,6 +175,31 @@ export function EventFormsSection() {
     }
   }
 
+  const handlePurposeChange = (nextPurpose: typeof purpose) => {
+    setPurpose(nextPurpose)
+    if (nextPurpose === "MAIN" && !title.trim() && eventName) handleTitleChange(`Regístrate a ${eventName}`)
+  }
+
+  const handleMakeMain = async (form: any) => {
+    try {
+      await api.registrationForms.makeMain(form.id)
+      toast.success("Formulario configurado como registro principal con la estructura de participantes.")
+      loadForms()
+    } catch (error: any) {
+      toast.error(error?.message || "No se pudo configurar el registro principal.")
+    }
+  }
+
+  const handleRemoveMain = async (form: any) => {
+    try {
+      await api.registrationForms.update(form.id, { purpose: "PARTICIPANT" })
+      toast.success("El formulario dejó de ser el registro principal.")
+      loadForms()
+    } catch (error: any) {
+      toast.error(error?.message || "No se pudo actualizar el formulario.")
+    }
+  }
+
   const copyPublicLink = (formSlug: string, formId: string) => {
     const url = `${window.location.origin}/forms/${formSlug}`
     navigator.clipboard.writeText(url)
@@ -172,6 +212,7 @@ export function EventFormsSection() {
     f.title?.toLowerCase().includes(search.toLowerCase()) ||
     f.slug?.toLowerCase().includes(search.toLowerCase())
   )
+  const mainFormId = forms.find((form) => form.purpose === "MAIN")?.id
 
   return (
     <div className="space-y-6">
@@ -211,24 +252,35 @@ export function EventFormsSection() {
           ))}
         </div>
       ) : filteredForms.length === 0 ? (
-        <div className="rounded-2xl border-2 border-dashed border-border/80 bg-card/40 p-12 text-center max-w-xl mx-auto space-y-4 my-6">
-          <div className="size-16 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto">
-            <Sparkles className="size-8" />
-          </div>
-          <div>
-            <h3 className="text-lg font-bold text-foreground">No tienes formularios creados</h3>
-            <p className="text-sm text-muted-foreground mt-1 max-w-sm mx-auto">
-              Crea tu primer formulario de registro con nuestro diseñador visual para empezar a captar asistentes.
-            </p>
-          </div>
-          <Button
-            onClick={() => setOpenModal(true)}
-            className="rounded-xl font-semibold bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-primary dark:text-primary-foreground"
-          >
-            <Plus className="mr-2 size-4" />
-            Crear primer formulario
-          </Button>
-        </div>
+        <EmptyState
+          imageSrc="/svg/empty_form.svg"
+          imageAlt="Sin formularios"
+          title={search ? "No se encontraron formularios" : "No tienes formularios creados"}
+          description={
+            search
+              ? `No encontramos ningún formulario que coincida con "${search}". Intenta con otra búsqueda.`
+              : "Crea tu primer formulario de registro con nuestro diseñador visual para empezar a captar asistentes."
+          }
+          action={
+            search ? (
+              <Button
+                variant="outline"
+                onClick={() => setSearch("")}
+                className="rounded-xl font-medium"
+              >
+                Limpiar búsqueda
+              </Button>
+            ) : (
+              <Button
+                onClick={() => setOpenModal(true)}
+                className="rounded-xl font-semibold bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-primary dark:text-primary-foreground"
+              >
+                <Plus className="mr-2 size-4" />
+                Crear primer formulario
+              </Button>
+            )
+          }
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredForms.map((form) => {
@@ -284,19 +336,37 @@ export function EventFormsSection() {
                       </Badge>
                     </div>
                   )}
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    <Badge variant="outline" className="text-[11px] font-normal">
+                      {form.purpose === "MAIN" ? "Registro principal" : form.purpose === "WAITLIST" ? "Lista de espera" : form.purpose === "OTHER" ? "Otro" : "Participantes"}
+                    </Badge>
+                    {form.closesAt && <Badge variant="outline" className="text-[11px] font-normal">Cierra: {new Date(form.closesAt).toLocaleDateString("es-PE")}</Badge>}
+                  </div>
                 </div>
 
                 {/* Bottom Actions */}
                 <div className="mt-6 pt-4 border-t border-border/40 flex items-center justify-between gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setFormToDelete(form)}
-                    className="size-8 p-0 text-muted-foreground hover:text-destructive hover:border-destructive/40 rounded-lg"
-                    title="Eliminar formulario"
-                  >
-                    <Trash2 className="size-4" />
-                  </Button>
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => form.purpose === "MAIN" ? handleRemoveMain(form) : handleMakeMain(form)}
+                      disabled={form.purpose !== "MAIN" && !!mainFormId}
+                      className={`size-8 p-0 rounded-lg ${form.purpose === "MAIN" ? "border-amber-400/60 bg-amber-400/10 text-amber-600 hover:bg-amber-400/20" : "text-muted-foreground"}`}
+                      title={form.purpose === "MAIN" ? "Quitar como registro principal" : mainFormId ? "Ya existe un registro principal" : "Establecer como registro principal"}
+                    >
+                      <Star className={`size-4 ${form.purpose === "MAIN" ? "fill-current" : ""}`} />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setFormToDelete(form)}
+                      className="size-8 p-0 text-muted-foreground hover:text-destructive hover:border-destructive/40 rounded-lg"
+                      title="Eliminar formulario"
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </div>
 
                   <Button
                     size="sm"
@@ -453,6 +523,27 @@ export function EventFormsSection() {
                 className="h-11 rounded-xl bg-background border-border text-foreground px-4 text-sm focus-visible:ring-violet-600"
                 autoFocus
               />
+            </div>
+
+            {/* Edition Association (Optional) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-foreground">Finalidad</label>
+                <select value={purpose} onChange={(e) => handlePurposeChange(e.target.value as typeof purpose)} className="h-11 w-full rounded-xl border border-border bg-background px-4 text-sm text-foreground">
+                  <option value="MAIN">Registro principal del evento</option>
+                  <option value="PARTICIPANT">Registro de participantes</option>
+                  <option value="WAITLIST">Lista de espera</option>
+                  <option value="OTHER">Otro formulario</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-foreground">Cupo máximo (opcional)</label>
+                <Input type="number" min="1" value={maxSubmissions} onChange={(e) => setMaxSubmissions(e.target.value)} placeholder="Sin límite" className="h-11 rounded-xl" />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2"><label className="text-sm font-semibold text-foreground">Abre el</label><Input type="datetime-local" value={opensAt} onChange={(e) => setOpensAt(e.target.value)} className="h-11 rounded-xl" /></div>
+              <div className="space-y-2"><label className="text-sm font-semibold text-foreground">Cierra el</label><Input type="datetime-local" value={closesAt} onChange={(e) => setClosesAt(e.target.value)} className="h-11 rounded-xl" /></div>
             </div>
 
             {/* Edition Association (Optional) */}

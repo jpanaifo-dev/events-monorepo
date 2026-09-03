@@ -321,7 +321,7 @@ export function EventSpeakersSection() {
             setCurrentPage(1)
           }}
           className="flex items-center gap-1.5 group/sortbtn hover:text-foreground transition-colors cursor-pointer select-none"
-          title={sortParam === "" ? "Ordenar por nombre A→Z" : sortParam === "name_asc" ? "Ordenar por nombre Z→A" : "Quitar ordenamiento"}
+          title={sortParam === "" ? "Ordenar por nombre AZ" : sortParam === "name_asc" ? "Ordenar por nombre ZA" : "Quitar ordenamiento"}
         >
           <span>Ponente</span>
           {sortParam === "" && <ArrowUpDown className="size-3 opacity-40 group-hover/sortbtn:opacity-80 transition-opacity" />}
@@ -459,7 +459,7 @@ export function EventSpeakersSection() {
           >
             <Edit className="size-3.5" />
           </Button>
- 
+
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button
@@ -491,10 +491,10 @@ export function EventSpeakersSection() {
       )
     }
   ]
- 
+
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
- 
+
       <PageHeader
         title="Ponentes"
         description="Gestiona los expositores de charlas, conferencias y talleres."
@@ -509,7 +509,7 @@ export function EventSpeakersSection() {
               <Upload className="size-4" />
               <span className="hidden md:inline">Importar CSV</span>
             </Button>
- 
+
             <Button onClick={handleAddClick} className="text-xs px-3 py-1.5 h-8">
               <Plus className="size-4 mr-1.5" />
               Agregar Ponente
@@ -517,7 +517,7 @@ export function EventSpeakersSection() {
           </div>
         }
       />
- 
+
       {/* Filters Row */}
       <div className="flex flex-col sm:flex-row gap-3 items-center">
         {/* Search Input */}
@@ -530,7 +530,7 @@ export function EventSpeakersSection() {
             className="pl-9 h-9 text-xs rounded-xl shadow-xs border-muted-foreground/20 focus-visible:ring-primary/20"
           />
         </div>
- 
+
         {/* Edition Select Filter */}
         <div className="w-full sm:max-w-xs">
           <Select value={editionFilter} onValueChange={handleEditionChange}>
@@ -547,7 +547,7 @@ export function EventSpeakersSection() {
             </SelectContent>
           </Select>
         </div>
- 
+
         {/* Loading Spinner for dynamic backend loading indicator */}
         {(isQueryLoading || isFetching) && (
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground animate-in fade-in">

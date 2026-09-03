@@ -7,9 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import { PageHeader } from "@/components/page-header"
-import { ImageUploadWithPreview } from "@/components/ImageUploadWithPreview"
+import { MediaUploader } from "@/components/MediaUploader"
 import { X } from "lucide-react"
-import { deleteFromR2 } from "@/utils/r2-storage"
 
 const organizationSchema = z.object({
   name: z.string().min(3, "El nombre de la organización debe tener al menos 3 caracteres"),
@@ -45,6 +44,7 @@ function isCurrentMember(member: any, accountId?: string) {
 export function OrganizationSettingsPage() {
   const navigate = useNavigate()
   const { user, selectedOrganization, selectOrganization, setOrganizations, organizations } = useAuthStore()
+  const organizationId = selectedOrganization?.id || ""
 
   useSEO({
     title: "Ajustes de la Organización",
@@ -359,6 +359,7 @@ export function OrganizationSettingsPage() {
         slug,
         description: description || "",
         type,
+        organizationType: type,
         logoUrl,
         coverUrl,
         faviconUrl,
@@ -413,29 +414,6 @@ export function OrganizationSettingsPage() {
     setIsDeleting(true)
     try {
       const orgId = selectedOrganization.id
-
-      // 1. Delete media from Cloudflare R2
-      if (logoUrl) {
-        try {
-          await deleteFromR2(logoUrl)
-        } catch (e) {
-          console.error("Error deleting logo from R2:", e)
-        }
-      }
-      if (coverUrl) {
-        try {
-          await deleteFromR2(coverUrl)
-        } catch (e) {
-          console.error("Error deleting cover from R2:", e)
-        }
-      }
-      if (faviconUrl) {
-        try {
-          await deleteFromR2(faviconUrl)
-        } catch (e) {
-          console.error("Error deleting favicon from R2:", e)
-        }
-      }
 
       await api.organizations.remove(orgId)
 
@@ -696,19 +674,19 @@ export function OrganizationSettingsPage() {
               <p className="text-xs text-muted-foreground">Imagen representativa de la organización.</p>
             </div>
             <div className="md:w-2/3 max-w-md w-full">
-              <ImageUploadWithPreview
-                label=""
+              <MediaUploader
                 value={logoUrl}
                 onChange={setLogoUrl}
-                aspectRatio="square"
-                placeholder="Arrastra tu logotipo aquí, o pega un enlace"
-                folder={`organizations/${selectedOrganization.id}/branding/logo`}
+                variant="square"
+                placeholder="Arrastra tu logotipo aquí, o selecciona un archivo"
+                folder={`organizations/${organizationId}/branding/logo`}
                 identifier="logo"
+                assetTarget={{ organizationId, type: "organizations/logo", resourceId: organizationId }}
                 onR2UploadComplete={async (publicUrl) => {
-                  await api.organizations.update(selectedOrganization.id, { logoUrl: publicUrl })
-                  const updatedOrganization = { ...selectedOrganization, logoUrl: publicUrl }
+                  await api.organizations.update(organizationId, { logoUrl: publicUrl })
+                  const updatedOrganization = { ...selectedOrganization!, logoUrl: publicUrl }
                   selectOrganization(updatedOrganization)
-                  setOrganizations(organizations.map((org) => org.id === selectedOrganization.id ? updatedOrganization : org))
+                  setOrganizations(organizations.map((org) => org.id === organizationId ? updatedOrganization : org))
                   toast.success("Logotipo guardado correctamente")
                 }}
               />
@@ -725,19 +703,19 @@ export function OrganizationSettingsPage() {
               <p className="text-xs text-muted-foreground">Banner de fondo que se mostrará en los eventos y portal.</p>
             </div>
             <div className="md:w-2/3 max-w-md w-full">
-              <ImageUploadWithPreview
-                label=""
+              <MediaUploader
                 value={coverUrl}
                 onChange={setCoverUrl}
-                aspectRatio="banner"
-                placeholder="Arrastra tu banner de portada aquí, o pega un enlace"
-                folder={`organizations/${selectedOrganization.id}/branding/cover`}
+                variant="banner"
+                placeholder="Arrastra tu banner de portada aquí, o selecciona un archivo"
+                folder={`organizations/${organizationId}/branding/cover`}
                 identifier="cover"
+                assetTarget={{ organizationId, type: "organizations/cover", resourceId: organizationId }}
                 onR2UploadComplete={async (publicUrl) => {
-                  await api.organizations.update(selectedOrganization.id, { coverUrl: publicUrl })
-                  const updatedOrganization = { ...selectedOrganization, coverUrl: publicUrl }
+                  await api.organizations.update(organizationId, { coverUrl: publicUrl })
+                  const updatedOrganization = { ...selectedOrganization!, coverUrl: publicUrl }
                   selectOrganization(updatedOrganization)
-                  setOrganizations(organizations.map((org) => org.id === selectedOrganization.id ? updatedOrganization : org))
+                  setOrganizations(organizations.map((org) => org.id === organizationId ? updatedOrganization : org))
                   toast.success("Portada guardada correctamente")
                 }}
               />
@@ -754,19 +732,19 @@ export function OrganizationSettingsPage() {
               <p className="text-xs text-muted-foreground">Icono de página web pequeño (generalmente 1:1).</p>
             </div>
             <div className="md:w-2/3 max-w-md w-full">
-              <ImageUploadWithPreview
-                label=""
+              <MediaUploader
                 value={faviconUrl}
                 onChange={setFaviconUrl}
-                aspectRatio="favicon"
-                placeholder="Arrastra tu favicon aquí, o pega un enlace"
-                folder={`organizations/${selectedOrganization.id}/branding/favicon`}
+                variant="favicon"
+                placeholder="Arrastra tu favicon aquí, o selecciona un archivo"
+                folder={`organizations/${organizationId}/branding/favicon`}
                 identifier="favicon"
+                assetTarget={{ organizationId, type: "organizations/favicon", resourceId: organizationId }}
                 onR2UploadComplete={async (publicUrl) => {
-                  await api.organizations.update(selectedOrganization.id, { faviconUrl: publicUrl })
-                  const updatedOrganization = { ...selectedOrganization, faviconUrl: publicUrl }
+                  await api.organizations.update(organizationId, { faviconUrl: publicUrl })
+                  const updatedOrganization = { ...selectedOrganization!, faviconUrl: publicUrl }
                   selectOrganization(updatedOrganization)
-                  setOrganizations(organizations.map((org) => org.id === selectedOrganization.id ? updatedOrganization : org))
+                  setOrganizations(organizations.map((org) => org.id === organizationId ? updatedOrganization : org))
                   toast.success("Favicon guardado correctamente")
                 }}
               />

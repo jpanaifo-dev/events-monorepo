@@ -207,9 +207,14 @@ export const STARTER_TEMPLATES = [
   },
 ];
 
+import { MailService } from '../mail/mail.service.js';
+
 @Injectable()
 export class EmailTemplatesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mailService: MailService,
+  ) {}
 
   async list(organizationId: string, search?: string, category?: string) {
     const where: any = { organizationId };
@@ -349,5 +354,43 @@ export class EmailTemplatesService {
         tags: (original as any).tags || [],
       },
     });
+  }
+
+  async sendTest(id: string, recipientEmail: string) {
+    if (!recipientEmail || !recipientEmail.includes('@')) {
+      throw new Error('Debes proporcionar un correo destinatario válido.');
+    }
+
+    const template = await this.get(id);
+    let htmlContent = (template as any).htmlContent;
+
+    if (!htmlContent) {
+      htmlContent = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+          <h2 style="color: #0f172a;">${template.name}</h2>
+          <p style="color: #64748b;">${(template as any).previewText || ''}</p>
+          <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+          <p>Este es un correo de prueba enviado desde la plantilla <strong>${template.name}</strong>.</p>
+        </div>
+      `;
+    }
+
+    const subject = template.subject ? `[Prueba] ${template.subject}` : `[Prueba] ${template.name}`;
+    const result = await this.mailService.send({
+      to: recipientEmail,
+      subject,
+      html: htmlContent,
+      organizationId: (template as any).organizationId,
+    });
+
+    if (!result.sent) {
+      throw new Error(`No se pudo enviar el correo de prueba: ${result.reason || 'Error desconocido'}`);
+    }
+
+    return {
+      success: true,
+      message: `Correo de prueba enviado exitosamente a ${recipientEmail}`,
+      messageId: result.messageId,
+    };
   }
 }

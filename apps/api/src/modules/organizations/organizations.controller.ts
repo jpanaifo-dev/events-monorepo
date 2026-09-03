@@ -3,7 +3,7 @@ import { IsOptional, IsString, MinLength } from 'class-validator';
 import { OrganizationsService } from './organizations.service.js';
 import { AdminGuard } from '../auth/admin.guard.js';
 
-class CreateOrganizationDto { @IsString() @MinLength(2) name!: string; @IsString() @MinLength(2) slug!: string; @IsOptional() @IsString() description?: string; }
+class CreateOrganizationDto { @IsString() @MinLength(2) name!: string; @IsString() @MinLength(2) slug!: string; @IsOptional() @IsString() description?: string; @IsOptional() @IsString() organizationType?: string; }
 
 @Controller('organizations')
 export class OrganizationsController {

@@ -37,11 +37,12 @@ export function ContactsTab({
   const [tagInput, setTagInput] = useState("")
 
   const filteredContacts = contacts.filter((c) => {
+    const email = c.email || ""
     const fullName = `${c.firstName || ""} ${c.lastName || ""}`.toLowerCase()
     const matchesSearch =
-      c.email.toLowerCase().includes(search.toLowerCase()) ||
+      email.toLowerCase().includes(search.toLowerCase()) ||
       fullName.includes(search.toLowerCase()) ||
-      c.tags?.some((t) => t.toLowerCase().includes(search.toLowerCase()))
+      c.tags?.some((t) => (t || "").toLowerCase().includes(search.toLowerCase()))
     const matchesStatus = statusFilter === "ALL" || c.status === statusFilter
     return matchesSearch && matchesStatus
   })

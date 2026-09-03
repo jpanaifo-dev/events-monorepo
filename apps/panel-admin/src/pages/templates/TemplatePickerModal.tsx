@@ -9,17 +9,15 @@ import {
   Sparkles,
   Layers,
   ShoppingBag,
-  BookOpen,
   FileText,
-  Check,
 } from "lucide-react"
-import { STARTER_TEMPLATES } from "./starterTemplates"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
   Dialog,
   DialogContent,
 } from "@/components/ui/dialog"
+import { STARTER_TEMPLATES } from "./starterTemplates"
 
 interface TemplatePickerModalProps {
   open: boolean
@@ -36,37 +34,81 @@ export function TemplatePickerModal({
 }: TemplatePickerModalProps) {
   const [activeCategory, setActiveCategory] = useState<"BASIC" | "SAVED" | "READY">("BASIC")
   const [search, setSearch] = useState("")
-  const [previewTemplate, setPreviewTemplate] = useState<any | null>(null)
+  const [, setPreviewTemplate] = useState<any | null>(null)
 
-  const starterTemplates = [
-    {
-      id: "starter-default",
-      name: "Plantilla predeterminada",
-      category: "BASIC",
-      tagline: "Estructura estándar de titular, banner y botón",
-      description: "Ideal para comunicados generales, avisos corporativos y actualizaciones importantes.",
-      thumbnailSvg: (
-        <div className="w-full h-full bg-slate-50 dark:bg-zinc-900 p-4 flex flex-col items-center justify-between text-center">
-          <div className="w-16 h-4 rounded bg-slate-700 text-white text-[8px] font-bold flex items-center justify-center">
-            Logo
+  const starterTemplates = STARTER_TEMPLATES.map((tmpl) => {
+    let thumbnailSvg: React.ReactNode = null
+
+    if (tmpl.id === "starter-hubspot-confirm") {
+      thumbnailSvg = (
+        <div className="w-full h-full bg-white dark:bg-zinc-900 p-4 flex flex-col items-center justify-between text-center">
+          <div className="w-full h-6 rounded bg-[#FF7A59] text-white text-[9px] font-black flex items-center justify-center">
+            HubSpot
           </div>
-          <div className="w-28 h-2 rounded bg-slate-800 dark:bg-slate-200 mt-2" />
-          <div className="w-20 h-16 rounded-xl border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 flex items-center justify-center my-2 shadow-2xs">
-            <ShoppingBag className="size-6 text-slate-400" />
+          <div className="size-10 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-500/40 flex items-center justify-center text-emerald-600 font-bold text-xs my-1">
+            ✓
           </div>
-          <div className="w-24 h-4 rounded bg-emerald-600 text-white text-[8px] font-semibold flex items-center justify-center">
-            Botón CTA
+          <div className="w-36 h-2 rounded bg-slate-800 dark:bg-slate-200" />
+          <div className="w-44 h-1.5 rounded bg-slate-400 dark:bg-zinc-600" />
+          <div className="w-28 h-5 rounded bg-[#33475B] text-white text-[8px] font-bold flex items-center justify-center">
+            Confirm email
           </div>
         </div>
-      ),
-    },
-    {
-      id: "starter-product",
-      name: "Vender un producto o ticket",
-      category: "BASIC",
-      tagline: "Equipamiento esencial para cada aventura",
-      description: "Diseñada para promocionar entradas de eventos, pases especiales o venta de cursos.",
-      thumbnailSvg: (
+      )
+    } else if (tmpl.id === "starter-workangel-approval") {
+      thumbnailSvg = (
+        <div className="w-full h-full bg-slate-50 dark:bg-zinc-900 p-3 flex flex-col items-center justify-between text-center">
+          <div className="size-7 rounded-full bg-sky-500 text-white font-bold text-[10px] flex items-center justify-center">
+            W
+          </div>
+          <div className="w-36 h-2 rounded bg-slate-800 dark:bg-slate-200" />
+          <div className="w-full h-12 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 p-1.5 flex flex-col items-center justify-around">
+            <div className="w-20 h-1.5 rounded bg-slate-400 dark:bg-zinc-600" />
+            <div className="w-16 h-3 rounded bg-sky-600 text-white text-[7px] font-semibold flex items-center justify-center">
+              Get started
+            </div>
+          </div>
+          <div className="w-full flex justify-center gap-1.5">
+            <div className="w-14 h-4 rounded bg-black text-white text-[6px] flex items-center justify-center">App Store</div>
+            <div className="w-14 h-4 rounded bg-black text-white text-[6px] flex items-center justify-center">Google Play</div>
+          </div>
+        </div>
+      )
+    } else if (tmpl.id === "starter-universe-welcome") {
+      thumbnailSvg = (
+        <div className="w-full h-full bg-white dark:bg-zinc-900 p-3 flex flex-col items-center justify-between text-center">
+          <div className="size-8 rounded-full bg-indigo-50 dark:bg-indigo-950/40 flex items-center justify-center text-sm">
+            👋
+          </div>
+          <div className="w-36 h-2.5 rounded bg-slate-900 dark:bg-slate-100" />
+          <div className="w-40 h-1.5 rounded bg-slate-400 dark:bg-zinc-600" />
+          <div className="w-28 h-5 rounded bg-indigo-600 text-white text-[8px] font-bold flex items-center justify-center">
+            Create event now
+          </div>
+          <div className="w-full h-6 rounded bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-[7px] text-slate-500">
+            ¿Have questions? We are here to help
+          </div>
+        </div>
+      )
+    } else if (tmpl.id === "starter-hellothere-services") {
+      thumbnailSvg = (
+        <div className="w-full h-full bg-white dark:bg-zinc-900 flex flex-col items-center justify-between text-center overflow-hidden">
+          <div className="w-full h-12 bg-blue-600 text-white flex flex-col items-center justify-center p-1">
+            <span className="font-black text-[10px]">.hello there</span>
+            <span className="text-[6px] text-blue-200">Agencia especializada</span>
+          </div>
+          <div className="w-full px-3 py-1 space-y-1 text-left">
+            <div className="w-20 h-1.5 rounded bg-slate-800 dark:bg-slate-200" />
+            <div className="w-full h-1 rounded bg-slate-300 dark:bg-zinc-700" />
+            <div className="w-5/6 h-1 rounded bg-slate-300 dark:bg-zinc-700" />
+          </div>
+          <div className="w-28 h-4 rounded bg-blue-600 text-white text-[7px] font-bold flex items-center justify-center mb-2">
+            Solicitar demo
+          </div>
+        </div>
+      )
+    } else if (tmpl.id === "starter-product") {
+      thumbnailSvg = (
         <div className="w-full h-full bg-slate-50 dark:bg-zinc-900 p-4 flex flex-col items-center justify-between text-center">
           <div className="w-20 h-5 rounded bg-slate-700 text-white text-[9px] font-bold flex items-center justify-center">
             Logo
@@ -85,39 +127,38 @@ export function TemplatePickerModal({
             Comprar
           </div>
         </div>
-      ),
-    },
-    {
-      id: "starter-story",
-      name: "Contar una historia",
-      category: "BASIC",
-      tagline: "Newsletter editorial con saludo personalizado",
-      description: "Enfocada en lectura fluida, historias de éxito, cartas del director o resúmenes semanales.",
-      thumbnailSvg: (
-        <div className="w-full h-full bg-slate-50 dark:bg-zinc-900 p-4 flex flex-col items-start justify-between text-left">
-          <div className="w-14 h-4 rounded bg-slate-700 text-white text-[8px] font-bold flex items-center justify-center">
+      )
+    } else {
+      thumbnailSvg = (
+        <div className="w-full h-full bg-slate-50 dark:bg-zinc-900 p-4 flex flex-col items-center justify-between text-center">
+          <div className="w-16 h-4 rounded bg-slate-700 text-white text-[8px] font-bold flex items-center justify-center">
             Logo
           </div>
-          <div className="w-32 h-2 rounded bg-slate-800 dark:bg-slate-200 mt-2" />
-          <div className="w-full space-y-1 my-2">
-            <div className="w-full h-1.5 rounded bg-slate-300 dark:bg-zinc-700" />
-            <div className="w-5/6 h-1.5 rounded bg-slate-300 dark:bg-zinc-700" />
-            <div className="w-4/6 h-1.5 rounded bg-slate-300 dark:bg-zinc-700" />
+          <div className="w-28 h-2 rounded bg-slate-800 dark:bg-slate-200 mt-2" />
+          <div className="w-20 h-16 rounded-xl border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 flex items-center justify-center my-2 shadow-2xs">
+            <ShoppingBag className="size-6 text-slate-400" />
           </div>
-          <div className="w-20 h-4 rounded bg-blue-600 text-white text-[8px] font-semibold flex items-center justify-center self-center">
-            Leer más
+          <div className="w-24 h-4 rounded bg-emerald-600 text-white text-[8px] font-semibold flex items-center justify-center">
+            Botón CTA
           </div>
         </div>
-      ),
-    },
-  ]
+      )
+    }
+
+    return {
+      ...tmpl,
+      tagline: tmpl.previewText || tmpl.name,
+      description: tmpl.subject || tmpl.name,
+      thumbnailSvg,
+    }
+  })
 
   const displayList =
     activeCategory === "BASIC"
       ? starterTemplates
       : activeCategory === "SAVED"
-      ? savedTemplates
-      : starterTemplates
+        ? savedTemplates
+        : starterTemplates
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -174,11 +215,10 @@ export function TemplatePickerModal({
                   <div className="space-y-1">
                     <button
                       onClick={() => setActiveCategory("SAVED")}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all text-left ${
-                        activeCategory === "SAVED"
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all text-left ${activeCategory === "SAVED"
                           ? "bg-violet-600/10 text-violet-700 dark:text-violet-400 font-bold"
                           : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                      }`}
+                        }`}
                     >
                       <LayoutTemplate className="size-4" />
                       <span>Tus plantillas</span>
@@ -186,11 +226,10 @@ export function TemplatePickerModal({
 
                     <button
                       onClick={() => setActiveCategory("BASIC")}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all text-left ${
-                        activeCategory === "BASIC"
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all text-left ${activeCategory === "BASIC"
                           ? "bg-violet-600/10 text-violet-700 dark:text-violet-400 font-bold"
                           : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                      }`}
+                        }`}
                     >
                       <Layers className="size-4" />
                       <span>Plantillas básicas</span>
@@ -198,11 +237,10 @@ export function TemplatePickerModal({
 
                     <button
                       onClick={() => setActiveCategory("READY")}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all text-left ${
-                        activeCategory === "READY"
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all text-left ${activeCategory === "READY"
                           ? "bg-violet-600/10 text-violet-700 dark:text-violet-400 font-bold"
                           : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                      }`}
+                        }`}
                     >
                       <Sparkles className="size-4" />
                       <span>Listo para usar</span>
@@ -221,8 +259,8 @@ export function TemplatePickerModal({
                 {activeCategory === "BASIC"
                   ? "Todas las plantillas básicas"
                   : activeCategory === "SAVED"
-                  ? "Todas las plantillas guardadas"
-                  : "Plantillas listas para usar"}
+                    ? "Todas las plantillas guardadas"
+                    : "Plantillas listas para usar"}
               </h3>
               <p className="text-xs text-muted-foreground mt-1 max-w-2xl leading-relaxed">
                 Las plantillas básicas te brindan una base flexible para tus emails. Personaliza estas estructuras para diseñar correos que se adapten a tu marca y objetivos.

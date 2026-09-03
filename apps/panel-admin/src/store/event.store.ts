@@ -1,6 +1,5 @@
 import { create } from "zustand"
 import { useAuthStore } from "./auth.store"
-import { uploadOrganizationAsset } from "@/utils/r2-storage"
 import { api } from "@/api/client"
 
 export interface Event {
@@ -36,13 +35,14 @@ export interface Edition {
   name: string
   description: string
   coverUrl: string
+  metaThumbnailUrl?: string
   startDate: string
   endDate: string
   isCurrent: boolean
   location: string
   modality: string
-  latitude?: number
-  longitude?: number
+  latitude?: number | null
+  longitude?: number | null
 }
 
 export interface Speaker {
@@ -106,6 +106,11 @@ export interface Attendee {
   identityDocumentType?: string | null
   identityDocumentNumber?: string | null
   roleId?: string
+  source?: "PARTICIPANT" | "FORM"
+  sourceFormTitle?: string
+  sourceFormPurpose?: string
+  sourceFormId?: string
+  submissionId?: string
 }
 
 export interface ParticipantRole {
@@ -261,7 +266,7 @@ function mapMainEvent(row: any): Event {
     slug: row.slug,
     name: row.name || row.eventName,
     shortDescription: row.short_description || row.description || "",
-    about: row.about || null,
+    about: row.about || row.details?.content || null,
     logoUrl: row.logo_url || row.logoUrl || "",
     coverUrl: row.cover_url || row.coverUrl || "",
     brandColors: row.brand_colors || { primary: "#000000", secondary: "#ffffff" },
@@ -288,10 +293,11 @@ function mapEdition(row: any): Edition {
     year: row.year || new Date().getFullYear(),
     name: typeof row.name === "string" ? row.name : (row.name?.es || row.name?.en || "Edición"),
     description: typeof row.description === "string" ? row.description : (row.description?.es || row.description?.en || ""),
-    coverUrl: row.cover_url || "",
+    coverUrl: row.coverUrl || row.cover_url || "",
+    metaThumbnailUrl: row.metaThumbnailUrl || row.meta_thumbnail_url || "",
     startDate: row.start_date || row.startDate || "",
     endDate: row.end_date || row.endDate || "",
-    isCurrent: !!row.is_current,
+    isCurrent: Boolean(row.isCurrent ?? row.is_current),
     location: row.location || "",
     modality: row.modality || "",
     latitude: row.latitude ?? undefined,
@@ -300,12 +306,23 @@ function mapEdition(row: any): Edition {
 }
 
 function mapParticipantRole(row: any): ParticipantRole {
+  let name: Record<string, string> = { es: "" }
+  if (typeof row.name === "string") {
+    try {
+      const parsed = JSON.parse(row.name)
+      name = parsed && typeof parsed === "object" ? parsed : { es: row.name }
+    } catch {
+      name = { es: row.name }
+    }
+  } else if (row.name && typeof row.name === "object") {
+    name = row.name
+  }
   return {
     id: row.id,
     mainEventId: row.main_event_id,
     editionId: row.edition_id,
     slug: row.slug,
-    name: typeof row.name === "string" ? JSON.parse(row.name) : (row.name || { es: "" }),
+    name,
     badgeColor: row.badge_color,
     isActive: row.is_active !== false,
     createdAt: row.created_at || "",
@@ -428,6 +445,7 @@ export const useEventStore = create<EventState>((set, get) => ({
             updatedAt: act.updatedAt || null,
           }))
         }
+
       }
 
       // Fetch participant roles to match role_id without postgrest join constraint issues
@@ -484,6 +502,7 @@ export const useEventStore = create<EventState>((set, get) => ({
                 ticketType: roleSlug === "vip" ? "VIP" : "General",
                 registrationDate: part.registeredAt ? part.registeredAt.split("T")[0] : new Date().toISOString().split("T")[0],
                 checkedIn: !!part.checkedIn,
+                source: "PARTICIPANT",
                 avatarUrl: profile.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fullName)}`,
                 identityDocumentType: profile.identity_document_type || null,
                 identityDocumentNumber: profile.identity_document_number || null,
@@ -492,6 +511,13 @@ export const useEventStore = create<EventState>((set, get) => ({
             }
           })
         }
+
+        const submissions = (await Promise.all(mainEventIds.map((eventId) => api.registrationForms.submissions(eventId)))).flat()
+        submissions.forEach((submission: any) => {
+          const answers = submission.answers && typeof submission.answers === "object" ? submission.answers : {}
+          const fullName = String(answers.full_name || answers.name || submission.email || "Participante")
+          formattedAttendees.push({ id: `form:${submission.id}`, eventId: submission.form?.mainEventId || "", editionId: submission.editionId || submission.form?.editionId || null, fullName, email: submission.email || answers.email || "", ticketType: "Inscripción", registrationDate: submission.submittedAt?.split("T")[0] || "", checkedIn: false, source: "FORM", sourceFormTitle: submission.form?.title || "Formulario", sourceFormPurpose: submission.form?.purpose || "PARTICIPANT", sourceFormId: submission.formId, submissionId: submission.id })
+        })
       }
 
       // Fetch thematic lines
@@ -540,23 +566,14 @@ export const useEventStore = create<EventState>((set, get) => ({
     let logoUrl = eventData.logoUrl || ""
 
     try {
-      if (coverFile) {
-        try {
-          coverUrl = await uploadOrganizationAsset(coverFile, { organizationId: org.id, type: "events/cover", resourceId: id })
-        } catch (uploadErr) {
-          console.error("Failed to upload event cover to R2:", uploadErr)
-        }
-      }
-
-      if (logoFile) {
-        try {
-          logoUrl = await uploadOrganizationAsset(logoFile, { organizationId: org.id, type: "events/logo", resourceId: id })
-        } catch (uploadErr) {
-          console.error("Failed to upload event logo to R2:", uploadErr)
-        }
-      }
-
       const createdEvent = await api.events.create({ eventName: restData.name, startDate: new Date().toISOString(), organizationId: org.id, description: restData.shortDescription || undefined, coverUrl, logoUrl })
+      if (coverFile) {
+        coverUrl = (await api.media.upload(coverFile, { ownerType: "EVENT", ownerId: createdEvent.id, purpose: "COVER", organizationId: org.id })).url
+      }
+      if (logoFile) {
+        logoUrl = (await api.media.upload(logoFile, { ownerType: "EVENT", ownerId: createdEvent.id, purpose: "LOGO", organizationId: org.id })).url
+      }
+      if (coverFile || logoFile) await api.events.update(createdEvent.id, { coverUrl, logoUrl })
 
       const newEvent: Event = {
         ...restData,
@@ -592,7 +609,7 @@ export const useEventStore = create<EventState>((set, get) => ({
           const event = get().events.find((item) => item.id === id)
           const organizationId = event?.organizationId || useAuthStore.getState().selectedOrganization?.id
           if (!organizationId) throw new Error("No se encontró la institución del evento.")
-          coverUrl = await uploadOrganizationAsset(coverFile, { organizationId, type: "events/cover", resourceId: id })
+          coverUrl = (await api.media.upload(coverFile, { ownerType: "EVENT", ownerId: id, purpose: "COVER", organizationId })).url
         } catch (err) {
           console.error("Failed to upload cover to R2:", err)
         }
@@ -602,7 +619,7 @@ export const useEventStore = create<EventState>((set, get) => ({
           const event = get().events.find((item) => item.id === id)
           const organizationId = event?.organizationId || useAuthStore.getState().selectedOrganization?.id
           if (!organizationId) throw new Error("No se encontró la institución del evento.")
-          logoUrl = await uploadOrganizationAsset(logoFile, { organizationId, type: "events/logo", resourceId: id })
+          logoUrl = (await api.media.upload(logoFile, { ownerType: "EVENT", ownerId: id, purpose: "LOGO", organizationId })).url
         } catch (err) {
           console.error("Failed to upload logo to R2:", err)
         }
@@ -624,7 +641,7 @@ export const useEventStore = create<EventState>((set, get) => ({
       mappedUpdates.updated_at = new Date().toISOString()
 
       if (Object.keys(mappedUpdates).length > 1) {
-        await api.events.update(id, { eventName: mappedUpdates.name, description: mappedUpdates.description, status: mappedUpdates.status, coverUrl, logoUrl, contactEmail: restUpdates.contactEmail, eventMode: restUpdates.eventMode, venueAddress: restUpdates.venueAddress, latitude: restUpdates.latitude, longitude: restUpdates.longitude })
+        await api.events.update(id, { eventName: mappedUpdates.name, description: restUpdates.shortDescription, detailContent: typeof restUpdates.about === "string" ? restUpdates.about : restUpdates.about?.es, status: mappedUpdates.status, coverUrl, logoUrl, contactEmail: restUpdates.contactEmail, eventMode: restUpdates.eventMode, venueAddress: restUpdates.venueAddress, latitude: restUpdates.latitude, longitude: restUpdates.longitude })
       }
 
       set((state) => ({
@@ -675,6 +692,10 @@ export const useEventStore = create<EventState>((set, get) => ({
 
       const createdEdition = await api.editions.create(editionData.mainEventId, {
         name: String(editionData.name),
+        ...(editionData.description ? { description: editionData.description } : {}),
+        ...(editionData.coverUrl ? { coverUrl: editionData.coverUrl } : {}),
+        ...(editionData.metaThumbnailUrl ? { metaThumbnailUrl: editionData.metaThumbnailUrl } : {}),
+        ...(editionData.isCurrent !== undefined ? { isCurrent: editionData.isCurrent } : {}),
         startDate: editionData.startDate,
         ...(editionData.endDate ? { endDate: editionData.endDate } : {}),
         ...(editionData.modality ? { modality: editionData.modality } : {}),
@@ -691,6 +712,7 @@ export const useEventStore = create<EventState>((set, get) => ({
         name: String(editionData.name),
         description: editionData.description || "",
         coverUrl: editionData.coverUrl || "",
+        metaThumbnailUrl: editionData.metaThumbnailUrl || "",
         startDate: editionData.startDate || "",
         endDate: editionData.endDate || "",
         isCurrent: editionData.isCurrent,
@@ -724,7 +746,7 @@ export const useEventStore = create<EventState>((set, get) => ({
 
       const currentEdition = get().editions.find((edition) => edition.id === id)
       if (!currentEdition) throw new Error("Edición no encontrada")
-      await api.editions.update(currentEdition.mainEventId, id, { name: updates.name, startDate: updates.startDate, endDate: updates.endDate, modality: updates.modality, location: updates.location, latitude: updates.latitude, longitude: updates.longitude })
+      await api.editions.update(currentEdition.mainEventId, id, { name: updates.name, description: updates.description, coverUrl: updates.coverUrl, metaThumbnailUrl: updates.metaThumbnailUrl, startDate: updates.startDate, endDate: updates.endDate, isCurrent: updates.isCurrent, modality: updates.modality, location: updates.location, latitude: updates.latitude, longitude: updates.longitude })
 
       set((state) => ({
         editions: state.editions.map((ed) => ed.id === id ? { ...ed, ...updates } : ed)
@@ -768,7 +790,7 @@ export const useEventStore = create<EventState>((set, get) => ({
           const event = get().events.find((item) => item.id === speakerData.eventId)
           const organizationId = event?.organizationId || useAuthStore.getState().selectedOrganization?.id
           if (!organizationId) throw new Error("No se encontró la institución del ponente.")
-          avatarUrl = await uploadOrganizationAsset(speakerData.avatarFile, { organizationId, type: "profiles/avatar", resourceId: profileId })
+          avatarUrl = (await api.media.upload(speakerData.avatarFile, { ownerType: "EVENT", ownerId: speakerData.eventId, purpose: "OTHER", organizationId })).url
         } catch (uploadErr) {
           console.error("Failed to upload speaker avatar to R2:", uploadErr)
         }
@@ -815,9 +837,9 @@ export const useEventStore = create<EventState>((set, get) => ({
 
   updateSpeaker: async (id, updates) => {
     try {
-      await api.content.updateSpeaker(id, { firstName: updates.firstName, lastName: updates.lastName, bio: updates.bio })
-      const current = get().speakers.find((s) => s.id === id)
-      if (!current) throw new Error("Speaker not found")
+      const updated = await api.content.updateSpeaker(id, { firstName: updates.firstName, lastName: updates.lastName, bio: updates.bio })
+      const current = get().speakers.find((s) => s.id === id) || updated
+      if (!current) throw new Error("Participante no encontrado")
 
       // 1. Update Profile in DB
       const profileUpdates: any = {}
@@ -830,7 +852,7 @@ export const useEventStore = create<EventState>((set, get) => ({
       if (updates.identityDocumentNumber !== undefined) profileUpdates.identity_document_number = updates.identityDocumentNumber || null
       if (updates.institution !== undefined) profileUpdates.institution = updates.institution || null
 
-      if (Object.keys(profileUpdates).length > 0) await api.profiles.update(current.profileId, { firstName: updates.firstName, lastName: updates.lastName, bio: updates.bio })
+      if (Object.keys(profileUpdates).length > 0) await api.profiles.update(current.profileId || updated.profileId, { firstName: updates.firstName, lastName: updates.lastName, bio: updates.bio, avatarUrl: updates.avatar })
 
       // 2. Update Participant in DB
       const participantUpdates: any = {}

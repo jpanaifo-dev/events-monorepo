@@ -1,19 +1,12 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import {
-  Mail,
   Plus,
   Search,
-  FolderPlus,
   Copy,
   Trash2,
   Edit,
   SlidersHorizontal,
-  Sparkles,
-  MessageSquare,
-  Crown,
-  CheckCircle2,
-  Layers,
   MoreVertical,
 } from "lucide-react"
 import { toast } from "sonner"
@@ -22,12 +15,8 @@ import { useAuthStore } from "@/store/auth.store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { PageHeader } from "@/components/page-header"
+import { useSEO } from "@/hooks/use-seo"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,21 +34,40 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 
+import { OrgEmailSettingsModal } from "./OrgEmailSettingsModal"
+import { ShieldCheck, Settings } from "lucide-react"
+
 export function TemplatesListPage() {
   const navigate = useNavigate()
   const { selectedOrganization } = useAuthStore()
 
+  useSEO({
+    title: "Plantillas de Email",
+    description: "Crea, personaliza y gestiona las plantillas de correo para tus campañas y notificaciones.",
+  })
+
   const [templates, setTemplates] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
-  const [activeTab, setActiveTab] = useState<"EMAIL" | "WHATSAPP">("EMAIL")
-
-  // Modal "¿Qué plantilla quieres crear?"
-  const [openTypeModal, setOpenTypeModal] = useState(false)
-  const [selectedType, setSelectedType] = useState<"EMAIL" | "WHATSAPP">("EMAIL")
+  const [openEmailSettings, setOpenEmailSettings] = useState(false)
+  const [emailConfigSummary, setEmailConfigSummary] = useState<{ configured: boolean; provider?: string; domain?: string } | null>(null)
 
   // Delete dialog
   const [templateToDelete, setTemplateToDelete] = useState<any | null>(null)
+
+  const loadEmailSettings = async () => {
+    if (!selectedOrganization?.id) return
+    try {
+      const data = await api.emailSettings.get(selectedOrganization.id)
+      setEmailConfigSummary({
+        configured: data.configured,
+        provider: data.defaultProvider,
+        domain: data.resendDomain || (data.resendFromEmail?.includes('@') ? data.resendFromEmail.split('@')[1] : undefined),
+      })
+    } catch {
+      // ignore
+    }
+  }
 
   const loadTemplates = async () => {
     if (!selectedOrganization?.id) return
@@ -76,16 +84,8 @@ export function TemplatesListPage() {
 
   useEffect(() => {
     loadTemplates()
+    loadEmailSettings()
   }, [selectedOrganization?.id, search])
-
-  const handleSelectTemplateType = () => {
-    if (selectedType === "WHATSAPP") {
-      toast.info("Plantillas de WhatsApp estarán disponibles próximamente.")
-      return
-    }
-    setOpenTypeModal(false)
-    navigate("/dashboard/templates/new")
-  }
 
   const handleDuplicate = async (id: string) => {
     try {
@@ -116,66 +116,34 @@ export function TemplatesListPage() {
 
   return (
     <div className="space-y-6 container mx-auto">
-      {/* Top Header matching Brevo/Admin style (Image 1) */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Plantillas
-          </h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Crea, personaliza y gestiona las plantillas de correo para tus campañas y notificaciones.
-          </p>
-        </div>
+      {/* Page Header */}
+      <PageHeader
+        title="Plantillas de Email"
+        description="Crea, personaliza y gestiona las plantillas de correo para tus campañas y notificaciones."
+        actionButton={
+          <div className="flex items-center gap-2.5">
+            <Button
+              variant="outline"
+              onClick={() => setOpenEmailSettings(true)}
+              className="rounded-xl h-10 px-3.5 text-xs font-semibold border-border flex items-center gap-2 hover:bg-muted"
+            >
+              <ShieldCheck className="size-4 text-emerald-600" />
+              <span>Configuración de Correo</span>
+              <span className="hidden sm:inline-block px-2 py-0.5 rounded-full text-[10px] bg-muted text-muted-foreground">
+                {emailConfigSummary?.configured ? "Configurado" : "Pendiente"}
+              </span>
+            </Button>
 
-        <div className="flex items-center gap-2.5">
-          <Button
-            variant="outline"
-            onClick={() => toast.info("Organización de carpetas disponible en la versión Pro.")}
-            className="rounded-xl h-10 px-4 font-medium border-border text-foreground hover:bg-muted text-xs flex items-center gap-1.5"
-          >
-            <FolderPlus className="size-4 text-muted-foreground" />
-            <span>Crear carpeta</span>
-          </Button>
-
-          <Button
-            onClick={() => setOpenTypeModal(true)}
-            className="rounded-xl h-10 px-5 font-semibold bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-primary dark:text-primary-foreground shadow-sm flex items-center gap-2"
-          >
-            <Plus className="size-4" />
-            <span>Crear plantilla</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* Tabs: Email (Active) | WhatsApp (Pro/Coming soon) */}
-      <div className="flex items-center gap-8 border-b border-border/80 text-sm font-semibold">
-        <button
-          onClick={() => setActiveTab("EMAIL")}
-          className={`pb-3 border-b-2 transition-all flex items-center gap-2 ${
-            activeTab === "EMAIL"
-              ? "border-violet-600 text-violet-600 dark:text-violet-400 font-bold"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <Mail className="size-4" />
-          <span>Email</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("WHATSAPP")}
-          className={`pb-3 border-b-2 transition-all flex items-center gap-2 ${
-            activeTab === "WHATSAPP"
-              ? "border-violet-600 text-violet-600 dark:text-violet-400 font-bold"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <MessageSquare className="size-4 text-emerald-600" />
-          <span>WhatsApp</span>
-          <span className="text-[10px] bg-emerald-500/10 text-emerald-600 px-1.5 py-0.5 rounded-full font-medium">
-            Próximamente
-          </span>
-        </button>
-      </div>
+            <Button
+              onClick={() => navigate("/dashboard/templates/new")}
+              className="flex items-center gap-2 rounded-xl h-10"
+            >
+              <Plus className="size-4" />
+              <span>Crear plantilla</span>
+            </Button>
+          </div>
+        }
+      />
 
       {/* Filter / Search Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -202,10 +170,12 @@ export function TemplatesListPage() {
           ))}
         </div>
       ) : filteredTemplates.length === 0 ? (
-        <div className="rounded-2xl border-2 border-dashed border-border/80 bg-card/40 p-12 text-center max-w-xl mx-auto space-y-4 my-6">
-          <div className="size-16 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto">
-            <Sparkles className="size-8" />
-          </div>
+        <div className="rounded-2xl border-2 border-dashed border-border/80 bg-card/40 p-10 text-center max-w-xl mx-auto space-y-5 my-6">
+          <img
+            src="/svg/empty_plantillas.svg"
+            alt="Sin plantillas"
+            className="w-56 max-h-48 mx-auto object-contain"
+          />
           <div>
             <h3 className="text-lg font-bold text-foreground">No tienes plantillas de email guardadas</h3>
             <p className="text-sm text-muted-foreground mt-1 max-w-sm mx-auto">
@@ -213,11 +183,11 @@ export function TemplatesListPage() {
             </p>
           </div>
           <Button
-            onClick={() => setOpenTypeModal(true)}
-            className="rounded-xl font-semibold bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-primary dark:text-primary-foreground"
+            onClick={() => navigate("/dashboard/templates/new")}
+            className="flex items-center gap-2 mx-auto"
           >
-            <Plus className="mr-2 size-4" />
-            Crear primera plantilla
+            <Plus className="size-4" />
+            <span>Crear primera plantilla</span>
           </Button>
         </div>
       ) : (
@@ -331,7 +301,7 @@ export function TemplatesListPage() {
                     <Button
                       size="sm"
                       onClick={() => navigate(`/dashboard/templates/${template.id}/builder`)}
-                      className="rounded-lg h-8 text-xs font-semibold bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-primary dark:text-primary-foreground"
+                      className="rounded-lg h-8 text-xs font-semibold"
                     >
                       <SlidersHorizontal className="mr-1.5 size-3.5" />
                       Diseñar
@@ -343,85 +313,6 @@ export function TemplatesListPage() {
           })}
         </div>
       )}
-
-      {/* ========================================================================= */}
-      {/* MODAL: "¿Qué plantilla quieres crear?" (Exact match with Image 1)         */}
-      {/* ========================================================================= */}
-      <Dialog open={openTypeModal} onOpenChange={setOpenTypeModal}>
-        <DialogContent className="sm:max-w-[620px] p-8 rounded-3xl border-border bg-card">
-          <DialogHeader className="space-y-1.5 text-left pb-1">
-            <DialogTitle className="text-2xl font-bold text-foreground tracking-tight">
-              ¿Qué plantilla quieres crear?
-            </DialogTitle>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Elige el tipo de plantilla que deseas crear desde cero y reutilízala siempre que la necesites.
-            </p>
-          </DialogHeader>
-
-          <div className="space-y-6 pt-3">
-            {/* 2 Options Cards (Image 1) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Option 1: Plantilla de email */}
-              <div
-                onClick={() => setSelectedType("EMAIL")}
-                className={`cursor-pointer rounded-2xl p-5 border-2 transition-all flex items-center gap-3.5 ${
-                  selectedType === "EMAIL"
-                    ? "border-violet-600 bg-violet-50/20 shadow-xs ring-1 ring-violet-600/30"
-                    : "border-border/80 hover:border-border bg-card/60 hover:bg-card"
-                }`}
-              >
-                <div className="size-11 rounded-xl bg-violet-500/10 text-violet-600 flex items-center justify-center shrink-0">
-                  <Mail className="size-5" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-foreground text-sm">Plantilla de email</h4>
-                  <p className="text-xs text-muted-foreground mt-0.5">Diseño visual para campañas y avisos</p>
-                </div>
-              </div>
-
-              {/* Option 2: Plantillas de WhatsApp */}
-              <div
-                onClick={() => setSelectedType("WHATSAPP")}
-                className={`cursor-pointer rounded-2xl p-5 border-2 transition-all flex items-center gap-3.5 opacity-80 hover:opacity-100 ${
-                  selectedType === "WHATSAPP"
-                    ? "border-emerald-600 bg-emerald-50/20 shadow-xs ring-1 ring-emerald-600/30"
-                    : "border-border/80 hover:border-border bg-card/60 hover:bg-card"
-                }`}
-              >
-                <div className="size-11 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0">
-                  <MessageSquare className="size-5" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <h4 className="font-bold text-foreground text-sm">Plantillas de WhatsApp</h4>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">Mensajes interactivos (Próximamente)</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Dialog Footer Actions */}
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-border/40">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setOpenTypeModal(false)}
-                className="rounded-full px-6 h-10 font-semibold border-border text-foreground hover:bg-muted"
-              >
-                Cancelar
-              </Button>
-
-              <Button
-                type="button"
-                onClick={handleSelectTemplateType}
-                className="rounded-full px-7 h-10 font-semibold bg-neutral-900 text-white hover:bg-neutral-800 shadow-sm dark:bg-primary dark:text-primary-foreground"
-              >
-                Continuar
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!templateToDelete} onOpenChange={() => setTemplateToDelete(null)}>
@@ -440,6 +331,17 @@ export function TemplatesListPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Email Provider Settings Modal */}
+      <OrgEmailSettingsModal
+        open={openEmailSettings}
+        onOpenChange={setOpenEmailSettings}
+        onSaved={() => {
+          loadEmailSettings()
+          loadTemplates()
+        }}
+      />
     </div>
   )
 }
+

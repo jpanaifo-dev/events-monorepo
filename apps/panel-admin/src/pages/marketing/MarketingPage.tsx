@@ -15,11 +15,11 @@ import type { Campaign, Automation, Contact, Segment } from "./types"
 import { CampaignsTab } from "./components/CampaignsTab"
 import { CampaignReportView } from "./components/CampaignReportView"
 import { CampaignSetupBuilder } from "./components/CampaignSetupBuilder"
-import { CreateCampaignModal } from "./components/CreateCampaignModal"
 import { CreateEmailCampaignModal } from "./components/CreateEmailCampaignModal"
 import { AutomationsTab } from "./components/AutomationsTab"
 import { ContactsTab } from "./components/ContactsTab"
 import { SegmentsTab } from "./components/SegmentsTab"
+import { PageHeader } from "@/components/page-header"
 
 type MainTab = "campaigns" | "automations" | "contacts" | "segments"
 
@@ -30,13 +30,12 @@ export function MarketingPage() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const routeTab = pathname.split("/").pop()
-  const activeTab: MainTab = (["campaigns", "automations", "contacts", "segments"].includes(routeTab || "") ? routeTab : "campaigns") as MainTab
+  const activeTab: MainTab = (["campaigns", "contacts", "segments"].includes(routeTab || "") ? routeTab : "campaigns") as MainTab
   const setActiveTab = (tab: MainTab) => navigate(`/dashboard/marketing/${tab}`)
   const [viewMode, setViewMode] = useState<"list" | "report" | "setup">("list")
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null)
 
   // Modals
-  const [openCreateTypeModal, setOpenCreateTypeModal] = useState(false)
   const [openCreateEmailModal, setOpenCreateEmailModal] = useState(false)
 
   // Seed Initial State (Matching reference images with real-looking demo data)
@@ -475,30 +474,10 @@ export function MarketingPage() {
         />
       )}
 
-      {/* 3. MAIN DASHBOARD MARKETING HUB (Matches Reference Image 1, 3, 4) */}
+      {/* 3. EMAIL CAMPAIGNS */}
       {viewMode === "list" && (
         <div className="space-y-6">
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight text-foreground">
-                Marketing
-              </h1>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Gestiona contactos, campañas multicanal, automatizaciones inteligentes y analíticas de entrega.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2.5">
-              <Button
-                onClick={() => setOpenCreateTypeModal(true)}
-                className="rounded-xl h-10 px-5 font-semibold bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-primary dark:text-primary-foreground text-xs shadow-sm flex items-center gap-2"
-              >
-                <Plus className="size-4" />
-                <span>Crear campaña</span>
-              </Button>
-            </div>
-          </div>
+          <PageHeader title="Campañas de email" description="Crea, diseña, programa y consulta el rendimiento de tus comunicaciones." actionButton={<Button onClick={() => setOpenCreateEmailModal(true)} className="rounded-xl h-10 px-5 text-xs font-semibold"><Plus className="size-4 mr-2" />Crear campaña</Button>} />
 
           {/* Navigation Sub-Tabs */}
           <div className="flex items-center gap-8 border-b border-border/80 text-sm font-semibold overflow-x-auto">
@@ -518,7 +497,9 @@ export function MarketingPage() {
 
             <button
               onClick={() => setActiveTab("automations")}
-              className={`pb-3 border-b-2 transition-all flex items-center gap-2 shrink-0 ${activeTab === "automations"
+              disabled
+              title="Automatizaciones estarán disponibles próximamente"
+              className={`order-last pb-3 border-b-2 transition-all flex items-center gap-2 shrink-0 opacity-50 cursor-not-allowed ${activeTab === "automations"
                 ? "border-violet-600 text-violet-600 dark:text-violet-400 font-bold"
                 : "border-transparent text-muted-foreground hover:text-foreground"
                 }`}
@@ -563,7 +544,7 @@ export function MarketingPage() {
           {activeTab === "campaigns" && (
             <CampaignsTab
               campaigns={campaigns}
-              onOpenCreateCampaign={() => setOpenCreateTypeModal(true)}
+              onOpenCreateCampaign={() => setOpenCreateEmailModal(true)}
               onOpenReport={handleOpenReport}
               onOpenSetupBuilder={handleOpenSetupBuilder}
               onDuplicateCampaign={handleDuplicateCampaign}
@@ -597,18 +578,7 @@ export function MarketingPage() {
         </div>
       )}
 
-      {/* Modal 1: Crear una campaña (Channels + AI Guided Prompt) - Matches Reference Image 3 */}
-      <CreateCampaignModal
-        open={openCreateTypeModal}
-        onOpenChange={setOpenCreateTypeModal}
-        onSelectStandardEmail={() => setOpenCreateEmailModal(true)}
-        onSelectAutomation={(config) => {
-          handleCreateAutomation(config)
-          setActiveTab("automations")
-        }}
-      />
-
-      {/* Modal 2: Crear una campaña de e-mail (Form with Name, Tags, Folders) - Matches Reference Image 4 */}
+      {/* Crear una campaña de email */}
       <CreateEmailCampaignModal
         open={openCreateEmailModal}
         onOpenChange={setOpenCreateEmailModal}

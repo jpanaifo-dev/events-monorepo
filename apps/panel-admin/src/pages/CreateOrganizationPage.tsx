@@ -18,7 +18,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ChevronsUpDown, LogOut, ArrowLeft, X } from "lucide-react"
 import { toast } from "sonner"
-import { ImageUploadWithPreview } from "@/components/ImageUploadWithPreview"
+import { MediaUploader } from "@/components/MediaUploader"
 
 const organizationSchema = z.object({
   name: z.string().min(3, "El nombre de la organización debe tener al menos 3 caracteres"),
@@ -81,6 +81,9 @@ export function CreateOrganizationPage() {
   const [logoUrl, setLogoUrl] = useState("")
   const [coverUrl, setCoverUrl] = useState("")
   const [faviconUrl, setFaviconUrl] = useState("")
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [coverFile, setCoverFile] = useState<File | null>(null)
+  const [faviconFile, setFaviconFile] = useState<File | null>(null)
 
   const [errors, setErrors] = useState<Partial<Record<keyof OrganizationInput, string>>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -188,7 +191,12 @@ export function CreateOrganizationPage() {
       if (!user?.id) throw new Error("Sesión de usuario no válida.")
 
       // 1. Insert new organization row into database
-      const orgData = await api.organizations.create({ name, slug, description: description || undefined, organizationType: type, emails: currentEmails, logoUrl: logoUrl || undefined, coverUrl: coverUrl || undefined, faviconUrl: faviconUrl || undefined })
+      const orgData = await api.organizations.create({ name, slug, description: description || undefined, organizationType: type, emails: currentEmails, logoUrl: logoUrl.startsWith("blob:") ? undefined : logoUrl || undefined, coverUrl: coverUrl.startsWith("blob:") ? undefined : coverUrl || undefined })
+      const uploadedLogo = logoFile ? (await api.media.upload(logoFile, { ownerType: "ORGANIZATION", ownerId: orgData.id, purpose: "LOGO", organizationId: orgData.id })).url : logoUrl
+      const uploadedCover = coverFile ? (await api.media.upload(coverFile, { ownerType: "ORGANIZATION", ownerId: orgData.id, purpose: "COVER", organizationId: orgData.id })).url : coverUrl
+      if (logoFile || coverFile) await api.organizations.update(orgData.id, { logoUrl: uploadedLogo || undefined, coverUrl: uploadedCover || undefined })
+      // El favicon queda en la biblioteca aunque el modelo institucional actual no tenga un campo dedicado.
+      if (faviconFile) await api.media.upload(faviconFile, { ownerType: "ORGANIZATION", ownerId: orgData.id, purpose: "OTHER", organizationId: orgData.id })
 
       // Assign the creator as Owner of the organization in organization_members
       try {
@@ -511,14 +519,14 @@ export function CreateOrganizationPage() {
                 <p className="text-xs text-muted-foreground">Imagen representativa de la organización.</p>
               </div>
               <div className="md:w-2/3 max-w-md w-full">
-                <ImageUploadWithPreview
-                  label=""
+                <MediaUploader
                   value={logoUrl}
                   onChange={setLogoUrl}
-                  aspectRatio="square"
-                  placeholder="Arrastra tu logotipo aquí, o pega un enlace"
+                  variant="square"
+                  placeholder="Arrastra tu logotipo aquí, o selecciona un archivo"
                   folder="organizations"
                   identifier={`${slug || "temp"}-logo`}
+                  onFileSelect={setLogoFile}
                 />
               </div>
             </div>
@@ -530,14 +538,14 @@ export function CreateOrganizationPage() {
                 <p className="text-xs text-muted-foreground">Banner de fondo que se mostrará en los eventos y portal.</p>
               </div>
               <div className="md:w-2/3 max-w-md w-full">
-                <ImageUploadWithPreview
-                  label=""
+                <MediaUploader
                   value={coverUrl}
                   onChange={setCoverUrl}
-                  aspectRatio="banner"
-                  placeholder="Arrastra tu banner de portada aquí, o pega un enlace"
+                  variant="banner"
+                  placeholder="Arrastra tu banner de portada aquí, o selecciona un archivo"
                   folder="organizations"
                   identifier={`${slug || "temp"}-cover`}
+                  onFileSelect={setCoverFile}
                 />
               </div>
             </div>
@@ -549,14 +557,14 @@ export function CreateOrganizationPage() {
                 <p className="text-xs text-muted-foreground">Icono de página web pequeño (generalmente 1:1).</p>
               </div>
               <div className="md:w-2/3 max-w-md w-full">
-                <ImageUploadWithPreview
-                  label=""
+                <MediaUploader
                   value={faviconUrl}
                   onChange={setFaviconUrl}
-                  aspectRatio="favicon"
-                  placeholder="Arrastra tu favicon aquí, o pega un enlace"
+                  variant="favicon"
+                  placeholder="Arrastra tu favicon aquí, o selecciona un archivo"
                   folder="organizations"
                   identifier={`${slug || "temp"}-favicon`}
+                  onFileSelect={setFaviconFile}
                 />
               </div>
             </div>
